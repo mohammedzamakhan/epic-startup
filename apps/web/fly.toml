@@ -1,0 +1,61 @@
+# Fly.io deployment configuration for Menuza Marketing Site
+# Alternative to Cloudflare Pages deployment
+
+app = "menuza-web"
+primary_region = "bah" # Bahrain (Middle East)
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 200
+    soft_limit = 100
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "60s"
+  method = "GET"
+  timeout = "5s"
+  path = "/"
+
+# Static site, no persistent storage needed
+
+[regions]
+  bah = { machines = 2 } # Bahrain (primary for KSA/UAE)
+  dxb = { machines = 1 } # Dubai (backup)
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 200
+    soft_limit = 100
+
+# Smaller resources for static site
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
