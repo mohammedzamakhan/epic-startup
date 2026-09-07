@@ -147,9 +147,11 @@ function itemId(item: MenuItem): string {
 					const hasNestedColumns = item.children.some(
 						(child) => child.children.length > 0,
 					)
+					const usesWidePanel =
+						item.children.filter((child) => child.children.length > 0).length > 1
 
 					return (
-						<li data-navigation-menu-item>
+						<li class:list={{ relative: !usesWidePanel }} data-navigation-menu-item>
 							{item.children.length > 0 ? (
 								<>
 									<button
@@ -180,14 +182,27 @@ function itemId(item: MenuItem): string {
 									</button>
 									<div
 										id={contentId}
-										class="absolute top-full left-1/2 z-50 mt-2 w-[min(72rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-hairline bg-background p-3 text-foreground shadow-[0_18px_60px_rgba(0,0,0,0.14)]"
+										class:list={[
+											'absolute top-full left-1/2 z-50 mt-2 -translate-x-1/2 overflow-hidden border border-hairline bg-background text-foreground',
+											usesWidePanel
+												? 'w-[min(72rem,calc(100vw-2rem))] rounded-2xl p-3 shadow-[0_18px_60px_rgba(0,0,0,0.14)]'
+												: 'w-80 max-w-[calc(100vw-2rem)] rounded-xl p-2 shadow-xl',
+										]}
 										aria-labelledby={`${contentId}-trigger`}
 										data-navigation-menu-content
 										data-state="closed"
 										hidden
 									>
 										{hasNestedColumns ? (
-											<ul class="grid list-none gap-4 p-0 md:grid-cols-2 xl:grid-cols-3" role="list">
+											<ul
+												class:list={[
+													'grid list-none p-0',
+													usesWidePanel
+														? 'gap-4 md:grid-cols-2 xl:grid-cols-3'
+														: 'grid-cols-1 gap-1',
+												]}
+												role="list"
+											>
 												{item.children.map((column) => (
 													<li class="min-w-0 rounded-xl p-3">
 														{column.children.length > 0 ? (
@@ -240,7 +255,7 @@ function itemId(item: MenuItem): string {
 												))}
 											</ul>
 										) : (
-											<ul class="grid list-none gap-1 p-0 sm:grid-cols-2 lg:grid-cols-3" role="list">
+											<ul class="flex list-none flex-col gap-1 p-0" role="list">
 												{item.children.map((child) => (
 													<li>
 														<a
