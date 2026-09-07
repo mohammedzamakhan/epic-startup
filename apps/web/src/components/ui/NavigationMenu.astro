@@ -79,7 +79,6 @@ function itemId(item: MenuItem): string {
 																href={grandchild.url}
 																target={grandchild.target}
 																rel={itemRel(grandchild)}
-																title={grandchild.titleAttr}
 																aria-current={isCurrent(grandchild) ? 'page' : undefined}
 																class="flex min-h-11 flex-col justify-center rounded-lg px-3 py-2 text-[15px] text-foreground outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-foreground/30 aria-[current=page]:bg-muted"
 															>
@@ -97,10 +96,9 @@ function itemId(item: MenuItem): string {
 										) : (
 											<li>
 												<a
-													href={child.url}
-													target={child.target}
-													rel={itemRel(child)}
-													title={child.titleAttr}
+												href={child.url}
+												target={child.target}
+												rel={itemRel(child)}
 													aria-current={isCurrent(child) ? 'page' : undefined}
 													class="flex min-h-11 flex-col justify-center rounded-lg px-3 py-2 text-[15px] text-foreground outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-foreground/30 aria-[current=page]:bg-muted"
 												>
@@ -123,7 +121,6 @@ function itemId(item: MenuItem): string {
 								href={item.url}
 								target={item.target}
 								rel={itemRel(item)}
-								title={item.titleAttr}
 								aria-current={isCurrent(item) ? 'page' : undefined}
 								class="flex min-h-11 items-center rounded-xl px-3 py-2 text-[16px] font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-foreground/30 aria-[current=page]:bg-muted"
 							>
@@ -214,10 +211,9 @@ function itemId(item: MenuItem): string {
 																	{column.children.map((child) => (
 																		<li>
 																			<a
-																				href={child.url}
-																				target={child.target}
-																				rel={itemRel(child)}
-																				title={child.titleAttr}
+																			href={child.url}
+																			target={child.target}
+																			rel={itemRel(child)}
 																				aria-current={isCurrent(child) ? 'page' : undefined}
 																				class="flex min-h-14 flex-col justify-center rounded-xl px-3 py-2.5 outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-foreground/30 aria-[current=page]:bg-muted"
 																				data-navigation-menu-link
@@ -235,10 +231,9 @@ function itemId(item: MenuItem): string {
 															</div>
 														) : (
 															<a
-																href={column.url}
-																target={column.target}
-																rel={itemRel(column)}
-																title={column.titleAttr}
+																	href={column.url}
+																	target={column.target}
+																	rel={itemRel(column)}
 																aria-current={isCurrent(column) ? 'page' : undefined}
 																class="flex min-h-14 flex-col justify-center rounded-xl px-3 py-2.5 outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-foreground/30 aria-[current=page]:bg-muted"
 																data-navigation-menu-link
@@ -262,7 +257,6 @@ function itemId(item: MenuItem): string {
 															href={child.url}
 															target={child.target}
 															rel={itemRel(child)}
-															title={child.titleAttr}
 															aria-current={isCurrent(child) ? 'page' : undefined}
 															class="flex min-h-14 flex-col justify-center rounded-xl p-3 outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-foreground/30 aria-[current=page]:bg-muted"
 															data-navigation-menu-link
@@ -285,7 +279,6 @@ function itemId(item: MenuItem): string {
 									href={item.url}
 									target={item.target}
 									rel={itemRel(item)}
-									title={item.titleAttr}
 									aria-current={isCurrent(item) ? 'page' : undefined}
 									class="inline-flex h-9 items-center justify-center rounded-full px-3 text-[15px] font-medium text-foreground/80 outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground/30 aria-[current=page]:bg-muted aria-[current=page]:text-foreground"
 									data-navigation-menu-top-link
