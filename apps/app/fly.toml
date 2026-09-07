@@ -1,0 +1,71 @@
+# Fly.io deployment configuration for Menuza App
+# Alternative to Cloudflare Workers deployment
+# See docs/deployment-flyio.md for setup instructions
+
+app = "menuza-app"
+primary_region = "bah" # Bahrain (Middle East)
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 200
+    soft_limit = 100
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/resources/healthcheck"
+
+# SQLite database on persistent volume
+[[mounts]]
+  source = "menuza_data"
+  destination = "/data"
+  initial_size = "10gb"
+
+# KSA/UAE regional deployment
+[regions]
+  bah = { machines = 2 } # Bahrain (primary for KSA/UAE)
+  dxb = { machines = 1 } # Dubai (backup)
+
+# LiteFS configuration for SQLite replication
+[experimental]
+  litefs = true
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 200
+    soft_limit = 100
+
+# Metrics and monitoring
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1

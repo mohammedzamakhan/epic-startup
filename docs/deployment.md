@@ -1,9 +1,24 @@
 # Deployment
 
-When you first create an Epic Stack repo, it should take you through a series of
-questions to get your app setup and deployed. However, we'll document the steps
-here in case things don't go well for you or you decide to do it manually later.
-Here they are!
+Menuza supports two primary deployment platforms:
+
+1. **Cloudflare Workers** (default) - Serverless, global edge deployment with D1 SQLite
+2. **Fly.io** (alternative) - Regional VM deployment with LiteFS-replicated SQLite
+
+Choose based on your requirements:
+
+| Consideration           | Cloudflare Workers                | Fly.io                           |
+| ----------------------- | --------------------------------- | -------------------------------- |
+| **Data residency**      | Not guaranteed by region          | Guaranteed (e.g., Bahrain)       |
+| **Database**            | D1 (managed SQLite)               | LiteFS (self-managed SQLite)     |
+| **Scaling**             | Automatic, global                 | Manual, regional                 |
+| **Cost**                | ~$5-10/mo                         | ~$15-30/mo                       |
+| **Setup**               | Simple (wrangler)                 | Moderate (flyctl + volumes)      |
+| **KSA/UAE optimization**| Limited                           | Full control (bah/dxb regions)   |
+
+**For KSA/UAE data residency requirements, Fly.io is recommended.**
+
+See [Fly.io Deployment Guide](./deployment-flyio.md) for Fly.io-specific instructions.
 
 ## Deploying to Cloudflare Workers
 
