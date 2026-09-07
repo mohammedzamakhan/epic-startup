@@ -18,8 +18,8 @@ import {
 
 describe('sharedCookieDomainFromHost', () => {
 	it('strips the app/admin label from a two-label apex', () => {
-		expect(sharedCookieDomainFromHost('app.epic-startup.dev')).toBe(
-			'.epic-startup.dev',
+		expect(sharedCookieDomainFromHost('app.menuza.dev')).toBe(
+			'.menuza.dev',
 		)
 		expect(sharedCookieDomainFromHost('app.preview.example.dev:2999')).toBe(
 			'.preview.example.dev',
@@ -142,8 +142,8 @@ describe('sharedCookieDomain', () => {
 	})
 
 	it('reads the apex from BASE_URL', () => {
-		expect(sharedCookieDomain('https://app.epic-startup.dev')).toBe(
-			'.epic-startup.dev',
+		expect(sharedCookieDomain('https://app.menuza.dev')).toBe(
+			'.menuza.dev',
 		)
 		expect(sharedCookieDomain('https://app-staging.lighteninggroup.com')).toBe(
 			'.lighteninggroup.com',

@@ -36,9 +36,9 @@ describe('Challenger 2 — Adversarial Zero-PII & API Security Verification', ()
 			terminate: vi.fn().mockResolvedValue(undefined),
 		}))
 
-		workerEnv = {
-			APP_BASE_URL: 'https://app.epic-startup.com',
-			INTERNAL_COMMAND_TOKEN: mockInternalToken,
+	workerEnv = {
+		APP_BASE_URL: 'https://app.menuza.com',
+		INTERNAL_COMMAND_TOKEN: mockInternalToken,
 			TENANT_API_URL: 'http://localhost:3007',
 			TENANT_API_URL_KSA: 'http://localhost:3009',
 			STORAGE_MIGRATION_WORKFLOW: {
@@ -53,9 +53,9 @@ describe('Challenger 2 — Adversarial Zero-PII & API Security Verification', ()
 
 		workflowEnv = {
 			INTERNAL_COMMAND_TOKEN: mockInternalToken,
-			TENANT_API_URL: 'http://localhost:3007',
-			TENANT_API_URL_KSA: 'http://localhost:3009',
-			APP_BASE_URL: 'https://app.epic-startup.com',
+		TENANT_API_URL: 'http://localhost:3007',
+		TENANT_API_URL_KSA: 'http://localhost:3009',
+		APP_BASE_URL: 'https://app.menuza.com',
 		}
 
 		mockStep = {
