@@ -9,6 +9,7 @@ import {
 	provisionTenantDb,
 	shopOrders,
 } from '@repo/tenant-db'
+import { brand } from '@repo/config/brand'
 import { Hono } from 'hono'
 import { SignJWT } from 'jose'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -62,7 +63,7 @@ describe('tenant shop routes', () => {
 		})
 			.setProtectedHeader({ alg: 'HS256' })
 			.setAudience('tenant-api')
-			.setIssuer('epic-startup')
+			.setIssuer(brand.slug)
 			.setExpirationTime('15m')
 			.sign(new TextEncoder().encode(jwtSecret))
 

@@ -13,6 +13,7 @@ import {
 	marketingJourneys,
 	journeyRuns,
 } from '@repo/tenant-db'
+import { brand } from '@repo/config/brand'
 import { authRoutes } from './auth.ts'
 import { hmacHash } from '../lib/secrets.ts'
 
@@ -160,7 +161,7 @@ describe('Auth Trigger Lifecycle Hooks', () => {
 		})
 			.setProtectedHeader({ alg: 'HS256' })
 			.setAudience('tenant-api')
-			.setIssuer('epic-startup')
+			.setIssuer(brand.slug)
 			.setExpirationTime('15m')
 			.sign(secret)
 
