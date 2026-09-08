@@ -16,23 +16,31 @@ if (!fs.existsSync(varlock)) {
 	process.exit(1)
 }
 
-const packagesDir = path.join(root, 'packages')
-const packages = fs
-	.readdirSync(packagesDir, { withFileTypes: true })
-	.filter((d) => d.isDirectory())
-	.map((d) => d.name)
-	.filter((name) =>
-		fs.existsSync(path.join(packagesDir, name, '.env.schema')),
-	)
+function listEnvSchemaDirs(baseDir, prefix) {
+	return fs
+		.readdirSync(baseDir, { withFileTypes: true })
+		.filter((d) => d.isDirectory())
+		.map((d) => d.name)
+		.filter((name) => fs.existsSync(path.join(baseDir, name, '.env.schema')))
+		.map((name) => ({
+			relPath: path.join(prefix, name),
+			srcDir: path.join(baseDir, name, 'src'),
+			isPackage: prefix === 'packages',
+		}))
+}
 
-for (const pkg of packages) {
-	const pkgPath = path.join('packages', pkg)
-	const srcDir = path.join(packagesDir, pkg, 'src')
-	console.log(`codegen ${pkgPath}`)
-	execSync(`${varlock} codegen --path ${pkgPath}`, {
+const envTargets = [
+	...listEnvSchemaDirs(path.join(root, 'packages'), 'packages'),
+	...listEnvSchemaDirs(path.join(root, 'apps'), 'apps'),
+]
+
+for (const { relPath, srcDir, isPackage } of envTargets) {
+	console.log(`codegen ${relPath}`)
+	execSync(`${varlock} codegen --path ${relPath}`, {
 		cwd: root,
 		stdio: 'inherit',
 	})
+	if (!isPackage) continue
 	// Metro/Vite/tsc import `./env.js`; Vitest sets VITEST=true to read process.env.
 	fs.writeFileSync(
 		path.join(srcDir, 'env.js'),
