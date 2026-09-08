@@ -122,15 +122,6 @@ jobs:
       - name: 📥 Download deps
         run: npm ci --ignore-scripts
 
-      - name: ♻️ Restore Turbo cache
-        uses: actions/cache@0c45773b685a9c885bfc867b017bf15e68aa2e650 # v4
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ hashFiles('**/package-lock.json') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ hashFiles('**/package-lock.json') }}-
-            ${{ runner.os }}-turbo-
-
       - name: 🔧 Rebuild native dependencies
         run: npm rebuild sharp libsql rolldown @astrojs/compiler-binding
 
