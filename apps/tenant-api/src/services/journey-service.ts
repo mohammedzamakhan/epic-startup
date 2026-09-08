@@ -54,6 +54,33 @@ function executionWasDispatched(execution: {
 	}
 }
 
+function deliveredResultFromDispatchedExecution(execution: {
+	id: string
+	executionDetails?: string | null | unknown
+}): StepExecutionResult {
+	let messageId: string | undefined
+	try {
+		const details =
+			typeof execution.executionDetails === 'string'
+				? JSON.parse(execution.executionDetails)
+				: execution.executionDetails
+		if (details && typeof details === 'object') {
+			if ('messageId' in details && typeof details.messageId === 'string') {
+				messageId = details.messageId
+			} else if ('sid' in details && typeof details.sid === 'string') {
+				messageId = details.sid
+			}
+		}
+	} catch {}
+
+	return {
+		success: true,
+		executionId: execution.id,
+		status: 'delivered',
+		messageId,
+	}
+}
+
 export type CreateJourneyInput = z.input<typeof createJourneySchema>
 export type UpdateJourneyInput = z.input<typeof updateJourneySchema>
 
@@ -182,6 +209,13 @@ export async function executeJourneyStep(
 				}
 			}
 
+			const dispatchedExecution = existing.find((e) =>
+				executionWasDispatched(e),
+			)
+			if (dispatchedExecution) {
+				return deliveredResultFromDispatchedExecution(dispatchedExecution)
+			}
+
 			const reclaimableExecution = existing.find(
 				(e) =>
 					!executionWasDispatched(e) &&
@@ -249,6 +283,10 @@ export async function executeJourneyStep(
 						executionId: raced.id,
 						status: 'delivered' as const,
 					}
+				}
+
+				if (executionWasDispatched(raced)) {
+					return deliveredResultFromDispatchedExecution(raced)
 				}
 
 				if (
@@ -442,27 +480,10 @@ export async function executeJourneyStep(
 				.get()
 
 			if (dispatched && executionWasDispatched(dispatched)) {
-				let messageId: string | undefined
-				try {
-					const details =
-						typeof dispatched.executionDetails === 'string'
-							? JSON.parse(dispatched.executionDetails)
-							: dispatched.executionDetails
-					if (
-						details &&
-						typeof details === 'object' &&
-						'messageId' in details
-					) {
-						messageId = details.messageId as string
-					}
-				} catch {}
-
-				return {
-					success: true,
-					executionId: stepExecutionId,
-					status: 'delivered',
-					messageId,
-				}
+				return deliveredResultFromDispatchedExecution({
+					id: stepExecutionId,
+					executionDetails: dispatched.executionDetails,
+				})
 			}
 
 			const errorMessage =
@@ -582,23 +603,10 @@ export async function executeJourneyStep(
 				.get()
 
 			if (dispatched && executionWasDispatched(dispatched)) {
-				let messageId: string | undefined
-				try {
-					const details =
-						typeof dispatched.executionDetails === 'string'
-							? JSON.parse(dispatched.executionDetails)
-							: dispatched.executionDetails
-					if (details && typeof details === 'object' && 'sid' in details) {
-						messageId = details.sid as string
-					}
-				} catch {}
-
-				return {
-					success: true,
-					executionId: stepExecutionId,
-					status: 'delivered',
-					messageId,
-				}
+				return deliveredResultFromDispatchedExecution({
+					id: stepExecutionId,
+					executionDetails: dispatched.executionDetails,
+				})
 			}
 
 			const errorMessage =
