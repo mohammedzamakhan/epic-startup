@@ -103,8 +103,8 @@ jobs:
       - name: 🛠 Setup Database
         run: npm run db:migrate:deploy && npm run db:generate
 
-      - name: ⚡ Lint (Oxc & ESLint)
-        run: npm run lint:all
+      - name: ⚡ Lint (Oxc - Fast)
+        run: npm run lint:oxc
 
   typecheck:
     name: ʦ TypeScript
