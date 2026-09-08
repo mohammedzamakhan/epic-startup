@@ -148,7 +148,12 @@ export function getSSOMasterKey(): string {
 	return key
 }
 
-function getEnvEncryptionKey(envVarName: string): string | undefined {
+export type EncryptionEnvVarName =
+	'INTEGRATION_ENCRYPTION_KEY' | 'SSO_ENCRYPTION_KEY'
+
+function getEnvEncryptionKey(
+	envVarName: EncryptionEnvVarName,
+): string | undefined {
 	if (process.env.VITEST === 'true') {
 		return process.env[envVarName]
 	}
@@ -167,7 +172,7 @@ function getEnvEncryptionKey(envVarName: string): string | undefined {
  * @returns The encryption key
  */
 export function getEncryptionKey(
-	envVarName: string = 'INTEGRATION_ENCRYPTION_KEY',
+	envVarName: EncryptionEnvVarName = 'INTEGRATION_ENCRYPTION_KEY',
 ): string {
 	const key = getEnvEncryptionKey(envVarName)
 	if (!key) {
@@ -187,7 +192,7 @@ export function getEncryptionKey(
  * @returns True if encryption is configured
  */
 export function isEncryptionConfigured(
-	envVarName: string = 'INTEGRATION_ENCRYPTION_KEY',
+	envVarName: EncryptionEnvVarName = 'INTEGRATION_ENCRYPTION_KEY',
 ): boolean {
 	const keyString = getEnvEncryptionKey(envVarName)
 	if (!keyString) {

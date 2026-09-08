@@ -1,6 +1,5 @@
 import { storeUtmParams } from '@repo/analytics'
 import { getImpersonationInfo, getUserId, logout } from '@repo/auth'
-import { cache, cachified } from '@repo/cache'
 import {
 	combineHeaders,
 	getDomainUrl,
@@ -14,11 +13,7 @@ import { pipeHeaders } from '@repo/common/headers'
 import { getSidebarState } from '@repo/common/sidebar-cookie'
 import { getToast } from '@repo/common/toast'
 import { brand, getErrorTitle } from '@repo/config/brand'
-import {
-	User,
-	db,
-	eq,
-} from '@repo/database'
+import { User, db, eq } from '@repo/database'
 import { getDirection } from '@repo/i18n'
 import { honeypot } from '@repo/security'
 import { DirectionProvider } from '@repo/ui'
@@ -141,28 +136,6 @@ export async function loader({ request }: Route.LoaderArgs) {
 	const isMarketingRoute = requestUrl.pathname.startsWith('/dashboard')
 	const sidebarState = isMarketingRoute ? await getSidebarState(request) : null
 
-	// Org list for hotkeys / org switcher (see use-hotkeys.ts)
-	let userOrganizations = undefined
-	if (user) {
-		try {
-			const { getUserOrganizations, getUserDefaultOrganization } =
-				await import('./utils/organizations.server')
-			const orgs = await cachified({
-				key: `user-organizations:${user.id}`,
-				cache,
-				ttl: 1000 * 60,
-				getFreshValue: () => getUserOrganizations(user.id, true),
-			})
-			const defaultOrg = await getUserDefaultOrganization(user.id)
-			userOrganizations = {
-				organizations: orgs,
-				currentOrganization: defaultOrg,
-			}
-		} catch (error) {
-			console.error('Failed to load user organizations', error)
-		}
-	}
-
 	const requestInfo = {
 		hints: getHints(request),
 		origin: getDomainUrl(request),
@@ -190,7 +163,6 @@ export async function loader({ request }: Route.LoaderArgs) {
 			toast,
 			honeyProps,
 			locale,
-			userOrganizations,
 			impersonationInfo,
 			cookieConsent,
 			env: {

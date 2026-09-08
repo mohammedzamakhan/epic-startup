@@ -5,7 +5,21 @@ import {
 } from '@repo/common/cookie-domain'
 import { ENV } from './env.js'
 
+if (!ENV.SESSION_SECRET) {
+	throw new Error(
+		'SESSION_SECRET environment variable is required but not set. ' +
+			'Please add SESSION_SECRET to your .env file. ' +
+			'Example: SESSION_SECRET=your-secret-key-here',
+	)
+}
+
 const sessionSecrets = ENV.SESSION_SECRET.split(',').map((s) => s.trim())
+if (sessionSecrets.length === 0 || sessionSecrets.some((s) => s.length === 0)) {
+	throw new Error(
+		'SESSION_SECRET must contain at least one non-empty secret. ' +
+			'Example: SESSION_SECRET=your-secret-key-here',
+	)
+}
 
 export const authSessionStorage = createCookieSessionStorage({
 	cookie: {

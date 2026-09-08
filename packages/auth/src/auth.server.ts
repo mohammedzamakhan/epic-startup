@@ -33,7 +33,11 @@ export async function getUserId(request: Request) {
 
 	if (shouldApplyImpersonationToUserId(request)) {
 		const result = await validateImpersonation(request)
-		if (result.valid && result.info) {
+		if (
+			result.valid &&
+			result.info &&
+			result.info.adminUserId === sessionUserId
+		) {
 			return result.info.targetUserId
 		}
 	}

@@ -34,6 +34,26 @@ function isSqliteUniqueConstraintError(error: unknown) {
 	)
 }
 
+function executionWasDispatched(execution: {
+	executionDetails?: string | null | unknown
+}) {
+	if (execution.executionDetails == null) return false
+	try {
+		const details =
+			typeof execution.executionDetails === 'string'
+				? JSON.parse(execution.executionDetails)
+				: execution.executionDetails
+		if (!details || typeof details !== 'object') return false
+		return (
+			details.dispatched === true ||
+			(typeof details.messageId === 'string' && details.messageId.length > 0) ||
+			(typeof details.sid === 'string' && details.sid.length > 0)
+		)
+	} catch {
+		return false
+	}
+}
+
 export type CreateJourneyInput = z.input<typeof createJourneySchema>
 export type UpdateJourneyInput = z.input<typeof updateJourneySchema>
 
@@ -108,104 +128,9 @@ export async function executeJourneyStep(
 
 	const txResult = await retryOnSqliteBusy(() =>
 		db.transaction(async (tx) => {
-		// Idempotency: if this (runId, nodeId) action already delivered, return the
-		// prior result instead of re-dispatching on a workflow retry.
-		const existing = await tx
-			.select()
-			.from(journeyStepExecutions)
-			.where(
-				and(
-					eq(journeyStepExecutions.runId, payload.runId),
-					eq(journeyStepExecutions.nodeId, payload.nodeId),
-				),
-			)
-			.all()
-
-		const deliveredExecution = existing.find(
-			(e) => e.status === 'delivered' || e.status === 'completed',
-		)
-		if (deliveredExecution) {
-			let messageId: string | undefined
-			try {
-				const details =
-					typeof deliveredExecution.executionDetails === 'string'
-						? JSON.parse(deliveredExecution.executionDetails)
-						: deliveredExecution.executionDetails
-				if (details && typeof details === 'object' && 'messageId' in details) {
-					messageId = details.messageId as string
-				}
-			} catch {}
-			return {
-				success: true,
-				executionId: deliveredExecution.id,
-				status: 'delivered' as const,
-				messageId,
-			}
-		}
-
-		const processingExecution = existing.find(
-			(e) =>
-				e.status === 'processing' &&
-				e.executedAt &&
-				Date.now() - new Date(e.executedAt).getTime() <
-					JOURNEY_PROCESSING_LEASE_MS,
-		)
-		if (processingExecution) {
-			return {
-				success: true,
-				executionId: processingExecution.id,
-				status: 'processing' as const,
-			}
-		}
-
-		const reclaimableExecution = existing.find(
-			(e) =>
-				e.status === 'failed' ||
-				(e.status === 'processing' &&
-					e.executedAt &&
-					Date.now() - new Date(e.executedAt).getTime() >=
-						JOURNEY_PROCESSING_LEASE_MS),
-		)
-		if (reclaimableExecution) {
-			await tx
-				.update(journeyStepExecutions)
-				.set({
-					status: 'processing',
-					executedAt: new Date(),
-					retryCount: (reclaimableExecution.retryCount ?? 0) + 1,
-					errorMessage: null,
-					completedAt: null,
-				})
-				.where(eq(journeyStepExecutions.id, reclaimableExecution.id))
-
-			return {
-				_continue: true,
-				stepExecutionId: reclaimableExecution.id,
-			}
-		}
-
-		const stepExecutionId = randomUUID()
-
-		// 3. Record initial step execution in audit log
-		try {
-			await tx.insert(journeyStepExecutions).values({
-				id: stepExecutionId,
-				runId: payload.runId,
-				journeyId: payload.journeyId,
-				customerId: payload.customerId,
-				nodeId: payload.nodeId,
-				nodeType: rawType,
-				stepType,
-				status: 'processing',
-				retryCount: 0,
-				executedAt: new Date(),
-			})
-		} catch (error) {
-			if (!isSqliteUniqueConstraintError(error)) {
-				throw error
-			}
-
-			const raced = await tx
+			// Idempotency: if this (runId, nodeId) action already delivered, return the
+			// prior result instead of re-dispatching on a workflow retry.
+			const existing = await tx
 				.select()
 				.from(journeyStepExecutions)
 				.where(
@@ -214,38 +139,138 @@ export async function executeJourneyStep(
 						eq(journeyStepExecutions.nodeId, payload.nodeId),
 					),
 				)
-				.get()
+				.all()
 
-			if (!raced) throw error
-
-			if (raced.status === 'delivered' || raced.status === 'completed') {
+			const deliveredExecution = existing.find(
+				(e) => e.status === 'delivered' || e.status === 'completed',
+			)
+			if (deliveredExecution) {
+				let messageId: string | undefined
+				try {
+					const details =
+						typeof deliveredExecution.executionDetails === 'string'
+							? JSON.parse(deliveredExecution.executionDetails)
+							: deliveredExecution.executionDetails
+					if (
+						details &&
+						typeof details === 'object' &&
+						'messageId' in details
+					) {
+						messageId = details.messageId as string
+					}
+				} catch {}
 				return {
 					success: true,
-					executionId: raced.id,
+					executionId: deliveredExecution.id,
 					status: 'delivered' as const,
+					messageId,
 				}
 			}
 
-			if (
-				raced.status === 'processing' &&
-				raced.executedAt &&
-				Date.now() - new Date(raced.executedAt).getTime() <
-					JOURNEY_PROCESSING_LEASE_MS
-			) {
+			const processingExecution = existing.find(
+				(e) =>
+					e.status === 'processing' &&
+					e.executedAt &&
+					Date.now() - new Date(e.executedAt).getTime() <
+						JOURNEY_PROCESSING_LEASE_MS,
+			)
+			if (processingExecution) {
 				return {
 					success: true,
-					executionId: raced.id,
+					executionId: processingExecution.id,
 					status: 'processing' as const,
 				}
 			}
 
-			throw error
-		}
+			const reclaimableExecution = existing.find(
+				(e) =>
+					!executionWasDispatched(e) &&
+					(e.status === 'failed' ||
+						(e.status === 'processing' &&
+							e.executedAt &&
+							Date.now() - new Date(e.executedAt).getTime() >=
+								JOURNEY_PROCESSING_LEASE_MS)),
+			)
+			if (reclaimableExecution) {
+				await tx
+					.update(journeyStepExecutions)
+					.set({
+						status: 'processing',
+						executedAt: new Date(),
+						retryCount: (reclaimableExecution.retryCount ?? 0) + 1,
+						errorMessage: null,
+						completedAt: null,
+					})
+					.where(eq(journeyStepExecutions.id, reclaimableExecution.id))
 
-		return {
-			_continue: true,
-			stepExecutionId,
-		}
+				return {
+					_continue: true,
+					stepExecutionId: reclaimableExecution.id,
+				}
+			}
+
+			const stepExecutionId = randomUUID()
+
+			// 3. Record initial step execution in audit log
+			try {
+				await tx.insert(journeyStepExecutions).values({
+					id: stepExecutionId,
+					runId: payload.runId,
+					journeyId: payload.journeyId,
+					customerId: payload.customerId,
+					nodeId: payload.nodeId,
+					nodeType: rawType,
+					stepType,
+					status: 'processing',
+					retryCount: 0,
+					executedAt: new Date(),
+				})
+			} catch (error) {
+				if (!isSqliteUniqueConstraintError(error)) {
+					throw error
+				}
+
+				const raced = await tx
+					.select()
+					.from(journeyStepExecutions)
+					.where(
+						and(
+							eq(journeyStepExecutions.runId, payload.runId),
+							eq(journeyStepExecutions.nodeId, payload.nodeId),
+						),
+					)
+					.get()
+
+				if (!raced) throw error
+
+				if (raced.status === 'delivered' || raced.status === 'completed') {
+					return {
+						success: true,
+						executionId: raced.id,
+						status: 'delivered' as const,
+					}
+				}
+
+				if (
+					raced.status === 'processing' &&
+					raced.executedAt &&
+					Date.now() - new Date(raced.executedAt).getTime() <
+						JOURNEY_PROCESSING_LEASE_MS
+				) {
+					return {
+						success: true,
+						executionId: raced.id,
+						status: 'processing' as const,
+					}
+				}
+
+				throw error
+			}
+
+			return {
+				_continue: true,
+				stepExecutionId,
+			}
 		}),
 	)
 
@@ -357,6 +382,18 @@ export async function executeJourneyStep(
 					? emailRes.data.messageId
 					: emailRes.data.messageId
 
+			await db
+				.update(journeyStepExecutions)
+				.set({
+					executionDetails: JSON.stringify({
+						messageId,
+						channel: 'email',
+						dispatched: true,
+						dispatchedAt: new Date().toISOString(),
+					}),
+				})
+				.where(eq(journeyStepExecutions.id, stepExecutionId))
+
 			// Record marketing message outbox entry
 			await db.insert(marketingMessages).values({
 				id: messageId,
@@ -398,6 +435,36 @@ export async function executeJourneyStep(
 				messageId,
 			}
 		} catch (dispatchErr) {
+			const dispatched = await db
+				.select({ executionDetails: journeyStepExecutions.executionDetails })
+				.from(journeyStepExecutions)
+				.where(eq(journeyStepExecutions.id, stepExecutionId))
+				.get()
+
+			if (dispatched && executionWasDispatched(dispatched)) {
+				let messageId: string | undefined
+				try {
+					const details =
+						typeof dispatched.executionDetails === 'string'
+							? JSON.parse(dispatched.executionDetails)
+							: dispatched.executionDetails
+					if (
+						details &&
+						typeof details === 'object' &&
+						'messageId' in details
+					) {
+						messageId = details.messageId as string
+					}
+				} catch {}
+
+				return {
+					success: true,
+					executionId: stepExecutionId,
+					status: 'delivered',
+					messageId,
+				}
+			}
+
 			const errorMessage =
 				dispatchErr instanceof Error
 					? dispatchErr.message
@@ -453,6 +520,19 @@ export async function executeJourneyStep(
 			const sid =
 				smsRes.sid || (smsRes.mock ? 'mock-sms-' + randomUUID() : randomUUID())
 
+			await db
+				.update(journeyStepExecutions)
+				.set({
+					executionDetails: JSON.stringify({
+						sid,
+						channel: 'sms',
+						dispatched: true,
+						mock: smsRes.mock || false,
+						dispatchedAt: new Date().toISOString(),
+					}),
+				})
+				.where(eq(journeyStepExecutions.id, stepExecutionId))
+
 			// Record marketing message outbox entry
 			await db.insert(marketingMessages).values({
 				id: randomUUID(),
@@ -495,6 +575,32 @@ export async function executeJourneyStep(
 				messageId: sid,
 			}
 		} catch (dispatchErr) {
+			const dispatched = await db
+				.select({ executionDetails: journeyStepExecutions.executionDetails })
+				.from(journeyStepExecutions)
+				.where(eq(journeyStepExecutions.id, stepExecutionId))
+				.get()
+
+			if (dispatched && executionWasDispatched(dispatched)) {
+				let messageId: string | undefined
+				try {
+					const details =
+						typeof dispatched.executionDetails === 'string'
+							? JSON.parse(dispatched.executionDetails)
+							: dispatched.executionDetails
+					if (details && typeof details === 'object' && 'sid' in details) {
+						messageId = details.sid as string
+					}
+				} catch {}
+
+				return {
+					success: true,
+					executionId: stepExecutionId,
+					status: 'delivered',
+					messageId,
+				}
+			}
+
 			const errorMessage =
 				dispatchErr instanceof Error
 					? dispatchErr.message

@@ -233,13 +233,24 @@ operatorRoutes.get('/marketing/campaigns', async (c) => {
 	const { orgId } = auth
 	try {
 		const db = await getTenantDb(orgId)
+		const [totalRow] = await db
+			.select({ total: count() })
+			.from(marketingCampaigns)
+		const total = totalRow?.total ?? 0
 		const campaigns = await db
 			.select()
 			.from(marketingCampaigns)
 			.orderBy(desc(marketingCampaigns.createdAt))
 			.limit(OPERATOR_LIST_LIMIT)
 			.all()
-		return c.json({ campaigns })
+		return c.json({
+			campaigns,
+			pagination: {
+				limit: OPERATOR_LIST_LIMIT,
+				total,
+				truncated: total > OPERATOR_LIST_LIMIT,
+			},
+		})
 	} catch (error) {
 		console.error('Error fetching marketing campaigns:', error)
 		return c.json({ error: 'Tenant Database unavailable' }, 500)
@@ -286,6 +297,12 @@ operatorRoutes.get('/marketing/campaigns/:campaignId', async (c) => {
 			.orderBy(desc(marketingMessages.sentAt))
 			.limit(OPERATOR_LIST_LIMIT)
 
+		const [recipientTotalRow] = await db
+			.select({ total: count() })
+			.from(marketingMessages)
+			.where(eq(marketingMessages.campaignId, campaignId))
+		const recipientTotal = recipientTotalRow?.total ?? 0
+
 		const segmentationRules = campaign.segmentationRules as
 			{ audience?: string } | null | undefined
 
@@ -302,6 +319,11 @@ operatorRoutes.get('/marketing/campaigns/:campaignId', async (c) => {
 				createdAt: campaign.createdAt,
 				scheduledAt: campaign.scheduledAt,
 				recipients,
+				recipientsPagination: {
+					limit: OPERATOR_LIST_LIMIT,
+					total: recipientTotal,
+					truncated: recipientTotal > OPERATOR_LIST_LIMIT,
+				},
 			},
 		})
 	} catch (error) {

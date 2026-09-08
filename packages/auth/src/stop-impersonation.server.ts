@@ -1,4 +1,5 @@
 import { auditService, AuditAction } from '@repo/audit'
+import { combineHeaders } from '@repo/common'
 import { createToastHeaders } from '@repo/common/toast'
 import { ImpersonationSession, db, eq } from '@repo/database'
 import { data, redirect } from 'react-router'
@@ -44,14 +45,14 @@ export async function stopImpersonation(
 
 	if (!impersonationSession) {
 		throw redirect(redirectTo, {
-			headers: {
-				'set-cookie': await destroyImpersonationSession(request),
-				...(await createToastHeaders({
+			headers: combineHeaders(
+				{ 'set-cookie': await destroyImpersonationSession(request) },
+				await createToastHeaders({
 					type: 'message',
 					title: 'Session Expired',
 					description: 'Impersonation session had already expired.',
-				})),
-			},
+				}),
+			),
 		})
 	}
 
@@ -65,9 +66,6 @@ export async function stopImpersonation(
 	await db
 		.delete(ImpersonationSession)
 		.where(eq(ImpersonationSession.id, impersonationSessionId))
-		.catch(() => {
-			// Session may already be deleted, ignore errors
-		})
 
 	const durationMinutes = Math.floor(duration / 1000 / 60)
 
@@ -87,13 +85,13 @@ export async function stopImpersonation(
 	)
 
 	throw redirect(redirectTo, {
-		headers: {
-			'set-cookie': await destroyImpersonationSession(request),
-			...(await createToastHeaders({
+		headers: combineHeaders(
+			{ 'set-cookie': await destroyImpersonationSession(request) },
+			await createToastHeaders({
 				type: 'success',
 				title: 'Impersonation Ended',
 				description: `Stopped impersonating ${targetName}`,
-			})),
-		},
+			}),
+		),
 	})
 }
