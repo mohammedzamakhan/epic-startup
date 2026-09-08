@@ -97,11 +97,14 @@ jobs:
       - name: 🔧 Rebuild native dependencies
         run: npm rebuild sharp libsql rolldown @astrojs/compiler-binding
 
+      - name: 🔐 Generate package env types
+        run: npm run env:codegen
+
       - name: 🛠 Setup Database
         run: npm run db:migrate:deploy && npm run db:generate
 
-      - name: ⚡ Lint (Oxc - Fast)
-        run: npm run lint:oxc
+      - name: ⚡ Lint (Oxc & ESLint)
+        run: npm run lint:all
 
   typecheck:
     name: ʦ TypeScript
@@ -119,8 +122,20 @@ jobs:
       - name: 📥 Download deps
         run: npm ci --ignore-scripts
 
+      - name: ♻️ Restore Turbo cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e6cfecc40eaf3d8b9e2e8 # v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('**/package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('**/package-lock.json') }}-
+            ${{ runner.os }}-turbo-
+
       - name: 🔧 Rebuild native dependencies
         run: npm rebuild sharp libsql rolldown @astrojs/compiler-binding
+
+      - name: 🔐 Generate package env types
+        run: npm run env:codegen
 
       - name: 🛠 Setup Database
         run: npm run db:migrate:deploy && npm run db:generate
@@ -149,6 +164,9 @@ jobs:
 
       - name: 🔧 Rebuild native dependencies
         run: npm rebuild sharp libsql rolldown @astrojs/compiler-binding
+
+      - name: 🔐 Generate package env types
+        run: npm run env:codegen
 
       - name: 🛠 Setup Database
         run: npm run db:migrate:deploy && npm run db:generate
@@ -187,6 +205,9 @@ jobs:
 
       - name: 📥 Install Playwright Browsers
         run: npm run test:e2e:install
+
+      - name: 🔐 Generate package env types
+        run: npm run env:codegen
 
       - name: 🛠 Setup Database
         run: |

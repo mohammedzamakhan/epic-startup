@@ -1,5 +1,6 @@
 import { storeUtmParams } from '@repo/analytics'
 import { getImpersonationInfo, getUserId, logout } from '@repo/auth'
+import { cache, cachified } from '@repo/cache'
 import {
 	combineHeaders,
 	getDomainUrl,
@@ -14,15 +15,9 @@ import { getSidebarState } from '@repo/common/sidebar-cookie'
 import { getToast } from '@repo/common/toast'
 import { brand, getErrorTitle } from '@repo/config/brand'
 import {
-	NoteAccess,
-	OrganizationNote,
-	OrganizationNoteFavorite,
 	User,
 	db,
-	desc,
 	eq,
-	or,
-	and,
 } from '@repo/database'
 import { getDirection } from '@repo/i18n'
 import { honeypot } from '@repo/security'
@@ -146,59 +141,22 @@ export async function loader({ request }: Route.LoaderArgs) {
 	const isMarketingRoute = requestUrl.pathname.startsWith('/dashboard')
 	const sidebarState = isMarketingRoute ? await getSidebarState(request) : null
 
-	// Get user organizations if user exists
+	// Org list for hotkeys / org switcher (see use-hotkeys.ts)
 	let userOrganizations = undefined
-	let favoriteNotes = undefined
 	if (user) {
 		try {
 			const { getUserOrganizations, getUserDefaultOrganization } =
 				await import('./utils/organizations.server')
-			const orgs = await getUserOrganizations(user.id, true) // Include permissions
+			const orgs = await cachified({
+				key: `user-organizations:${user.id}`,
+				cache,
+				ttl: 1000 * 60,
+				getFreshValue: () => getUserOrganizations(user.id, true),
+			})
 			const defaultOrg = await getUserDefaultOrganization(user.id)
 			userOrganizations = {
 				organizations: orgs,
 				currentOrganization: defaultOrg,
-			}
-
-			// Get user's favorite notes for the current organization
-			if (defaultOrg?.organization.id) {
-				favoriteNotes = await time(
-					async () =>
-						db
-							.select({
-								note: {
-									id: OrganizationNote.id,
-									title: OrganizationNote.title,
-								},
-							})
-							.from(OrganizationNoteFavorite)
-							.innerJoin(
-								OrganizationNote,
-								eq(OrganizationNoteFavorite.noteId, OrganizationNote.id),
-							)
-							.leftJoin(NoteAccess, eq(NoteAccess.noteId, OrganizationNote.id))
-							.where(
-								and(
-									eq(OrganizationNoteFavorite.userId, user.id),
-									eq(
-										OrganizationNote.organizationId,
-										defaultOrg.organization.id,
-									),
-									or(
-										eq(OrganizationNote.isPublic, true),
-										eq(OrganizationNote.createdById, user.id),
-										eq(NoteAccess.userId, user.id),
-									),
-								),
-							)
-							.orderBy(desc(OrganizationNoteFavorite.createdAt))
-							.limit(5),
-					{
-						timings,
-						type: 'find favorite notes',
-						desc: 'find favorite notes in root',
-					},
-				)
 			}
 		} catch (error) {
 			console.error('Failed to load user organizations', error)
@@ -233,7 +191,6 @@ export async function loader({ request }: Route.LoaderArgs) {
 			honeyProps,
 			locale,
 			userOrganizations,
-			favoriteNotes,
 			impersonationInfo,
 			cookieConsent,
 			env: {
