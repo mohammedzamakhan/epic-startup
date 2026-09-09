@@ -171,7 +171,7 @@ export default function WebsiteFormsRoute() {
 				headingLevel="h2"
 				size="section"
 				actions={
-					<Button render={<Link to="new" />} disabled={Boolean(error)}>
+					<Button render={<Link to="new" />}>
 						<Icon name="plus" className="size-4" />
 						<Trans>Create form</Trans>
 					</Button>
@@ -197,6 +197,7 @@ export default function WebsiteFormsRoute() {
 					title="No forms yet"
 					description="Create a custom form or start from a template, then add it to a page."
 					icons={['file-text']}
+					action={{ label: 'Create form', href: 'new' }}
 				/>
 			) : (
 				<Frame className="overflow-hidden p-0">
