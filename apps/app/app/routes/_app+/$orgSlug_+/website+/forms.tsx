@@ -17,10 +17,12 @@ import { formatDistanceToNow } from 'date-fns'
 import {
 	Form,
 	Link,
+	Outlet,
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 	useActionData,
 	useLoaderData,
+	useLocation,
 } from 'react-router'
 import { z } from 'zod'
 import { EmptyState } from '#app/components/empty-state.tsx'
@@ -156,8 +158,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function WebsiteFormsRoute() {
+	const location = useLocation()
 	const { forms, error } = useLoaderData<typeof loader>()
 	const actionData = useActionData<typeof action>()
+	if (!/\/website\/forms\/?$/.test(location.pathname)) return <Outlet />
+
 	return (
 		<div className="space-y-8">
 			<PageHeader
