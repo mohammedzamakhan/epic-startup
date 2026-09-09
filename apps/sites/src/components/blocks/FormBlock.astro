@@ -9,72 +9,208 @@ import {
 } from '~/lib/form-classes'
 import { getTenantApiUrl } from '~/lib/tenant-api'
 
-type FormField = { id: string; label: string; type: 'text' | 'email' | 'tel' | 'textarea'; required: boolean }
-type WebsiteForm = { id: string; name: string; description: string | null; fields: FormField[]; submitLabel: string; successMessage: string }
 const { config } = Astro.props
 const organization = Astro.locals.organization
 const formId = String(config?.formId || '')
 const tenantApiUrl = organization ? getTenantApiUrl(organization.dataRegion) : ''
-const params = new URLSearchParams()
-if (Astro.locals.orgSlug) params.set('slug', Astro.locals.orgSlug)
-if (Astro.locals.customHost) params.set('host', Astro.locals.customHost)
-async function loadForm() {
-	if (!formId || !tenantApiUrl) return null
-	try {
-		const response = await fetch(`${tenantApiUrl}/forms/${encodeURIComponent(formId)}?${params}`, {
-			headers: { Accept: 'application/json', Origin: Astro.url.origin },
-			signal: AbortSignal.timeout(3000),
-		})
-		if (!response.ok) return null
-		return (await response.json()) as { form?: WebsiteForm }
-	} catch {
-		return null
-	}
-}
-const payload = await loadForm()
-const form = payload?.form
-const blockId = `website-form-${formId}`
+const blockId = `website-form-${formId || crypto.randomUUID()}`
+const loading = Astro.locals.i18n._(msg`Loading form...`)
+const unavailable = Astro.locals.i18n._(msg`This form is currently unavailable.`)
+const selectForm = Astro.locals.i18n._(msg`Select a published form in the page editor.`)
 const submitting = Astro.locals.i18n._(msg`Submitting...`)
 const submissionError = Astro.locals.i18n._(msg`Unable to submit the form. Please try again.`)
 ---
 
 <section class="px-4 py-14 sm:py-20">
-	<div class="mx-auto w-full max-w-2xl">
-		{form ? (
-			<div class="space-y-7">
-				{config?.showTitle !== false ? <div class="space-y-2"><h2 class="font-heading text-3xl font-semibold tracking-tight text-foreground">{form.name}</h2>{form.description ? <p class="text-muted-foreground">{form.description}</p> : null}</div> : null}
-				<form id={blockId} class="space-y-5" data-form-id={form.id} data-tenant-api-url={tenantApiUrl} data-org-slug={Astro.locals.orgSlug || undefined} data-custom-host={Astro.locals.customHost || undefined} data-submit-label={form.submitLabel} data-submitting-label={submitting} data-error-label={submissionError}>
-					<div class="hidden" aria-hidden="true"><label for={`${blockId}-website`}>Website</label><input id={`${blockId}-website`} name="website" tabindex="-1" autocomplete="off" /></div>
-					{form.fields.map((field) => <div class="space-y-2"><label class={siteFieldLabelClass} for={`${blockId}-${field.id}`}>{field.label}{field.required ? <span aria-hidden="true"> *</span> : null}</label>{field.type === 'textarea' ? <textarea id={`${blockId}-${field.id}`} name={field.id} required={field.required} rows="5" maxlength="5000" class:list={[siteInputClass, 'h-auto resize-y']} /> : <input id={`${blockId}-${field.id}`} name={field.id} type={field.type} required={field.required} maxlength="5000" class={siteInputClass} />}</div>)}
-					<p data-form-status class="hidden" role="status"></p>
-					<button class={siteBtnPrimaryClass} type="submit">{form.submitLabel}</button>
-				</form>
-			</div>
-		) : <p class="text-muted-foreground text-center">Select a published form in the page editor.</p>}
+	<div
+		id={blockId}
+		class="mx-auto min-h-80 w-full max-w-2xl"
+		data-website-form
+		data-form-id={formId}
+		data-tenant-api-url={tenantApiUrl}
+		data-org-slug={Astro.locals.orgSlug || undefined}
+		data-custom-host={Astro.locals.customHost || undefined}
+		data-show-title={config?.showTitle !== false ? 'true' : 'false'}
+		data-loading-label={loading}
+		data-unavailable-label={unavailable}
+		data-submitting-label={submitting}
+		data-submission-error-label={submissionError}
+		data-field-label-class={siteFieldLabelClass}
+		data-input-class={siteInputClass}
+		data-button-class={siteBtnPrimaryClass}
+		data-success-class={siteStatusSuccessClass}
+		data-error-class={siteStatusErrorClass}
+	>
+		<p class="text-muted-foreground text-center" role="status">
+			{formId ? loading : selectForm}
+		</p>
 	</div>
 </section>
 
-{form ? <script is:inline define:vars={{ blockId, successClass: siteStatusSuccessClass, errorClass: siteStatusErrorClass }}>
-	const formElement = document.getElementById(blockId)
-	formElement?.addEventListener('submit', async (event) => {
-		event.preventDefault()
-		if (!(formElement instanceof HTMLFormElement)) return
-		const button = formElement.querySelector('button[type="submit"]')
-		const status = formElement.querySelector('[data-form-status]')
-		if (!(button instanceof HTMLButtonElement) || !(status instanceof HTMLElement)) return
-		button.disabled = true
-		button.textContent = formElement.dataset.submittingLabel || 'Submitting...'
+<script>
+	type FormField = {
+		id: string
+		label: string
+		type: 'text' | 'email' | 'tel' | 'textarea'
+		required: boolean
+	}
+	type WebsiteForm = {
+		id: string
+		name: string
+		description: string | null
+		fields: FormField[]
+		submitLabel: string
+		successMessage: string
+	}
+
+	function setClasses(element: HTMLElement, value?: string) {
+		if (value) element.className = value
+	}
+
+	function renderForm(container: HTMLElement, form: WebsiteForm) {
+		const wrapper = document.createElement('div')
+		wrapper.className = 'space-y-7'
+		if (container.dataset.showTitle === 'true') {
+			const headingWrapper = document.createElement('div')
+			headingWrapper.className = 'space-y-2'
+			const heading = document.createElement('h2')
+			heading.className =
+				'font-heading text-3xl font-semibold tracking-tight text-foreground'
+			heading.textContent = form.name
+			headingWrapper.append(heading)
+			if (form.description) {
+				const description = document.createElement('p')
+				description.className = 'text-muted-foreground'
+				description.textContent = form.description
+				headingWrapper.append(description)
+			}
+			wrapper.append(headingWrapper)
+		}
+
+		const formElement = document.createElement('form')
+		formElement.className = 'space-y-5'
+		const honeypot = document.createElement('div')
+		honeypot.className = 'hidden'
+		honeypot.setAttribute('aria-hidden', 'true')
+		const honeypotInput = document.createElement('input')
+		honeypotInput.name = 'website'
+		honeypotInput.tabIndex = -1
+		honeypotInput.autocomplete = 'off'
+		honeypot.append(honeypotInput)
+		formElement.append(honeypot)
+
+		for (const field of form.fields) {
+			const fieldWrapper = document.createElement('div')
+			fieldWrapper.className = 'space-y-2'
+			const id = `${container.id}-${field.id}`
+			const label = document.createElement('label')
+			setClasses(label, container.dataset.fieldLabelClass)
+			label.htmlFor = id
+			label.textContent = field.required ? `${field.label} *` : field.label
+			const input = document.createElement(
+				field.type === 'textarea' ? 'textarea' : 'input',
+			)
+			input.id = id
+			input.name = field.id
+			input.required = field.required
+			input.maxLength = 5000
+			setClasses(input, container.dataset.inputClass)
+			if (input instanceof HTMLTextAreaElement) {
+				input.rows = 5
+				input.classList.add('h-auto', 'resize-y')
+			} else {
+				input.type = field.type
+			}
+			fieldWrapper.append(label, input)
+			formElement.append(fieldWrapper)
+		}
+
+		const status = document.createElement('p')
 		status.className = 'hidden'
-		const formData = new FormData(formElement)
-		const website = String(formData.get('website') || '')
-		formData.delete('website')
+		status.setAttribute('role', 'status')
+		const button = document.createElement('button')
+		button.type = 'submit'
+		setClasses(button, container.dataset.buttonClass)
+		button.textContent = form.submitLabel
+		formElement.append(status, button)
+		wrapper.append(formElement)
+		container.replaceChildren(wrapper)
+
+		formElement.addEventListener('submit', async (event) => {
+			event.preventDefault()
+			button.disabled = true
+			button.textContent = container.dataset.submittingLabel || 'Submitting...'
+			status.className = 'hidden'
+			const formData = new FormData(formElement)
+			const website = String(formData.get('website') || '')
+			formData.delete('website')
+			try {
+				const response = await fetch(
+					`${container.dataset.tenantApiUrl}/forms/${encodeURIComponent(form.id)}/submissions`,
+					{
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							slug: container.dataset.orgSlug,
+							host: container.dataset.customHost,
+							website,
+							values: Object.fromEntries(formData.entries()),
+						}),
+					},
+				)
+				const result = (await response.json()) as {
+					error?: string
+					message?: string
+				}
+				if (!response.ok) throw new Error(result.error)
+				formElement.reset()
+				status.textContent = result.message || form.successMessage
+				status.className = container.dataset.successClass || ''
+			} catch (error) {
+				status.textContent =
+					error instanceof Error && error.message
+						? error.message
+						: container.dataset.submissionErrorLabel ||
+							'Unable to submit the form.'
+				status.className = container.dataset.errorClass || ''
+			} finally {
+				button.disabled = false
+				button.textContent = form.submitLabel
+			}
+		})
+	}
+
+	async function loadForm(container: HTMLElement) {
+		const formId = container.dataset.formId
+		const tenantApiUrl = container.dataset.tenantApiUrl
+		if (!formId || !tenantApiUrl) return
+		const params = new URLSearchParams()
+		if (container.dataset.orgSlug) params.set('slug', container.dataset.orgSlug)
+		if (container.dataset.customHost) {
+			params.set('host', container.dataset.customHost)
+		}
 		try {
-			const response = await fetch(`${formElement.dataset.tenantApiUrl}/forms/${formElement.dataset.formId}/submissions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: formElement.dataset.orgSlug, host: formElement.dataset.customHost, website, values: Object.fromEntries(formData.entries()) }) })
-			const result = await response.json()
-			if (!response.ok) throw new Error(result.error || formElement.dataset.errorLabel || 'Unable to submit the form.')
-			formElement.reset(); status.textContent = result.message; status.className = successClass
-		} catch (error) {
-			status.textContent = error instanceof Error ? error.message : formElement.dataset.errorLabel || 'Unable to submit the form.'; status.className = errorClass
-		} finally { button.disabled = false; button.textContent = formElement.dataset.submitLabel || 'Submit' }
-	})
-</script> : null}
+			const response = await fetch(
+				`${tenantApiUrl}/forms/${encodeURIComponent(formId)}?${params}`,
+				{ headers: { Accept: 'application/json' } },
+			)
+			if (!response.ok) throw new Error('Form unavailable')
+			const payload = (await response.json()) as { form?: WebsiteForm }
+			if (!payload.form) throw new Error('Form unavailable')
+			renderForm(container, payload.form)
+		} catch {
+			const status = container.querySelector('[role="status"]')
+			if (status) {
+				status.textContent =
+					container.dataset.unavailableLabel ||
+					'This form is currently unavailable.'
+			}
+		}
+	}
+
+	for (const container of document.querySelectorAll<HTMLElement>(
+		'[data-website-form]',
+	)) {
+		void loadForm(container)
+	}
+</script>
