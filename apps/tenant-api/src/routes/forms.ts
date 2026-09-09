@@ -1,4 +1,4 @@
-import { and, count, desc, eq, lt } from 'drizzle-orm'
+import { and, count, desc, eq, lt, sql } from 'drizzle-orm'
 import { Hono, type Context } from 'hono'
 import {
 	getTenantDb,
@@ -24,7 +24,11 @@ export const formOperatorRoutes = new Hono()
 export const formSystemRoutes = new Hono()
 
 const fieldSchema = z.object({
-	id: z.string().min(1).max(50),
+	id: z
+		.string()
+		.min(1)
+		.max(50)
+		.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
 	label: z.string().min(1).max(100),
 	type: z.enum(['text', 'email', 'tel', 'textarea']),
 	required: z.boolean().default(false),
@@ -217,6 +221,29 @@ formOperatorRoutes.post('/', async (c) => {
 	const db = await getTenantDb(orgId)
 	const [form] = await db.insert(websiteForms).values(parsed.data).returning()
 	return c.json({ form }, 201)
+})
+
+formOperatorRoutes.put('/:formId', async (c) => {
+	let orgId: string
+	try {
+		orgId = (await authenticateOperator(c)).orgId
+	} catch (response) {
+		return response as Response
+	}
+	const parsed = formSchema.safeParse(await c.req.json().catch(() => null))
+	if (!parsed.success) {
+		return c.json(
+			{ error: parsed.error.issues[0]?.message ?? 'Invalid form' },
+			400,
+		)
+	}
+	const db = await getTenantDb(orgId)
+	const [form] = await db
+		.update(websiteForms)
+		.set({ ...parsed.data, updatedAt: sql`(strftime('%s', 'now'))` })
+		.where(eq(websiteForms.id, c.req.param('formId')))
+		.returning()
+	return form ? c.json({ form }) : c.json({ error: 'Form not found' }, 404)
 })
 
 formOperatorRoutes.get('/:formId/submissions', async (c) => {

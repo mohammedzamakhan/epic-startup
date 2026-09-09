@@ -14,7 +14,6 @@ import {
 	TableRow,
 } from '@repo/ui/table'
 import { formatDistanceToNow } from 'date-fns'
-import { useState } from 'react'
 import {
 	Form,
 	Link,
@@ -25,7 +24,6 @@ import {
 } from 'react-router'
 import { z } from 'zod'
 import { EmptyState } from '#app/components/empty-state.tsx'
-import { CreateFormDialog } from '#app/components/website/create-form-dialog.tsx'
 import {
 	ORG_PERMISSIONS,
 	requireUserWithOrganizationPermission,
@@ -160,7 +158,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 export default function WebsiteFormsRoute() {
 	const { forms, error } = useLoaderData<typeof loader>()
 	const actionData = useActionData<typeof action>()
-	const [createOpen, setCreateOpen] = useState(false)
 	return (
 		<div className="space-y-8">
 			<PageHeader
@@ -174,16 +171,11 @@ export default function WebsiteFormsRoute() {
 				headingLevel="h2"
 				size="section"
 				actions={
-					<Button onClick={() => setCreateOpen(true)} disabled={Boolean(error)}>
+					<Button render={<Link to="new" />} disabled={Boolean(error)}>
 						<Icon name="plus" className="size-4" />
 						<Trans>Create form</Trans>
 					</Button>
 				}
-			/>
-			<CreateFormDialog
-				open={createOpen}
-				onOpenChange={setCreateOpen}
-				disabled={Boolean(error)}
 			/>
 			{error ? (
 				<p className="text-destructive text-sm" role="alert">
