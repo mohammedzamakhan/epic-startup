@@ -1,11 +1,58 @@
 import { z } from 'zod'
 
-export const publicFormFieldSchema = z.object({
-	id: z.string().min(1).max(50),
-	label: z.string().min(1).max(100),
-	type: z.enum(['text', 'email', 'tel', 'textarea']),
+export const publicFormFieldTypes = [
+	'name',
+	'text',
+	'email',
+	'single_choice',
+	'tel',
+	'multiple_choice',
+	'heading',
+	'datetime',
+	'paragraph',
+	'textarea',
+] as const
+
+export const publicFormFieldObjectSchema = z.object({
+	id: z
+		.string()
+		.min(1)
+		.max(50)
+		.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+	label: z.string().trim().min(1).max(100),
+	type: z.enum(publicFormFieldTypes),
 	required: z.boolean(),
+	options: z.array(z.string().trim().min(1).max(100)).max(20).optional(),
 })
+
+export function validatePublicFormFieldChoices(
+	field: z.infer<typeof publicFormFieldObjectSchema>,
+	context: z.RefinementCtx,
+) {
+	if (
+		(field.type === 'single_choice' || field.type === 'multiple_choice') &&
+		(field.options?.length ?? 0) < 1
+	) {
+		context.addIssue({
+			code: 'custom',
+			message: `${field.label} must include at least one choice.`,
+			path: ['options'],
+		})
+	}
+}
+
+export const publicFormFieldSchema = publicFormFieldObjectSchema.superRefine(
+	validatePublicFormFieldChoices,
+)
+
+export const publicFormFieldsSchema = z
+	.array(publicFormFieldSchema)
+	.min(1)
+	.max(20)
+	.refine(
+		(fields) => new Set(fields.map((field) => field.id)).size === fields.length,
+		{ message: 'Field ids must be unique.' },
+	)
 
 export const publicFormProjectionSchema = z.object({
 	id: z.string().min(1),

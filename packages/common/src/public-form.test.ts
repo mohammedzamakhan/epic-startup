@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { publicFormKvKey, toPublicFormProjection } from './public-form'
+import {
+	publicFormFieldSchema,
+	publicFormKvKey,
+	toPublicFormProjection,
+} from './public-form'
 
 const form = {
 	id: 'form-1',
@@ -42,5 +46,26 @@ describe('public form projection', () => {
 
 	it('does not project an unpublished form', () => {
 		expect(toPublicFormProjection({ ...form, status: 'draft' })).toBeNull()
+	})
+
+	it('requires choices for choice fields', () => {
+		const parsed = publicFormFieldSchema.safeParse({
+			id: 'plan',
+			label: 'Plan',
+			type: 'single_choice',
+			required: true,
+		})
+		expect(parsed.success).toBe(false)
+	})
+
+	it('accepts choice fields with options', () => {
+		const parsed = publicFormFieldSchema.safeParse({
+			id: 'plan',
+			label: 'Plan',
+			type: 'single_choice',
+			required: true,
+			options: ['Starter', 'Pro'],
+		})
+		expect(parsed.success).toBe(true)
 	})
 })

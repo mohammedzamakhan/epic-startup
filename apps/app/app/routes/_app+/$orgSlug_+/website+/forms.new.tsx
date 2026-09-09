@@ -1,5 +1,8 @@
 import { Trans } from '@lingui/macro'
-import { toPublicFormProjection } from '@repo/common/public-form'
+import {
+	toPublicFormProjection,
+	type PublicFormField,
+} from '@repo/common/public-form'
 import { cn } from '@repo/ui'
 import { Button } from '@repo/ui/button'
 import { Icon } from '@repo/ui/icon'
@@ -24,13 +27,7 @@ import {
 import { setCachedPublicForm } from '#app/utils/sites/kv-cache.server.ts'
 import { getOperatorTenantClient } from '#app/utils/tenant-api.server.ts'
 
-type FieldType = 'text' | 'email' | 'tel' | 'textarea'
-type FormField = {
-	id: string
-	label: string
-	type: FieldType
-	required: boolean
-}
+type FormField = PublicFormField
 
 const templates: Array<{
 	id: string
@@ -42,14 +39,14 @@ const templates: Array<{
 		id: 'blank',
 		name: 'Start from scratch',
 		description: 'A clean canvas with one field you can shape into anything.',
-		fields: [{ id: 'name', label: 'Name', type: 'text', required: false }],
+		fields: [{ id: 'name', label: 'Name', type: 'name', required: false }],
 	},
 	{
 		id: 'contact',
 		name: 'Contact form',
 		description: 'Collect a name, email address, and a detailed message.',
 		fields: [
-			{ id: 'name', label: 'Name', type: 'text', required: true },
+			{ id: 'name', label: 'Name', type: 'name', required: true },
 			{ id: 'email', label: 'Email', type: 'email', required: true },
 			{ id: 'message', label: 'Message', type: 'textarea', required: true },
 		],
@@ -59,7 +56,7 @@ const templates: Array<{
 		name: 'Lead capture',
 		description: 'A short, low-friction form for prospective customers.',
 		fields: [
-			{ id: 'name', label: 'Name', type: 'text', required: true },
+			{ id: 'name', label: 'Name', type: 'name', required: true },
 			{ id: 'email', label: 'Work email', type: 'email', required: true },
 			{ id: 'phone', label: 'Phone', type: 'tel', required: false },
 		],

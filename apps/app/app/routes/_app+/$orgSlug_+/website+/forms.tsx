@@ -1,5 +1,9 @@
 import { Trans } from '@lingui/macro'
-import { toPublicFormProjection } from '@repo/common/public-form'
+import {
+	publicFormFieldsSchema,
+	toPublicFormProjection,
+	type PublicFormField,
+} from '@repo/common/public-form'
 import { Badge } from '@repo/ui/badge'
 import { Button } from '@repo/ui/button'
 import { Frame } from '@repo/ui/frame'
@@ -36,12 +40,7 @@ import {
 } from '#app/utils/sites/kv-cache.server.ts'
 import { getOperatorTenantClient } from '#app/utils/tenant-api.server.ts'
 
-type FormField = {
-	id: string
-	label: string
-	type: 'text' | 'email' | 'tel' | 'textarea'
-	required: boolean
-}
+type FormField = PublicFormField
 type WebsiteForm = {
 	id: string
 	name: string
@@ -54,24 +53,7 @@ type WebsiteForm = {
 	successMessage: string
 }
 
-const fieldSchema = z.object({
-	id: z
-		.string()
-		.min(1)
-		.max(50)
-		.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-	label: z.string().trim().min(1).max(100),
-	type: z.enum(['text', 'email', 'tel', 'textarea']),
-	required: z.boolean(),
-})
-const fieldsArraySchema = z
-	.array(fieldSchema)
-	.min(1)
-	.max(20)
-	.refine(
-		(fields) => new Set(fields.map((field) => field.id)).size === fields.length,
-		{ message: 'Field labels must be unique.' },
-	)
+const fieldsArraySchema = publicFormFieldsSchema
 const createSchema = z.object({
 	name: z.string().trim().min(1).max(120),
 	description: z.string().trim().max(500).default(''),
