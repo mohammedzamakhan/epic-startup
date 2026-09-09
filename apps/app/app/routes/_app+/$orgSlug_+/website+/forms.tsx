@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/macro'
+import { toPublicFormProjection } from '@repo/common/public-form'
 import { Badge } from '@repo/ui/badge'
 import { Button } from '@repo/ui/button'
 import { Frame } from '@repo/ui/frame'
@@ -29,6 +30,10 @@ import {
 	ORG_PERMISSIONS,
 	requireUserWithOrganizationPermission,
 } from '#app/utils/organization/permissions.server.ts'
+import {
+	deleteCachedPublicForm,
+	setCachedPublicForm,
+} from '#app/utils/sites/kv-cache.server.ts'
 import { getOperatorTenantClient } from '#app/utils/tenant-api.server.ts'
 
 type FormField = {
@@ -45,6 +50,8 @@ type WebsiteForm = {
 	status: 'draft' | 'published'
 	submissionCount: number
 	updatedAt: string | null
+	submitLabel: string
+	successMessage: string
 }
 
 const fieldSchema = z.object({
@@ -129,9 +136,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			method: 'POST',
 			body: JSON.stringify({ ...parsed.data, status: 'published' }),
 		})
-		return response.ok
-			? { success: 'Form created.' }
-			: { error: 'Unable to create the form.' }
+		if (!response.ok) return { error: 'Unable to create the form.' }
+		const payload = (await response.json()) as { form?: WebsiteForm }
+		const projection = payload.form
+			? toPublicFormProjection(payload.form)
+			: null
+		if (projection) await setCachedPublicForm(orgId, projection)
+		return { success: 'Form created.' }
 	}
 	if (intent === 'delete') {
 		const id = String(formData.get('id') || '')
@@ -139,9 +150,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		const response = await fetchTenant(`/operator/forms/${id}`, {
 			method: 'DELETE',
 		})
-		return response.ok
-			? { success: 'Form deleted.' }
-			: { error: 'Unable to delete the form.' }
+		if (!response.ok) return { error: 'Unable to delete the form.' }
+		await deleteCachedPublicForm(orgId, id)
+		return { success: 'Form deleted.' }
 	}
 	return { error: 'Invalid action.' }
 }

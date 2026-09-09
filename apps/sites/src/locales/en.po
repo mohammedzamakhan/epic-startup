@@ -82,10 +82,6 @@ msgstr "Invalid verification code."
 msgid "Language"
 msgstr "Language"
 
-#: src/components/blocks/FormBlock.astro.ts:3
-msgid "Loading form..."
-msgstr "Loading form..."
-
 #: src/components/SiteHeader.astro.ts:3
 msgid "Logout"
 msgstr "Logout"
