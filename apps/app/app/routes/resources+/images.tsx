@@ -190,10 +190,12 @@ async function getCloudflareImageResponse(
 		organizationId,
 	)
 
+	const src = searchParams.get('src')
 	const isExternal = Boolean(
 		!objectKey &&
-		searchParams.get('src') &&
-		URL.canParse(searchParams.get('src')!),
+		src &&
+		URL.canParse(src) &&
+		new URL(src).origin !== new URL(request.url).origin,
 	)
 
 	if (!upstream.ok) {
@@ -316,7 +318,12 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 	const { getImgResponse } = await import('openimg/node')
 
-	const isExternal = Boolean(!objectKey && src && URL.canParse(src))
+	const isExternal = Boolean(
+		!objectKey &&
+		src &&
+		URL.canParse(src) &&
+		new URL(src).origin !== url.origin,
+	)
 	const headers = getImageResponseHeaders(isExternal)
 
 	return getImgResponse(request, {
