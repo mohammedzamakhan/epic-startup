@@ -440,6 +440,7 @@ function AIPanelSurface() {
 				aria-modal={isFullscreen || isMobile || undefined}
 				aria-label={i18n._('AI assistant')}
 				aria-hidden={!isVisible}
+				inert={!isVisible}
 				className={cn(
 					'bg-background flex flex-col overflow-hidden',
 					!isVisible && 'pointer-events-none',

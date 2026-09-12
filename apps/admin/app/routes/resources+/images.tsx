@@ -6,6 +6,14 @@ import { isCloudflareWorkerRuntime } from '#app/utils/runtime.server.ts'
 import { getSignedGetRequestInfoAsync } from '#app/utils/storage.server.ts'
 import { type Route } from './+types/images'
 
+const ALLOWED_RASTER_MIME_TYPES = new Set([
+	'image/jpeg',
+	'image/png',
+	'image/gif',
+	'image/webp',
+	'image/avif',
+])
+
 let cacheDir: string | 'no_cache' | null = null
 
 async function fetchExternalImage(request: Request) {
@@ -23,12 +31,17 @@ async function fetchExternalImage(request: Request) {
 	)
 
 	const upstream = await ssrfSafeFetch(sourceUrl)
+	const rawContentType = upstream.headers.get('content-type')
+	const mimeType = rawContentType?.split(';')[0]?.trim().toLowerCase()
+	if (!mimeType || !ALLOWED_RASTER_MIME_TYPES.has(mimeType)) {
+		throw new Response('Unsupported Media Type', { status: 415 })
+	}
+
 	const headers = new Headers()
-	headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+	headers.set('Cache-Control', 'no-store')
 	headers.set('Access-Control-Allow-Origin', '*')
 	headers.set('Cross-Origin-Resource-Policy', 'cross-origin')
-	const contentType = upstream.headers.get('content-type')
-	if (contentType) headers.set('Content-Type', contentType)
+	headers.set('Content-Type', mimeType)
 
 	return new Response(upstream.body, {
 		status: upstream.status,
@@ -66,7 +79,6 @@ async function getCloudflareImageResponse(request: Request) {
 	const searchParams = url.searchParams
 
 	const headers = new Headers()
-	headers.set('Cache-Control', 'public, max-age=31536000, immutable')
 
 	const objectKey = searchParams.get('objectKey')
 	const organizationId = searchParams.get('organizationId')
@@ -75,6 +87,7 @@ async function getCloudflareImageResponse(request: Request) {
 	let fetchHeaders: HeadersInit | undefined
 
 	if (objectKey) {
+		headers.set('Cache-Control', 'public, max-age=31536000, immutable')
 		if (
 			objectKey.length < 16 ||
 			objectKey.includes('..') ||
@@ -90,6 +103,7 @@ async function getCloudflareImageResponse(request: Request) {
 		imageUrl = signedUrl
 		fetchHeaders = signedHeaders
 	} else {
+		headers.set('Cache-Control', 'no-store')
 		const src = searchParams.get('src')
 		invariantResponse(src, 'src query parameter is required', { status: 400 })
 
@@ -116,9 +130,13 @@ async function getCloudflareImageResponse(request: Request) {
 		throw new Response('Not Found', { status: 404 })
 	}
 
-	const contentType = imageResponse.headers.get('content-type')
-	if (contentType) {
-		headers.set('Content-Type', contentType)
+	const rawContentType = imageResponse.headers.get('content-type')
+	const mimeType = rawContentType?.split(';')[0]?.trim().toLowerCase()
+	if (!objectKey && (!mimeType || !ALLOWED_RASTER_MIME_TYPES.has(mimeType))) {
+		throw new Response('Unsupported Media Type', { status: 415 })
+	}
+	if (mimeType) {
+		headers.set('Content-Type', mimeType)
 	}
 
 	return new Response(imageResponse.body, {
@@ -147,11 +165,15 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 	const searchParams = url.searchParams
 
-	const headers = new Headers()
-	headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-
 	const objectKey = searchParams.get('objectKey')
 	const organizationId = searchParams.get('organizationId')
+
+	const isExternal = Boolean(!objectKey && src && URL.canParse(src))
+	const headers = new Headers()
+	headers.set(
+		'Cache-Control',
+		isExternal ? 'no-store' : 'public, max-age=31536000, immutable',
+	)
 
 	return getImgResponse(request, {
 		headers,

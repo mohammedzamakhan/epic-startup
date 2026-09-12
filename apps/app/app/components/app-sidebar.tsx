@@ -209,6 +209,7 @@ function OrganizationSidebar({
 }) {
 	const { _ } = useLingui()
 	const goToHomepageLabel = _(msg`Go to homepage`)
+	const searchNotesLabel = _(msg`Search notes`)
 	const [isExtensionInstalled, setIsExtensionInstalled] = useState(false)
 	const [commandOpen, setCommandOpen] = useState(false)
 
@@ -445,12 +446,12 @@ function OrganizationSidebar({
 				</Link>
 				<SidebarMenuButton
 					variant="outline"
-					tooltip="Search notes"
+					tooltip={searchNotesLabel}
 					className="text-muted-foreground bg-background relative rounded-xl border text-left font-normal shadow-xs group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent"
 					onClick={() => setCommandOpen(true)}
 					aria-haspopup="dialog"
 					aria-expanded={commandOpen}
-					aria-label="Search notes"
+					aria-label={searchNotesLabel}
 				>
 					<Icon name="search" className="h-4 w-4 shrink-0" />
 					<span className="min-w-0 flex-1 truncate text-xs group-data-[collapsible=icon]:hidden">

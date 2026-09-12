@@ -38,6 +38,7 @@ export function CampaignForm({
 	const { channelLabel } = useCampaignLabels()
 	const [channel, setChannel] = useState<CampaignChannel>('email')
 	const [smsContent, setSmsContent] = useState('')
+	const [emailContent, setEmailContent] = useState('')
 
 	const channels: Array<{
 		value: CampaignChannel
@@ -143,6 +144,8 @@ export function CampaignForm({
 							<Textarea
 								id="content"
 								name="content"
+								value={emailContent}
+								onChange={(e) => setEmailContent(e.target.value)}
 								placeholder={_(
 									msg`Write your email. Use {{name}} to personalize.`,
 								)}

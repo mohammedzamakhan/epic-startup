@@ -218,8 +218,11 @@ export function ReportStart({
 									<time
 										className="text-muted-foreground shrink-0 text-xs tabular-nums"
 										dateTime={report.updatedAt}
+										suppressHydrationWarning
 									>
-										{new Date(report.updatedAt).toLocaleDateString()}
+										{new Date(report.updatedAt).toLocaleDateString('en-US', {
+											timeZone: 'UTC',
+										})}
 									</time>
 								</Link>
 							</li>

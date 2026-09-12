@@ -13,7 +13,7 @@ import {
 } from '@repo/ui/select'
 import { Textarea } from '@repo/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@repo/ui/tooltip'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router'
 import {
 	type ReportCatalog,
@@ -154,6 +154,12 @@ function RailButton({
 	)
 }
 
+function subscribeToCompactViewport(callback: () => void) {
+	const mql = window.matchMedia('(max-width: 767px)')
+	mql.addEventListener('change', callback)
+	return () => mql.removeEventListener('change', callback)
+}
+
 export function ReportBuilder({
 	catalog,
 	definition,
@@ -185,11 +191,15 @@ export function ReportBuilder({
 	headerExtras?: React.ReactNode
 	contentClassName?: string
 }) {
-	const [panel, setPanel] = useState<BuilderPanel | null>('visualization')
-
-	useEffect(() => {
-		if (window.matchMedia('(max-width: 767px)').matches) setPanel(null)
-	}, [])
+	const isCompact = useSyncExternalStore(
+		subscribeToCompactViewport,
+		() => window.matchMedia('(max-width: 767px)').matches,
+		() => false,
+	)
+	const [desktopPanel, setDesktopPanel] =
+		useState<BuilderPanel>('visualization')
+	const [compactPanel, setCompactPanel] = useState<BuilderPanel | null>(null)
+	const panel = isCompact ? compactPanel : desktopPanel
 	const chartRef = useRef<HTMLDivElement>(null)
 	const subject = getSubject(catalog, definition.subject)
 	const groupFields = subject ? groupableFields(subject) : []
@@ -220,11 +230,17 @@ export function ReportBuilder({
 	}
 
 	function togglePanel(next: BuilderPanel) {
-		setPanel((current) =>
-			current === next && window.matchMedia('(max-width: 767px)').matches
-				? null
-				: next,
-		)
+		if (isCompact) {
+			setCompactPanel((current) => (current === next ? null : next))
+		} else {
+			setDesktopPanel(next)
+		}
+	}
+
+	function closePanel() {
+		if (isCompact) {
+			setCompactPanel(null)
+		}
 	}
 
 	const tenantApiSubject = subject?.source === 'tenant-api'
@@ -313,7 +329,6 @@ export function ReportBuilder({
 							icon="calendar"
 							label="Timeframe"
 							tooltip="Choose the field and date range used to include records."
-							active={panel === 'subject'}
 							onClick={() => togglePanel('subject')}
 						>
 							{timeframeFieldLabel} ·{' '}
@@ -443,7 +458,7 @@ export function ReportBuilder({
 									size="icon-sm"
 									className="md:hidden"
 									aria-label="Close panel"
-									onClick={() => setPanel(null)}
+									onClick={closePanel}
 								>
 									<Icon name="x" className="size-4" />
 								</Button>

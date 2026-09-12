@@ -72,7 +72,7 @@ export function EmptyState({
 						</div>
 					)}
 				</div>
-				<h2 className="text-foreground font-large mt-6 text-lg">{title}</h2>
+				<h2 className="text-foreground mt-6 text-lg font-medium">{title}</h2>
 				<p className="text-muted-foreground text-md mt-1 whitespace-pre-line">
 					{description}
 				</p>
