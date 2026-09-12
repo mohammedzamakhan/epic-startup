@@ -1,12 +1,40 @@
 import { invariantResponse } from '@epic-web/invariant'
 import { getDomainUrl } from '@repo/common'
-import { validateInstanceUrl } from '@repo/security'
+import { ssrfSafeFetch, validateInstanceUrl } from '@repo/security'
 import { ENV } from 'varlock/env'
 import { isCloudflareWorkerRuntime } from '#app/utils/runtime.server.ts'
 import { getSignedGetRequestInfoAsync } from '#app/utils/storage.server.ts'
 import { type Route } from './+types/images'
 
 let cacheDir: string | 'no_cache' | null = null
+
+async function fetchExternalImage(request: Request) {
+	const url = new URL(request.url)
+	const src = url.searchParams.get('src')
+	invariantResponse(src, 'src query parameter is required', { status: 400 })
+
+	const sourceUrl = new URL(src)
+	invariantResponse(
+		sourceUrl.origin !== url.origin,
+		'External image source required',
+		{
+			status: 400,
+		},
+	)
+
+	const upstream = await ssrfSafeFetch(sourceUrl)
+	const headers = new Headers()
+	headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+	headers.set('Access-Control-Allow-Origin', '*')
+	headers.set('Cross-Origin-Resource-Policy', 'cross-origin')
+	const contentType = upstream.headers.get('content-type')
+	if (contentType) headers.set('Content-Type', contentType)
+
+	return new Response(upstream.body, {
+		status: upstream.status,
+		headers,
+	})
+}
 
 async function getCacheDir() {
 	if (cacheDir) return cacheDir
@@ -100,13 +128,23 @@ async function getCloudflareImageResponse(request: Request) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+	const url = new URL(request.url)
+	const src = url.searchParams.get('src')
+	if (
+		src &&
+		URL.canParse(src) &&
+		new URL(src).origin !== url.origin &&
+		!isCloudflareWorkerRuntime()
+	) {
+		return fetchExternalImage(request)
+	}
+
 	if (isCloudflareWorkerRuntime()) {
 		return getCloudflareImageResponse(request)
 	}
 
 	const { getImgResponse } = await import('openimg/node')
 
-	const url = new URL(request.url)
 	const searchParams = url.searchParams
 
 	const headers = new Headers()

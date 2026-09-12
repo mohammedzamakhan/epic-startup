@@ -1,6 +1,6 @@
 import { invariantResponse } from '@epic-web/invariant'
 import { getDomainUrl, isCloudflareWorkerRuntime } from '@repo/common'
-import { validateInstanceUrl } from '@repo/security'
+import { ssrfSafeFetch, validateInstanceUrl } from '@repo/security'
 import {
 	getSignedGetRequestInfoAsync,
 	getSignedHeadRequestInfoAsync,
@@ -104,6 +104,32 @@ function getImageResponseHeaders() {
 	headers.set('Access-Control-Allow-Origin', '*')
 	headers.set('Cross-Origin-Resource-Policy', 'cross-origin')
 	return headers
+}
+
+async function fetchExternalImage(
+	request: Request,
+	searchParams: URLSearchParams,
+) {
+	const src = searchParams.get('src')
+	invariantResponse(src, 'src query parameter is required', { status: 400 })
+
+	const sourceUrl = new URL(src)
+	const requestUrl = new URL(request.url)
+	invariantResponse(
+		sourceUrl.origin !== requestUrl.origin,
+		'External image source required',
+		{ status: 400 },
+	)
+
+	const upstream = await ssrfSafeFetch(sourceUrl)
+	const headers = getImageResponseHeaders()
+	const contentType = upstream.headers.get('content-type')
+	if (contentType) headers.set('Content-Type', contentType)
+
+	return new Response(upstream.body, {
+		status: upstream.status,
+		headers,
+	})
 }
 
 async function fetchImageSource(
@@ -236,6 +262,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 		if (isVideoObjectKey(objectKey)) {
 			return streamStoredVideo(request, objectKey, organizationId)
 		}
+	}
+
+	const src = searchParams.get('src')
+	if (src && URL.canParse(src) && !isCloudflareWorkerRuntime()) {
+		return fetchExternalImage(request, searchParams)
 	}
 
 	if (isCloudflareWorkerRuntime()) {
