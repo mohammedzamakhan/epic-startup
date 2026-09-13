@@ -370,6 +370,18 @@ export async function inferLaunchConfig(rootDir) {
 				setBinding(result, 'staging', 'admin', 'kv_namespace_id', stagingKv)
 				result.notes.push(`KV namespace (staging): ${stagingKv}`)
 			}
+			const prodSitesKv = pickKvNamespace(namespaces, [CF_KV.sitesData])
+			const stagingSitesKv = pickKvNamespace(namespaces, [CF_KV.sitesDataStaging])
+			if (prodSitesKv) {
+				setBinding(result, 'production', 'sites', 'sites_data_kv_id', prodSitesKv)
+				setBinding(result, 'production', 'app', 'sites_data_kv_id', prodSitesKv)
+				result.notes.push(`KV sites data (prod): ${prodSitesKv}`)
+			}
+			if (stagingSitesKv) {
+				setBinding(result, 'staging', 'sites', 'sites_data_kv_id', stagingSitesKv)
+				setBinding(result, 'staging', 'app', 'sites_data_kv_id', stagingSitesKv)
+				result.notes.push(`KV sites data (staging): ${stagingSitesKv}`)
+			}
 		} catch {
 			result.notes.push('Could not parse `wrangler kv namespace list` output')
 		}
