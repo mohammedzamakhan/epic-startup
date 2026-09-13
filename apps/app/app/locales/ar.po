@@ -1,5 +1,15 @@
 msgid ""
 msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language: \n"
+"Language-Team: \n"
+"Content-Type: \n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
 
 #. js-lingui-explicit-id
 #: app/components/ai/global-ai-panel.tsx:104
@@ -334,7 +344,7 @@ msgstr "لون التمييز"
 msgid "Accept"
 msgstr "قبول"
 
-#: app/components/roles/tenant-role-access-manager.tsx:808
+#: app/components/roles/tenant-role-access-manager.tsx:806
 msgid "Access"
 msgstr "الوصول"
 
@@ -371,7 +381,7 @@ msgid "Acme Inc."
 msgstr "شركة Acme"
 
 #: app/components/command-menu.tsx:115
-#: app/components/roles/tenant-role-access-manager.tsx:725
+#: app/components/roles/tenant-role-access-manager.tsx:723
 #: app/routes/_app+/$orgSlug_+/mcp.tsx:963
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:606
 #: app/routes/_app+/$orgSlug_+/website+/forms.tsx:213
@@ -701,7 +711,7 @@ msgstr "جميع المستلمين"
 msgid "All steps complete"
 msgstr "اكتملت جميع الخطوات"
 
-#: app/components/roles/tenant-role-access-manager.tsx:614
+#: app/components/roles/tenant-role-access-manager.tsx:612
 msgid "Allowed"
 msgstr "مسموح"
 
@@ -782,7 +792,7 @@ msgstr "مؤرشف"
 msgid "Are you sure you want to delete \"{journeyName}\"?"
 msgstr "هل أنت متأكد أنك تريد حذف \"{journeyName}\"؟"
 
-#: app/components/roles/tenant-role-access-manager.tsx:865
+#: app/components/roles/tenant-role-access-manager.tsx:863
 msgid "Are you sure you want to delete “{roleNameToDelete}”? This action cannot be undone."
 msgstr "هل أنت متأكد أنك تريد حذف «{roleNameToDelete}»؟ لا يمكن التراجع عن هذا الإجراء."
 
@@ -1054,11 +1064,11 @@ msgstr "أنشئ بريدًا HTML بعلامتك التجارية باستخد�
 msgid "Builder"
 msgstr "المنشئ"
 
-#: app/components/roles/tenant-role-access-manager.tsx:527
+#: app/components/roles/tenant-role-access-manager.tsx:525
 msgid "Built-in"
 msgstr "مدمج"
 
-#: app/components/roles/tenant-role-access-manager.tsx:785
+#: app/components/roles/tenant-role-access-manager.tsx:783
 msgid "Built-in Roles"
 msgstr "الأدوار المدمجة"
 
@@ -1112,8 +1122,8 @@ msgstr "يمكنه تعديل ملاحظات الزملاء"
 #: app/components/note/comment-input.tsx:209
 #: app/components/note/comment-item.tsx:290
 #: app/components/note/share-note-button.tsx:317
-#: app/components/roles/tenant-role-access-manager.tsx:483
-#: app/components/roles/tenant-role-access-manager.tsx:873
+#: app/components/roles/tenant-role-access-manager.tsx:481
+#: app/components/roles/tenant-role-access-manager.tsx:871
 #: app/components/settings/cards/organization/announcement-sheet.tsx:519
 #: app/components/settings/cards/organization/danger-zone-card.tsx:131
 #: app/components/settings/cards/organization/site-icon-card.tsx:184
@@ -1648,7 +1658,7 @@ msgstr "تعذر فتح {routeTitle}"
 msgid "Create"
 msgstr "إنشاء"
 
-#: app/components/roles/tenant-role-access-manager.tsx:702
+#: app/components/roles/tenant-role-access-manager.tsx:700
 msgid "Create a custom role to assign specific permissions to teammates."
 msgstr "أنشئ دورًا مخصصًا لتعيين صلاحيات محددة للزملاء."
 
@@ -1779,8 +1789,8 @@ msgstr "إنشاء إعادة توجيه"
 msgid "Create reusable forms, then place them on any website page with a Form block."
 msgstr "أنشئ نماذج قابلة لإعادة الاستخدام، ثم أضفها إلى أي صفحة في الموقع باستخدام كتلة نموذج."
 
-#: app/components/roles/tenant-role-access-manager.tsx:491
-#: app/components/roles/tenant-role-access-manager.tsx:691
+#: app/components/roles/tenant-role-access-manager.tsx:489
+#: app/components/roles/tenant-role-access-manager.tsx:689
 msgid "Create role"
 msgstr "إنشاء دور"
 
@@ -1869,7 +1879,7 @@ msgstr "الاشتراك الحالي"
 msgid "Cursor Setup"
 msgstr "إعداد Cursor"
 
-#: app/components/roles/tenant-role-access-manager.tsx:527
+#: app/components/roles/tenant-role-access-manager.tsx:525
 msgid "Custom"
 msgstr "مخصص"
 
@@ -1894,7 +1904,7 @@ msgstr "اسم الحدث المخصص"
 msgid "Custom form"
 msgstr "نموذج مخصص"
 
-#: app/components/roles/tenant-role-access-manager.tsx:676
+#: app/components/roles/tenant-role-access-manager.tsx:674
 msgid "Custom Roles"
 msgstr "الأدوار المخصصة"
 
@@ -2037,8 +2047,8 @@ msgid "Delay unit is required."
 msgstr "وحدة التأخير مطلوبة."
 
 #: app/components/note/comment-item.tsx:230
-#: app/components/roles/tenant-role-access-manager.tsx:770
-#: app/components/roles/tenant-role-access-manager.tsx:880
+#: app/components/roles/tenant-role-access-manager.tsx:768
+#: app/components/roles/tenant-role-access-manager.tsx:878
 #: app/components/settings/passkey-manager.tsx:220
 #: app/routes/_app+/$orgSlug_+/marketing+/automations._index.tsx:437
 #: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1032
@@ -2081,7 +2091,7 @@ msgstr "حذف العمود"
 #~ msgid "Delete comment"
 #~ msgstr "حذف التعليق"
 
-#: app/components/roles/tenant-role-access-manager.tsx:862
+#: app/components/roles/tenant-role-access-manager.tsx:860
 msgid "Delete custom role"
 msgstr "حذف الدور المخصص"
 
@@ -2159,7 +2169,7 @@ msgstr "حذف رابط التواصل الاجتماعي"
 msgid "Delete team notes"
 msgstr "حذف ملاحظات الفريق"
 
-#: app/components/roles/tenant-role-access-manager.tsx:880
+#: app/components/roles/tenant-role-access-manager.tsx:878
 msgid "Deleting…"
 msgstr "جارٍ الحذف…"
 
@@ -2169,9 +2179,9 @@ msgstr "رفض"
 
 #: app/components/roles/tenant-role-access-manager.tsx:288
 #: app/components/roles/tenant-role-access-manager.tsx:399
-#: app/components/roles/tenant-role-access-manager.tsx:580
-#: app/components/roles/tenant-role-access-manager.tsx:716
-#: app/components/roles/tenant-role-access-manager.tsx:802
+#: app/components/roles/tenant-role-access-manager.tsx:578
+#: app/components/roles/tenant-role-access-manager.tsx:714
+#: app/components/roles/tenant-role-access-manager.tsx:800
 #: app/components/settings/cards/organization/shop-card.tsx:268
 #: app/components/website/create-form-dialog.tsx:124
 #: app/components/website/form-builder-sidebar.tsx:683
@@ -2416,7 +2426,7 @@ msgstr "مثل: Claude Desktop، Kiro IDE"
 
 #: app/components/favorite-notes.tsx:110
 #: app/components/note/comment-item.tsx:223
-#: app/components/roles/tenant-role-access-manager.tsx:760
+#: app/components/roles/tenant-role-access-manager.tsx:758
 #: app/routes/_app+/$orgSlug_+/notes-table.tsx:92
 #: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:975
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:458
@@ -2462,7 +2472,7 @@ msgstr "تعديل الملاحظات الخاصة"
 msgid "Edit redirect"
 msgstr "تعديل إعادة التوجيه"
 
-#: app/components/roles/tenant-role-access-manager.tsx:547
+#: app/components/roles/tenant-role-access-manager.tsx:545
 msgid "Edit role"
 msgstr "تعديل الدور"
 
@@ -3258,7 +3268,7 @@ msgstr "إدراج حقل هنا"
 #~ msgid "Insert Merge Tags:"
 #~ msgstr "إدراج وسوم الدمج:"
 
-#: app/components/roles/tenant-role-access-manager.tsx:837
+#: app/components/roles/tenant-role-access-manager.tsx:835
 msgid "Inspect"
 msgstr "استعراض"
 
@@ -3625,6 +3635,11 @@ msgstr "جعلها عامة"
 msgid "Manage Passkeys"
 msgstr "إدارة مفاتيح المرور"
 
+#: app/components/organization-invitations.tsx:257
+#: app/components/organization-members.tsx:173
+msgid "Manage roles"
+msgstr "إدارة الأدوار"
+
 #: app/components/settings/cards/organization/billing-card.tsx:172
 msgid "Manage Subscription"
 msgstr "إدارة الاشتراك"
@@ -3731,7 +3746,7 @@ msgstr "رابط الوسائط"
 msgid "Medium"
 msgstr "متوسط"
 
-#: app/components/roles/tenant-role-access-manager.tsx:537
+#: app/components/roles/tenant-role-access-manager.tsx:535
 #: app/components/team-switcher.tsx:132
 msgid "member"
 msgstr "عضو"
@@ -3740,15 +3755,15 @@ msgstr "عضو"
 #~ msgid "Member"
 #~ msgstr "عضو"
 
-#: app/components/roles/tenant-role-access-manager.tsx:537
+#: app/components/roles/tenant-role-access-manager.tsx:535
 #: app/components/team-switcher.tsx:134
 msgid "members"
 msgstr "أعضاء"
 
 #: app/components/app-sidebar.tsx:375
 #: app/components/organization-members.tsx:164
-#: app/components/roles/tenant-role-access-manager.tsx:719
-#: app/components/roles/tenant-role-access-manager.tsx:805
+#: app/components/roles/tenant-role-access-manager.tsx:717
+#: app/components/roles/tenant-role-access-manager.tsx:803
 msgid "Members"
 msgstr "الأعضاء"
 
@@ -4022,13 +4037,17 @@ msgstr "لا يوجد جهة اتصال مسجّلة"
 msgid "No content yet"
 msgstr "لا يوجد محتوى بعد"
 
-#: app/components/roles/tenant-role-access-manager.tsx:699
+#: app/components/roles/tenant-role-access-manager.tsx:697
 msgid "No custom roles created yet."
 msgstr "لم يتم إنشاء أدوار مخصصة بعد."
 
 #: ../../packages/marketing/src/components/campaign-detail.tsx:129
 msgid "No delivery records yet."
 msgstr "لا توجد سجلات تسليم بعد."
+
+#: app/components/organization-invitations.tsx:460
+msgid "No description provided"
+msgstr "لم يُقدَّم وصف"
 
 #: app/routes/_app+/$orgSlug_+/marketing+/automations.$journeyId.runs.tsx:389
 msgid "No discrete action step dispatches recorded for this run."
@@ -4151,7 +4170,7 @@ msgstr "العُقد"
 msgid "None"
 msgstr "بلا"
 
-#: app/components/roles/tenant-role-access-manager.tsx:618
+#: app/components/roles/tenant-role-access-manager.tsx:616
 msgid "Not allowed"
 msgstr "غير مسموح"
 
@@ -4577,19 +4596,19 @@ msgid "Permanently delete notes created by this user."
 msgstr "حذف الملاحظات التي أنشأها هذا المستخدم نهائيًا."
 
 #: app/components/roles/tenant-role-access-manager.tsx:396
-#: app/components/roles/tenant-role-access-manager.tsx:577
+#: app/components/roles/tenant-role-access-manager.tsx:575
 msgid "Permission"
 msgstr "الصلاحية"
 
-#: app/components/roles/tenant-role-access-manager.tsx:722
+#: app/components/roles/tenant-role-access-manager.tsx:720
 msgid "Permissions"
 msgstr "الصلاحيات"
 
-#: app/components/roles/tenant-role-access-manager.tsx:538
+#: app/components/roles/tenant-role-access-manager.tsx:536
 msgid "permissions granted"
 msgstr "صلاحيات ممنوحة"
 
-#: app/components/roles/tenant-role-access-manager.tsx:475
+#: app/components/roles/tenant-role-access-manager.tsx:473
 msgid "permissions selected"
 msgstr "صلاحيات محددة"
 
@@ -4700,7 +4719,7 @@ msgstr "الخطة غير متاحة"
 msgid "Platform"
 msgstr "المنصة"
 
-#: app/components/roles/tenant-role-access-manager.tsx:822
+#: app/components/roles/tenant-role-access-manager.tsx:820
 msgid "Platform-provided role."
 msgstr "دور توفره المنصة."
 
@@ -5263,8 +5282,8 @@ msgstr "جاري الإلغاء..."
 msgid "Right"
 msgstr "اليمين"
 
-#: app/components/roles/tenant-role-access-manager.tsx:713
-#: app/components/roles/tenant-role-access-manager.tsx:799
+#: app/components/roles/tenant-role-access-manager.tsx:711
+#: app/components/roles/tenant-role-access-manager.tsx:797
 msgid "Role"
 msgstr "الدور"
 
@@ -5395,7 +5414,7 @@ msgstr "وفّر 20٪"
 msgid "Save Branding"
 msgstr "حفظ العلامة التجارية"
 
-#: app/components/roles/tenant-role-access-manager.tsx:489
+#: app/components/roles/tenant-role-access-manager.tsx:487
 #: app/components/settings/cards/organization/announcement-sheet.tsx:523
 #: app/components/settings/cards/organization/general-settings-card.tsx:112
 #: app/components/settings/cards/organization/site-analytics-card.tsx:140
@@ -5456,7 +5475,7 @@ msgid "Saving..."
 msgstr "جارٍ الحفظ..."
 
 #: ../../packages/marketing/src/components/email/email-design-overlay.tsx:163
-#: app/components/roles/tenant-role-access-manager.tsx:487
+#: app/components/roles/tenant-role-access-manager.tsx:485
 #: app/routes/_app+/$orgSlug_+/website+/forms.$formId.tsx:480
 msgid "Saving…"
 msgstr "جارٍ الحفظ…"
@@ -6003,11 +6022,11 @@ msgstr "تفرّع المسار بناءً على قواعد (صحيح / خاط�
 msgid "Square"
 msgstr "مربع"
 
-#: app/components/roles/tenant-role-access-manager.tsx:788
+#: app/components/roles/tenant-role-access-manager.tsx:786
 msgid "Standard platform roles. Click any role to review its active permissions."
 msgstr "أدوار المنصة القياسية. انقر أي دور لمراجعة صلاحياته الفعّالة."
 
-#: app/components/roles/tenant-role-access-manager.tsx:533
+#: app/components/roles/tenant-role-access-manager.tsx:531
 msgid "Standard system role."
 msgstr "دور نظام قياسي."
 
@@ -6051,7 +6070,7 @@ msgstr "بدأ في"
 msgid "Starting point"
 msgstr "نقطة البداية"
 
-#: app/components/roles/tenant-role-access-manager.tsx:583
+#: app/components/roles/tenant-role-access-manager.tsx:581
 #: app/components/settings/cards/sessions-card.tsx:239
 #: app/routes/_app+/$orgSlug_+/marketing+/automations.$journeyId.runs.tsx:279
 #: app/routes/_app+/$orgSlug_+/mcp.tsx:960
@@ -6221,7 +6240,7 @@ msgstr "نظام السمة"
 msgid "Tags"
 msgstr "الوسوم"
 
-#: app/components/roles/tenant-role-access-manager.tsx:679
+#: app/components/roles/tenant-role-access-manager.tsx:677
 msgid "Tailored roles specific to your organization with configured permissions."
 msgstr "أدوار مخصصة لمنظمتك مع صلاحيات مُعدّة."
 
@@ -6896,7 +6915,7 @@ msgstr "جاري التحقق من مفتاح المرور"
 msgid "Video"
 msgstr "فيديو"
 
-#: app/components/roles/tenant-role-access-manager.tsx:752
+#: app/components/roles/tenant-role-access-manager.tsx:750
 #: app/components/settings/cards/organization/invoices-card.tsx:137
 #: app/routes/_app+/$orgSlug_+/notes-table.tsx:79
 msgid "View"

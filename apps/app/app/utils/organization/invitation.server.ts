@@ -90,6 +90,21 @@ async function requireBuiltInAdminMembership(
 	)
 }
 
+export async function validateOrganizationInviteRoles(
+	organizationId: string,
+	invites: Array<{ roleId?: string; role?: OrganizationRoleName }>,
+) {
+	await Promise.all(
+		invites.map((invite) =>
+			getAssignableOrganizationRole({
+				organizationId,
+				roleId: invite.roleId,
+				roleName: invite.role,
+			}),
+		),
+	)
+}
+
 export async function createOrganizationInvitation({
 	organizationId,
 	email: rawEmail,

@@ -430,15 +430,13 @@ export function RoleAccessForm({
 															}
 															disabled={isSubmitting}
 														/>
-														<input
-															type="checkbox"
-															name="permissionIds"
-															value={permission.id}
-															checked={isChecked}
-															onChange={() => {}}
-															tabIndex={-1}
-															className="sr-only"
-														/>
+														{isChecked ? (
+															<input
+																type="hidden"
+																name="permissionIds"
+																value={permission.id}
+															/>
+														) : null}
 													</TableCell>
 													<TableCell className="text-foreground pt-3.5 align-top font-medium">
 														<div className="flex flex-wrap items-center gap-2">

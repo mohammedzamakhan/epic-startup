@@ -170,7 +170,7 @@ export function OrganizationMembers({
 							{' '}
 							·{' '}
 							<Link to={`/${organizationSlug}/settings/roles`}>
-								Manage roles
+								<Trans>Manage roles</Trans>
 							</Link>
 						</>
 					)}

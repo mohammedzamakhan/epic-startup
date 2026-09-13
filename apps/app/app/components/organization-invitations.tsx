@@ -254,7 +254,7 @@ export function OrganizationInvitations({
 								{' '}
 								·{' '}
 								<Link to={`/${organizationSlug}/settings/roles`}>
-									Manage roles
+									<Trans>Manage roles</Trans>
 								</Link>
 							</>
 						)}
@@ -456,7 +456,8 @@ function InviteFieldset({
 										<div className="flex flex-col">
 											<span className="font-medium">{roleOption.label}</span>
 											<span className="text-muted-foreground group-data-[highlighted]:text-accent-foreground text-xs">
-												{roleOption.description || 'No description provided'}
+												{roleOption.description ||
+													_(msg`No description provided`)}
 											</span>
 										</div>
 									</DropdownMenuItem>

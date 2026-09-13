@@ -346,7 +346,7 @@ msgstr ""
 msgid "Accept"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:808
+#: app/components/roles/tenant-role-access-manager.tsx:806
 msgid "Access"
 msgstr "Access"
 
@@ -383,7 +383,7 @@ msgid "Acme Inc."
 msgstr ""
 
 #: app/components/command-menu.tsx:115
-#: app/components/roles/tenant-role-access-manager.tsx:725
+#: app/components/roles/tenant-role-access-manager.tsx:723
 #: app/routes/_app+/$orgSlug_+/mcp.tsx:963
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:606
 #: app/routes/_app+/$orgSlug_+/website+/forms.tsx:213
@@ -713,7 +713,7 @@ msgstr ""
 msgid "All steps complete"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:614
+#: app/components/roles/tenant-role-access-manager.tsx:612
 msgid "Allowed"
 msgstr "Allowed"
 
@@ -794,7 +794,7 @@ msgstr ""
 msgid "Are you sure you want to delete \"{journeyName}\"?"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:865
+#: app/components/roles/tenant-role-access-manager.tsx:863
 msgid "Are you sure you want to delete “{roleNameToDelete}”? This action cannot be undone."
 msgstr "Are you sure you want to delete “{roleNameToDelete}”? This action cannot be undone."
 
@@ -1066,11 +1066,11 @@ msgstr "Build a branded HTML email with blocks."
 msgid "Builder"
 msgstr "Builder"
 
-#: app/components/roles/tenant-role-access-manager.tsx:527
+#: app/components/roles/tenant-role-access-manager.tsx:525
 msgid "Built-in"
 msgstr "Built-in"
 
-#: app/components/roles/tenant-role-access-manager.tsx:785
+#: app/components/roles/tenant-role-access-manager.tsx:783
 msgid "Built-in Roles"
 msgstr "Built-in Roles"
 
@@ -1124,8 +1124,8 @@ msgstr "Can edit teammate notes"
 #: app/components/note/comment-input.tsx:209
 #: app/components/note/comment-item.tsx:290
 #: app/components/note/share-note-button.tsx:317
-#: app/components/roles/tenant-role-access-manager.tsx:483
-#: app/components/roles/tenant-role-access-manager.tsx:873
+#: app/components/roles/tenant-role-access-manager.tsx:481
+#: app/components/roles/tenant-role-access-manager.tsx:871
 #: app/components/settings/cards/organization/announcement-sheet.tsx:519
 #: app/components/settings/cards/organization/danger-zone-card.tsx:131
 #: app/components/settings/cards/organization/site-icon-card.tsx:184
@@ -1660,7 +1660,7 @@ msgstr "Couldn't open {routeTitle}"
 msgid "Create"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:702
+#: app/components/roles/tenant-role-access-manager.tsx:700
 msgid "Create a custom role to assign specific permissions to teammates."
 msgstr "Create a custom role to assign specific permissions to teammates."
 
@@ -1791,8 +1791,8 @@ msgstr "Create redirect"
 msgid "Create reusable forms, then place them on any website page with a Form block."
 msgstr "Create reusable forms, then place them on any website page with a Form block."
 
-#: app/components/roles/tenant-role-access-manager.tsx:491
-#: app/components/roles/tenant-role-access-manager.tsx:691
+#: app/components/roles/tenant-role-access-manager.tsx:489
+#: app/components/roles/tenant-role-access-manager.tsx:689
 msgid "Create role"
 msgstr "Create role"
 
@@ -1881,7 +1881,7 @@ msgstr ""
 msgid "Cursor Setup"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:527
+#: app/components/roles/tenant-role-access-manager.tsx:525
 msgid "Custom"
 msgstr "Custom"
 
@@ -1906,7 +1906,7 @@ msgstr ""
 msgid "Custom form"
 msgstr "Custom form"
 
-#: app/components/roles/tenant-role-access-manager.tsx:676
+#: app/components/roles/tenant-role-access-manager.tsx:674
 msgid "Custom Roles"
 msgstr "Custom Roles"
 
@@ -2049,8 +2049,8 @@ msgid "Delay unit is required."
 msgstr ""
 
 #: app/components/note/comment-item.tsx:230
-#: app/components/roles/tenant-role-access-manager.tsx:770
-#: app/components/roles/tenant-role-access-manager.tsx:880
+#: app/components/roles/tenant-role-access-manager.tsx:768
+#: app/components/roles/tenant-role-access-manager.tsx:878
 #: app/components/settings/passkey-manager.tsx:220
 #: app/routes/_app+/$orgSlug_+/marketing+/automations._index.tsx:437
 #: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1032
@@ -2093,7 +2093,7 @@ msgstr ""
 #~ msgid "Delete comment"
 #~ msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:862
+#: app/components/roles/tenant-role-access-manager.tsx:860
 msgid "Delete custom role"
 msgstr "Delete custom role"
 
@@ -2171,7 +2171,7 @@ msgstr ""
 msgid "Delete team notes"
 msgstr "Delete team notes"
 
-#: app/components/roles/tenant-role-access-manager.tsx:880
+#: app/components/roles/tenant-role-access-manager.tsx:878
 msgid "Deleting…"
 msgstr "Deleting…"
 
@@ -2181,9 +2181,9 @@ msgstr ""
 
 #: app/components/roles/tenant-role-access-manager.tsx:288
 #: app/components/roles/tenant-role-access-manager.tsx:399
-#: app/components/roles/tenant-role-access-manager.tsx:580
-#: app/components/roles/tenant-role-access-manager.tsx:716
-#: app/components/roles/tenant-role-access-manager.tsx:802
+#: app/components/roles/tenant-role-access-manager.tsx:578
+#: app/components/roles/tenant-role-access-manager.tsx:714
+#: app/components/roles/tenant-role-access-manager.tsx:800
 #: app/components/settings/cards/organization/shop-card.tsx:268
 #: app/components/website/create-form-dialog.tsx:124
 #: app/components/website/form-builder-sidebar.tsx:683
@@ -2428,7 +2428,7 @@ msgstr ""
 
 #: app/components/favorite-notes.tsx:110
 #: app/components/note/comment-item.tsx:223
-#: app/components/roles/tenant-role-access-manager.tsx:760
+#: app/components/roles/tenant-role-access-manager.tsx:758
 #: app/routes/_app+/$orgSlug_+/notes-table.tsx:92
 #: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:975
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:458
@@ -2474,7 +2474,7 @@ msgstr "Edit own notes"
 msgid "Edit redirect"
 msgstr "Edit redirect"
 
-#: app/components/roles/tenant-role-access-manager.tsx:547
+#: app/components/roles/tenant-role-access-manager.tsx:545
 msgid "Edit role"
 msgstr "Edit role"
 
@@ -3270,7 +3270,7 @@ msgstr "Insert field here"
 #~ msgid "Insert Merge Tags:"
 #~ msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:837
+#: app/components/roles/tenant-role-access-manager.tsx:835
 msgid "Inspect"
 msgstr "Inspect"
 
@@ -3637,6 +3637,11 @@ msgstr ""
 msgid "Manage Passkeys"
 msgstr ""
 
+#: app/components/organization-invitations.tsx:257
+#: app/components/organization-members.tsx:173
+msgid "Manage roles"
+msgstr "Manage roles"
+
 #: app/components/settings/cards/organization/billing-card.tsx:172
 msgid "Manage Subscription"
 msgstr ""
@@ -3743,7 +3748,7 @@ msgstr ""
 msgid "Medium"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:537
+#: app/components/roles/tenant-role-access-manager.tsx:535
 #: app/components/team-switcher.tsx:132
 msgid "member"
 msgstr ""
@@ -3752,15 +3757,15 @@ msgstr ""
 #~ msgid "Member"
 #~ msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:537
+#: app/components/roles/tenant-role-access-manager.tsx:535
 #: app/components/team-switcher.tsx:134
 msgid "members"
 msgstr ""
 
 #: app/components/app-sidebar.tsx:375
 #: app/components/organization-members.tsx:164
-#: app/components/roles/tenant-role-access-manager.tsx:719
-#: app/components/roles/tenant-role-access-manager.tsx:805
+#: app/components/roles/tenant-role-access-manager.tsx:717
+#: app/components/roles/tenant-role-access-manager.tsx:803
 msgid "Members"
 msgstr ""
 
@@ -4034,13 +4039,17 @@ msgstr ""
 msgid "No content yet"
 msgstr "No content yet"
 
-#: app/components/roles/tenant-role-access-manager.tsx:699
+#: app/components/roles/tenant-role-access-manager.tsx:697
 msgid "No custom roles created yet."
 msgstr "No custom roles created yet."
 
 #: ../../packages/marketing/src/components/campaign-detail.tsx:129
 msgid "No delivery records yet."
 msgstr ""
+
+#: app/components/organization-invitations.tsx:460
+msgid "No description provided"
+msgstr "No description provided"
 
 #: app/routes/_app+/$orgSlug_+/marketing+/automations.$journeyId.runs.tsx:389
 msgid "No discrete action step dispatches recorded for this run."
@@ -4163,7 +4172,7 @@ msgstr ""
 msgid "None"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:618
+#: app/components/roles/tenant-role-access-manager.tsx:616
 msgid "Not allowed"
 msgstr "Not allowed"
 
@@ -4589,19 +4598,19 @@ msgid "Permanently delete notes created by this user."
 msgstr "Permanently delete notes created by this user."
 
 #: app/components/roles/tenant-role-access-manager.tsx:396
-#: app/components/roles/tenant-role-access-manager.tsx:577
+#: app/components/roles/tenant-role-access-manager.tsx:575
 msgid "Permission"
 msgstr "Permission"
 
-#: app/components/roles/tenant-role-access-manager.tsx:722
+#: app/components/roles/tenant-role-access-manager.tsx:720
 msgid "Permissions"
 msgstr "Permissions"
 
-#: app/components/roles/tenant-role-access-manager.tsx:538
+#: app/components/roles/tenant-role-access-manager.tsx:536
 msgid "permissions granted"
 msgstr "permissions granted"
 
-#: app/components/roles/tenant-role-access-manager.tsx:475
+#: app/components/roles/tenant-role-access-manager.tsx:473
 msgid "permissions selected"
 msgstr "permissions selected"
 
@@ -4712,7 +4721,7 @@ msgstr ""
 msgid "Platform"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:822
+#: app/components/roles/tenant-role-access-manager.tsx:820
 msgid "Platform-provided role."
 msgstr "Platform-provided role."
 
@@ -5275,8 +5284,8 @@ msgstr ""
 msgid "Right"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:713
-#: app/components/roles/tenant-role-access-manager.tsx:799
+#: app/components/roles/tenant-role-access-manager.tsx:711
+#: app/components/roles/tenant-role-access-manager.tsx:797
 msgid "Role"
 msgstr "Role"
 
@@ -5407,7 +5416,7 @@ msgstr ""
 msgid "Save Branding"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:489
+#: app/components/roles/tenant-role-access-manager.tsx:487
 #: app/components/settings/cards/organization/announcement-sheet.tsx:523
 #: app/components/settings/cards/organization/general-settings-card.tsx:112
 #: app/components/settings/cards/organization/site-analytics-card.tsx:140
@@ -5468,7 +5477,7 @@ msgid "Saving..."
 msgstr ""
 
 #: ../../packages/marketing/src/components/email/email-design-overlay.tsx:163
-#: app/components/roles/tenant-role-access-manager.tsx:487
+#: app/components/roles/tenant-role-access-manager.tsx:485
 #: app/routes/_app+/$orgSlug_+/website+/forms.$formId.tsx:480
 msgid "Saving…"
 msgstr "Saving…"
@@ -6015,11 +6024,11 @@ msgstr ""
 msgid "Square"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:788
+#: app/components/roles/tenant-role-access-manager.tsx:786
 msgid "Standard platform roles. Click any role to review its active permissions."
 msgstr "Standard platform roles. Click any role to review its active permissions."
 
-#: app/components/roles/tenant-role-access-manager.tsx:533
+#: app/components/roles/tenant-role-access-manager.tsx:531
 msgid "Standard system role."
 msgstr "Standard system role."
 
@@ -6063,7 +6072,7 @@ msgstr ""
 msgid "Starting point"
 msgstr "Starting point"
 
-#: app/components/roles/tenant-role-access-manager.tsx:583
+#: app/components/roles/tenant-role-access-manager.tsx:581
 #: app/components/settings/cards/sessions-card.tsx:239
 #: app/routes/_app+/$orgSlug_+/marketing+/automations.$journeyId.runs.tsx:279
 #: app/routes/_app+/$orgSlug_+/mcp.tsx:960
@@ -6233,7 +6242,7 @@ msgstr ""
 msgid "Tags"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:679
+#: app/components/roles/tenant-role-access-manager.tsx:677
 msgid "Tailored roles specific to your organization with configured permissions."
 msgstr "Tailored roles specific to your organization with configured permissions."
 
@@ -6908,7 +6917,7 @@ msgstr ""
 msgid "Video"
 msgstr ""
 
-#: app/components/roles/tenant-role-access-manager.tsx:752
+#: app/components/roles/tenant-role-access-manager.tsx:750
 #: app/components/settings/cards/organization/invoices-card.tsx:137
 #: app/routes/_app+/$orgSlug_+/notes-table.tsx:79
 msgid "View"

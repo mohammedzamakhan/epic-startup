@@ -161,7 +161,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		}
 	})
 
-	await invalidateAssignedActiveMembers(role.id)
+	try {
+		await invalidateAssignedActiveMembers(role.id)
+	} catch (invalidationError) {
+		console.error(
+			'Failed to invalidate member caches after role update:',
+			invalidationError,
+		)
+	}
 	await auditService.log({
 		action: AuditAction.ROLE_UPDATED,
 		userId,

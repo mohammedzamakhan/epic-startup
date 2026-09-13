@@ -87,8 +87,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		}
 	}
 
-	await db.transaction(async (tx) => {
-		const [createdRole] = await tx
+	const createdRole = await db.transaction(async (tx) => {
+		const [role] = await tx
 			.insert(OrganizationRole)
 			.values({
 				name,
@@ -98,27 +98,29 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			})
 			.returning({ id: OrganizationRole.id })
 
-		if (createdRole && permissionIds.length) {
+		if (role && permissionIds.length) {
 			await tx.insert(_OrganizationPermissionToRole).values(
 				permissionIds.map((permissionId) => ({
-					A: createdRole.id,
+					A: role.id,
 					B: permissionId,
 				})),
 			)
 		}
 
-		if (createdRole) {
-			await auditService.log({
-				action: AuditAction.ROLE_CREATED,
-				userId,
-				organizationId: organization.organizationId,
-				details: 'Custom organization role created.',
-				resourceType: 'organization_role',
-				resourceId: createdRole.id,
-				request,
-			})
-		}
+		return role ?? null
 	})
+
+	if (createdRole) {
+		await auditService.log({
+			action: AuditAction.ROLE_CREATED,
+			userId,
+			organizationId: organization.organizationId,
+			details: 'Custom organization role created.',
+			resourceType: 'organization_role',
+			resourceId: createdRole.id,
+			request,
+		})
+	}
 
 	return redirectWithToast(`/${organization.organizationSlug}/settings/roles`, {
 		type: 'success',

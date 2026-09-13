@@ -30,6 +30,7 @@ import { MembersCard } from '#app/components/settings/cards/organization/members
 
 import {
 	createOrganizationInvitation,
+	validateOrganizationInviteRoles,
 	sendOrganizationInvitationEmail,
 	getOrganizationInvitations,
 	deleteOrganizationInvitation,
@@ -231,6 +232,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		const { invites } = submission.value
 
 		try {
+			await validateOrganizationInviteRoles(organization.id, invites)
+
 			const [currentUser] = await db
 				.select({ name: User.name, email: User.email })
 				.from(User)
@@ -500,7 +503,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
 					{ status: 400 },
 				)
 			}
-			await invalidateUserOrganizationsCache(memberUserId)
+			try {
+				await invalidateUserOrganizationsCache(memberUserId)
+			} catch (cacheError) {
+				console.error(
+					'Failed to invalidate user org cache after role update:',
+					cacheError,
+				)
+			}
 			await auditService.log({
 				action: AuditAction.ORG_MEMBER_ROLE_CHANGED,
 				userId,
