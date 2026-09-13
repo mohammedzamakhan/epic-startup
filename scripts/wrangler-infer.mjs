@@ -1,3 +1,13 @@
+function stripJsoncComments(content) {
+	return content.replace(
+		/("(?:\\.|[^"\\])*")|\/\*[\s\S]*?\*\/|\/\/[^\n\r]*/g,
+		(match, stringGroup) => {
+			if (stringGroup) return stringGroup
+			return ''
+		},
+	)
+}
+
 /**
  * Infer launch.config values from wrangler CLI, Cloudflare API, and local .env files.
  *
@@ -77,9 +87,7 @@ function readTomlValue(configPath, key) {
 function readJsoncBinding(configPath, bindingKey, field) {
 	if (!existsSync(configPath)) return null
 	const content = readFileSync(configPath, 'utf8')
-	const stripped = content
-		.replace(/\/\*[\s\S]*?\*\//g, '')
-		.replace(/\/\/.*$/gm, '')
+	const stripped = stripJsoncComments(content)
 	const withoutTrailingCommas = stripped.replace(/,(\s*[}\]])/g, '$1')
 	try {
 		const config = JSON.parse(withoutTrailingCommas)
@@ -167,9 +175,14 @@ function inferRepoUrls(rootDir) {
 function readJsoncEnvName(configPath, envName) {
 	if (!existsSync(configPath)) return null
 	const content = readFileSync(configPath, 'utf8')
-	const stripped = content
-		.replace(/\/\*[\s\S]*?\*\//g, '')
-		.replace(/\/\/.*$/gm, '')
+	const envSection = new RegExp(
+		`"${envName}"\\s*:\\s*\\{[\\s\\S]*?"name"\\s*:\\s*"([^"]+)"`,
+		'm',
+	)
+	const match = content.match(envSection)
+	if (match?.[1]) return match[1]
+
+	const stripped = stripJsoncComments(content)
 	const withoutTrailingCommas = stripped.replace(/,(\s*[}\]])/g, '$1')
 	try {
 		const config = JSON.parse(withoutTrailingCommas)

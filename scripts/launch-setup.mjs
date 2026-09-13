@@ -859,8 +859,13 @@ async function deployCloudflareWorkers(
 
 	const steps = [
 		{
-			name: 'App',
-			run: () => deployReactRouterApp('app', deployEnv, { build: !skipBuilds }),
+			name: 'Tenant API US',
+			optional: true,
+			run: () => deployTenantApi(deployEnv),
+		},
+		{
+			name: 'Jobs Cron',
+			run: () => deployJobsCron(deployEnv),
 		},
 		{
 			name: 'Admin',
@@ -868,17 +873,12 @@ async function deployCloudflareWorkers(
 				deployReactRouterApp('admin', deployEnv, { build: !skipBuilds }),
 		},
 		{
-			name: 'Jobs Cron',
-			run: () => deployJobsCron(deployEnv),
-		},
-		{
-			name: 'Tenant API US',
-			optional: true,
-			run: () => deployTenantApi(deployEnv),
-		},
-		{
 			name: 'Web',
 			run: () => deployWeb(deployEnv, { build: !skipBuilds }),
+		},
+		{
+			name: 'App',
+			run: () => deployReactRouterApp('app', deployEnv, { build: !skipBuilds }),
 		},
 		{
 			name: 'Sites',
