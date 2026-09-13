@@ -7,6 +7,7 @@ import {
 	eq,
 	gt,
 	inArray,
+	isNull,
 	lte,
 	DataSubjectRequest,
 	Organization,
@@ -236,6 +237,7 @@ export async function createErasureRequest(
 			and(
 				eq(UserOrganization.userId, userId),
 				eq(OrganizationRole.name, 'admin'),
+				isNull(OrganizationRole.organizationId),
 			),
 		)
 	const blockingOrgs = []

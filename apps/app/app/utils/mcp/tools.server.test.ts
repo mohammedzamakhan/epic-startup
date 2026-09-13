@@ -20,15 +20,6 @@ import './tools.server' // Import to register tools
  * Helper to add a user to an organization
  */
 async function addUserToOrganization(userId: string, organizationId: string) {
-	const [memberRole] = await db
-		.insert(OrganizationRole)
-		.values({
-			name: `test_member_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-			description: 'Test Member role',
-			level: 1,
-		})
-		.returning()
-	if (!memberRole) throw new Error('Member role not found')
 	const [existingRelation] = await db
 		.select()
 		.from(UserOrganization)
@@ -44,7 +35,7 @@ async function addUserToOrganization(userId: string, organizationId: string) {
 		await db.insert(UserOrganization).values({
 			userId,
 			organizationId,
-			organizationRoleId: memberRole.id,
+			organizationRoleId: 'org_role_member',
 			active: true,
 		})
 	}
