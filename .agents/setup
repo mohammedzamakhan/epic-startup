@@ -19,12 +19,38 @@ step_done() { printf '    done in %ss\n' "$((SECONDS - step_started_at))"; }
 step "Toolchain (Volta + pinned Node/npm)"
 export VOLTA_HOME="${VOLTA_HOME:-$HOME/.volta}"
 if [ ! -x "$VOLTA_HOME/bin/volta" ]; then
-	curl -fsSL https://get.volta.sh | bash
+	# Pinned, checksum-verified Volta release instead of piping the mutable
+	# https://get.volta.sh installer into bash.
+	volta_version='2.0.2'
+	case "$(uname -m)" in
+		x86_64 | amd64)
+		volta_asset="volta-${volta_version}-linux.tar.gz"
+		volta_sha256='6cec054c911fb925b629a09455775af6e95dc0f5694a4c28b63979ab9ef18037'
+		;;
+		aarch64 | arm64)
+		volta_asset="volta-${volta_version}-linux-arm.tar.gz"
+		volta_sha256='1eb92f8b711753aa576352b2e580b2f3fdadeab8664929ca1da3d0de65448517'
+		;;
+		*)
+		printf 'Unsupported architecture for Volta: %s\n' "$(uname -m)" >&2
+		exit 1
+		;;
+	esac
+	volta_archive="$(mktemp)"
+	curl -fsSL -o "$volta_archive" \
+		"https://github.com/volta-cli/volta/releases/download/v${volta_version}/${volta_asset}"
+	printf '%s  %s\n' "$volta_sha256" "$volta_archive" | sha256sum -c - >/dev/null
+	mkdir -p "$VOLTA_HOME/bin"
+	tar -xzf "$volta_archive" -C "$VOLTA_HOME/bin"
+	rm -f "$volta_archive"
+	for shim in node npm npx yarn yarnpkg pnpm; do
+		ln -sf volta-shim "$VOLTA_HOME/bin/$shim"
+	done
 fi
 export PATH="$VOLTA_HOME/bin:$PATH"
 
 # Amp services and terminals run in non-interactive login shells, so the Volta
-# shims must be on PATH there too. The installer usually adds this already.
+# shims must be on PATH there too. The release tarball does not touch profiles.
 if ! grep -q 'VOLTA_HOME' "$HOME/.bash_profile" 2>/dev/null; then
 	{
 		printf '\n# Epic Startup orb toolchain (added by .agents/setup)\n'
@@ -81,13 +107,21 @@ database_file="packages/database/db/data.db"
 database_was_present=0
 [ -f "$database_file" ] && database_was_present=1
 
-# Trust mkcert's local CA so the HTTPS dev proxy on :2999 is accepted.
-sudo -E env CAROOT="$(mkcert -CAROOT)" mkcert -install >/dev/null 2>&1 || true
+# Trust mkcert's local CA so the HTTPS dev proxy on :2999 is accepted. Fail
+# loudly when that cannot be done: `npm run setup` only generates the
+# certificate, it never checks that the CA is trusted.
+sudo -E env CAROOT="$(mkcert -CAROOT)" mkcert -install >/dev/null
 
 # Migrates the database, generates the wildcard *.test certificate, and adds
 # the local brand hostnames to /etc/hosts. Brand customization is interactive,
 # so it is skipped here (`npm run setup:brand` runs it on demand).
 SKIP_BRAND_SETUP=true npm run setup
+
+# Verify the generated certificate actually chains to a trusted CA.
+if ! openssl verify other/ssl/_wildcard.domain.me+2.pem >/dev/null; then
+	printf 'The local wildcard certificate is not trusted. Run `sudo mkcert -install` and retry.\n' >&2
+	exit 1
+fi
 
 # Seed only when the database was just created. Seeding is idempotent but adds
 # another set of demo rows on every warm run.
