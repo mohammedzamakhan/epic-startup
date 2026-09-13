@@ -137,7 +137,7 @@ if ! grep -qF "$marker" "$amp_agents_file" 2>/dev/null; then
 - Toolchain: Volta-managed Node 22.18.0 and npm 10.9.0 (repository pins).
 - Preinstalled: workspace dependencies, control-plane SQLite (`packages/database/db/data.db`), Playwright Chromium, and a turbo build cache.
 - Seeded operator account: username `kody`, password `KodyLovesYou!2026`.
-- Dev services: `amp orb services ensure` starts app (:3001), admin (:3005), tenant-api (:3007), tenant-api-ksa (:3009); app and admin have portal links.
+- Dev services: `amp orb services ensure` starts app (:3001), admin (:3005), tenant-api (:3007), tenant-api-ksa (:3009); app and admin have portal links and share the operator session, so signing in through one signs you in to the other.
 - Database: `npm run db:migrate:deploy`, `npm run db:seed` (idempotent), `npm run db:reset` (destructive).
 - Dev servers regenerate `packages/security/src/env.ts` through varlock codegen, so it can show as modified after `npm run dev`; that is expected.
 - E2E: `npm run test:e2e:run` builds first and uses the preinstalled Playwright Chromium.
