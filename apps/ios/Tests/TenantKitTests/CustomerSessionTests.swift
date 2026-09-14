@@ -1,0 +1,177 @@
+import XCTest
+
+@testable import TenantKit
+
+final class CustomerSessionTests: XCTestCase {
+	private func makeSession(
+		transport: StubTransport,
+		storage: TokenStorage
+	) -> CustomerSession {
+		CustomerSession(
+			client: TenantAPIClient(configuration: makeConfiguration(), transport: transport),
+			storage: storage
+		)
+	}
+
+	func testRestoresStoredSession() async {
+		let stored = AuthTokens(accessToken: makeAccessToken(name: "Ada Lovelace"), refreshToken: "refresh-1")
+		let session = makeSession(
+			transport: StubTransport(),
+			storage: InMemoryTokenStorage(tokens: stored)
+		)
+
+		let restored = await session.restore()
+
+		XCTAssertEqual(restored?.accessToken, stored.accessToken)
+		let isSignedIn = await session.isSignedIn
+		XCTAssertTrue(isSignedIn)
+		let firstName = await session.customerFirstName
+		XCTAssertEqual(firstName, "Ada")
+	}
+
+	func testVerifyStoresTokens() async throws {
+		let storage = InMemoryTokenStorage()
+		let transport = StubTransport(responses: [
+			StubTransport.json([
+				"success": true,
+				"accessToken": makeAccessToken(),
+				"refreshToken": "refresh-1",
+				"needsName": false,
+			]),
+		])
+		let session = makeSession(transport: transport, storage: storage)
+
+		let result = try await session.verify(phone: "+1 (555) 000-1111", code: " 123456 ")
+
+		XCTAssertEqual(result.needsName, false)
+		XCTAssertNotNil(storage.load()?.accessToken)
+		let recorded = try XCTUnwrap(transport.lastRequest)
+		XCTAssertEqual(recorded.body["phone"] as? String, "+15550001111")
+		XCTAssertEqual(recorded.body["code"] as? String, "123456")
+	}
+
+	func testRejectsShortPhoneNumbersLocally() async {
+		let session = makeSession(transport: StubTransport(), storage: InMemoryTokenStorage())
+
+		do {
+			try await session.sendCode(phone: "123")
+			XCTFail("Expected a validation error")
+		} catch let error as APIError {
+			XCTAssertEqual(error.message, "Enter a valid phone number.")
+		} catch {
+			XCTFail("Unexpected error: \(error)")
+		}
+	}
+
+	func testAuthorizedRefreshesOnceAfterUnauthorized() async throws {
+		let accessToken = makeAccessToken()
+		let refreshedToken = makeAccessToken(name: "Ada Lovelace")
+		let storage = InMemoryTokenStorage(
+			tokens: AuthTokens(accessToken: accessToken, refreshToken: "refresh-1")
+		)
+		let transport = StubTransport(rawResponses: [
+			(status: 401, data: Data(#"{"error":"Invalid or expired token"}"#.utf8)),
+			(status: 200, data: Data(#"{"success":true,"accessToken":"\#(refreshedToken)","refreshToken":"refresh-2"}"#.utf8)),
+			(status: 200, data: Data(#"{"customer":{"id":"cust_1","name":"Ada Lovelace","needsName":false}}"#.utf8)),
+		])
+		let session = makeSession(transport: transport, storage: storage)
+
+		let profile = try await session.profile()
+
+		XCTAssertEqual(profile.name, "Ada Lovelace")
+		let urls = transport.recorded.map(\.url.path)
+		XCTAssertEqual(urls, ["/auth/me", "/auth/refresh", "/auth/me"])
+		XCTAssertEqual(storage.load()?.refreshToken, "refresh-2")
+	}
+
+	func testAuthorizedSignsOutWhenRefreshFails() async throws {
+		let accessToken = makeAccessToken()
+		let storage = InMemoryTokenStorage(
+			tokens: AuthTokens(accessToken: accessToken, refreshToken: "refresh-1")
+		)
+		let transport = StubTransport(rawResponses: [
+			(status: 401, data: Data(#"{"error":"Invalid or expired token"}"#.utf8)),
+			(status: 401, data: Data(#"{"error":"Invalid refresh token"}"#.utf8)),
+		])
+		let session = makeSession(transport: transport, storage: storage)
+
+		do {
+			_ = try await session.profile()
+			XCTFail("Expected the session to be cleared")
+		} catch let error as APIError {
+			XCTAssertTrue(error.isUnauthorized)
+		} catch {
+			XCTFail("Unexpected error: \(error)")
+		}
+
+		XCTAssertNil(storage.load())
+		let stillSignedIn = await session.isSignedIn
+		XCTAssertFalse(stillSignedIn)
+	}
+
+	func testUpdateProfileStoresRotatedTokens() async throws {
+		let accessToken = makeAccessToken()
+		let rotated = makeAccessToken(name: "Ada Byron")
+		let storage = InMemoryTokenStorage(
+			tokens: AuthTokens(accessToken: accessToken, refreshToken: "refresh-1")
+		)
+		let transport = StubTransport(rawResponses: [
+			(status: 200, data: Data(#"{"success":true,"accessToken":"\#(rotated)","refreshToken":"refresh-2"}"#.utf8)),
+			(status: 200, data: Data(#"{"customer":{"id":"cust_1","name":"Ada Byron","needsName":false}}"#.utf8)),
+		])
+		let session = makeSession(transport: transport, storage: storage)
+
+		let profile = try await session.updateProfile(name: " Ada Byron ", email: "ada@example.com")
+
+		XCTAssertEqual(profile.name, "Ada Byron")
+		XCTAssertEqual(storage.load()?.accessToken, rotated)
+		let profileRequest = try XCTUnwrap(transport.recorded.first)
+		XCTAssertEqual(profileRequest.body["name"] as? String, "Ada Byron")
+		XCTAssertEqual(profileRequest.body["email"] as? String, "ada@example.com")
+	}
+
+	func testUpdateProfileValidatesName() async {
+		let storage = InMemoryTokenStorage(
+			tokens: AuthTokens(accessToken: makeAccessToken(), refreshToken: "refresh-1")
+		)
+		let session = makeSession(transport: StubTransport(), storage: storage)
+
+		do {
+			_ = try await session.updateProfile(name: "A", email: nil)
+			XCTFail("Expected a validation error")
+		} catch let error as APIError {
+			XCTAssertEqual(error.message, "Name is required.")
+		} catch {
+			XCTFail("Unexpected error: \(error)")
+		}
+	}
+
+	func testSignOutRevokesRefreshTokenAndClearsStorage() async {
+		let storage = InMemoryTokenStorage(
+			tokens: AuthTokens(accessToken: makeAccessToken(), refreshToken: "refresh-1")
+		)
+		let transport = StubTransport(responses: [StubTransport.json(["success": true])])
+		let session = makeSession(transport: transport, storage: storage)
+
+		await session.signOut()
+
+		XCTAssertNil(storage.load())
+		let recorded = try? XCTUnwrap(transport.lastRequest)
+		XCTAssertEqual(recorded?.url.path, "/auth/logout")
+		XCTAssertEqual(recorded?.body["refreshToken"] as? String, "refresh-1")
+		XCTAssertEqual(recorded?.body["orgId"] as? String, "org_1")
+	}
+
+	func testSignedOutSessionRefusesAuthorizedCalls() async {
+		let session = makeSession(transport: StubTransport(), storage: InMemoryTokenStorage())
+
+		do {
+			_ = try await session.profile()
+			XCTFail("Expected an unauthorized error")
+		} catch let error as APIError {
+			XCTAssertTrue(error.isUnauthorized)
+		} catch {
+			XCTFail("Unexpected error: \(error)")
+		}
+	}
+}
