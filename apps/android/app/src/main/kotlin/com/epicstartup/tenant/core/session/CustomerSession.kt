@@ -73,7 +73,7 @@ class CustomerSession(
 	}
 
 	fun signOut() {
-		val previous = clearLocalSession()
+		val previous = endSession()
 		client.logout(previous?.refreshToken, previous?.orgId)
 	}
 
@@ -82,15 +82,22 @@ class CustomerSession(
 	 * belongs to another tenant, whose credentials must not be sent to *this*
 	 * org's regional node (that node may be in the other region).
 	 */
-	fun clearLocalSession(): AuthTokens? {
-		val previous = synchronized(lock) {
-			sessionGeneration += 1
-			refreshFuture?.cancel(false)
-			refreshFuture = null
-			currentTokens
-		}
-		clearTokens()
-		return previous
+	fun clearLocalSession(): AuthTokens? = endSession()
+
+	/**
+	 * Ends the session in a single locked step: the generation bump, the
+	 * in-memory clear, and the persisted clear happen together, so a refresh
+	 * that was already in flight cannot pass its generation check and write
+	 * rotated tokens back (in memory or on disk) after the customer left.
+	 */
+	private fun endSession(): AuthTokens? = synchronized(lock) {
+		sessionGeneration += 1
+		refreshFuture?.cancel(false)
+		refreshFuture = null
+		val previous = currentTokens
+		currentTokens = null
+		storage.save(null)
+		previous
 	}
 
 	// MARK: - Authorized calls
@@ -126,17 +133,22 @@ class CustomerSession(
 		val trimmedName = name.trim()
 		if (trimmedName.length < 2) throw ApiException(400, "Name is required.")
 		val trimmedEmail = email?.trim()
+		val generation = sessionGeneration
 		val next = authorized { token ->
 			client.updateProfile(name = trimmedName, email = trimmedEmail, accessToken = token)
 		}
 		// `/auth/profile` rotates the refresh token; keep the current one if the
-		// response omits it so the session can still be refreshed.
-		store(
+		// response omits it so the session can still be refreshed. Like a
+		// refresh, a response that lands after the customer signed out must not
+		// adopt its tokens.
+		val stored = store(
 			AuthTokens(
 				accessToken = next.accessToken,
 				refreshToken = next.refreshToken ?: currentTokens?.refreshToken,
 			),
+			generation,
 		)
+		if (!stored) throw ApiException.unauthorized()
 		return profile()
 	}
 
@@ -206,15 +218,18 @@ class CustomerSession(
 	/**
 	 * Returns `false` when the session ended (or was replaced) while the caller
 	 * was in flight, in which case the tokens must not be adopted.
+	 *
+	 * The in-memory update and the persisted write share the lock with
+	 * [endSession], so a sign-out cannot be undone by a save that lands late.
+	 * A Keystore failure only costs the session on next launch; the customer
+	 * stays signed in for this run rather than being dropped mid-flow.
 	 */
 	private fun store(tokens: AuthTokens, generation: Int? = null): Boolean {
 		synchronized(lock) {
 			if (generation != null && generation != sessionGeneration) return false
 			currentTokens = tokens
+			storage.save(tokens)
 		}
-		// A Keystore failure only costs the session on next launch; the customer
-		// stays signed in for this run rather than being dropped mid-flow.
-		storage.save(tokens)
 		return true
 	}
 
@@ -222,8 +237,8 @@ class CustomerSession(
 		synchronized(lock) {
 			if (generation != null && generation != sessionGeneration) return
 			currentTokens = null
+			storage.save(null)
 		}
-		storage.save(null)
 	}
 
 	/** Waits for the in-flight refresh, unwrapping its failure. */

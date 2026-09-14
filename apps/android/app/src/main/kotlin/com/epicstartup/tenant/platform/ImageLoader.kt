@@ -4,6 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
 import com.epicstartup.tenant.core.config.TenantConfiguration
+import com.epicstartup.tenant.core.support.IconDecode
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -68,7 +71,7 @@ object ImageLoader {
 				connection.readTimeout = 10_000
 				connection.instanceFollowRedirects = false
 				when (connection.responseCode) {
-					in 200..299 -> return connection.inputStream.use { BitmapFactory.decodeStream(it) }
+					in 200..299 -> return connection.inputStream.use { decodeIcon(it) }
 					in 300..399 -> {
 						val location = connection.getHeaderField("Location") ?: return null
 						target = URL(URL(target), location).toString()
@@ -82,5 +85,32 @@ object ImageLoader {
 			}
 		}
 		return null
+	}
+
+	/**
+	 * Reads the icon into a bitmap sized for the header, never for the original
+	 * upload: bounds are inspected first and everything bigger than
+	 * [IconDecode.TARGET_SIZE] is downsampled, so a multi-megapixel icon cannot
+	 * allocate its way into an `OutOfMemoryError`.
+	 */
+	private fun decodeIcon(stream: InputStream): Bitmap? {
+		val bytes = readBounded(stream) ?: return null
+		val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+		BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+		val plan = IconDecode.plan(bounds.outWidth, bounds.outHeight) ?: return null
+		val options = BitmapFactory.Options().apply { inSampleSize = plan.sampleSize }
+		return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+	}
+
+	/** At most [IconDecode.MAX_BYTES]: a bigger body is refused, not buffered. */
+	private fun readBounded(stream: InputStream): ByteArray? {
+		val buffer = ByteArrayOutputStream()
+		val chunk = ByteArray(16 * 1024)
+		while (true) {
+			val read = stream.read(chunk)
+			if (read < 0) return buffer.toByteArray()
+			if (buffer.size() + read > IconDecode.MAX_BYTES) return null
+			buffer.write(chunk, 0, read)
+		}
 	}
 }

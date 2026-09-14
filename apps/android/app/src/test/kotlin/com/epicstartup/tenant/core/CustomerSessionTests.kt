@@ -22,6 +22,7 @@ import kotlin.test.assertTrue
 
 /** A transport that can hold a response open, to pin down interleavings. */
 private class GatedTransport(
+	private val gateOn: (ApiRequest) -> Boolean = { true },
 	private val handler: (ApiRequest) -> ApiResponse,
 ) : HttpTransport {
 	private val entered = CountDownLatch(1)
@@ -31,7 +32,7 @@ private class GatedTransport(
 	override fun send(request: ApiRequest): ApiResponse {
 		requests += request
 		entered.countDown()
-		release.await(5, TimeUnit.SECONDS)
+		if (gateOn(request)) release.await(5, TimeUnit.SECONDS)
 		return handler(request)
 	}
 
@@ -228,6 +229,41 @@ class CustomerSessionTest {
 		assertFalse(session.isSignedIn)
 		assertNull(storage.load())
 		assertNotNull(failure.get(), "the abandoned refresh must not adopt its tokens")
+	}
+
+	@Test
+	fun aProfileUpdateThatLandsAfterSignOutCannotRestoreTheSession() {
+		val storage = InMemoryTokenStorage(AuthTokens(accessToken, "refresh_1"))
+		val transport = GatedTransport(gateOn = { it.url.endsWith("/auth/profile") }) { request ->
+			when {
+				request.url.endsWith("/auth/profile") -> jsonResponse(
+					200,
+					jsonBody("accessToken" to refreshedToken, "refreshToken" to "refresh_2"),
+				)
+				else -> jsonResponse(200, jsonBody("success" to true))
+			}
+		}
+		val session = CustomerSession(TenantApiClient(makeConfiguration(), transport), storage)
+
+		val failure = AtomicReference<Exception?>()
+		val updateThread = Thread {
+			try {
+				session.updateProfile("Jane Doe", null)
+			} catch (error: Exception) {
+				failure.set(error)
+			}
+		}
+		updateThread.start()
+		assertTrue(transport.awaitFirstRequest())
+
+		session.signOut()
+		transport.releaseAll()
+		updateThread.join(5_000)
+
+		assertFalse(session.isSignedIn)
+		assertNull(storage.load())
+		val error = assertNotNull(failure.get(), "the abandoned update must not adopt its tokens")
+		assertTrue((error as ApiException).isUnauthorized)
 	}
 
 	@Test

@@ -309,6 +309,10 @@ async function resolveIcon(config, organization, { iconSource, useIcon }) {
 			)
 		}
 	} catch (error) {
+		// Composition can fail part-way through the densities, which would leave
+		// a mix of the tenant's icon and the placeholder: put the placeholder
+		// back everywhere before reporting that the icon was not applied.
+		resetIcons()
 		return { applied: false, reason: `icon resize failed (${error.message})` }
 	}
 

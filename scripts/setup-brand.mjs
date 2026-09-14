@@ -850,9 +850,19 @@ function nativeAppDisplayNamePairs(brandInfo) {
 		},
 		{
 			pattern: /tenantValue\("appName", "Tenant"\)/,
-			replacement: () => `tenantValue("appName", "${brandInfo.name}")`,
+			replacement: () =>
+				`tenantValue("appName", ${kotlinString(brandInfo.name)})`,
 		},
 	]
+}
+
+/**
+ * A Kotlin string literal for `value`: `JSON.stringify` covers quotes,
+ * backslashes and control characters, and `$` is escaped because it would
+ * otherwise start a template expression in the generated `build.gradle.kts`.
+ */
+function kotlinString(value) {
+	return JSON.stringify(String(value)).replace(/\$/g, () => '\\$')
 }
 
 function listNativeAppFiles() {

@@ -3,6 +3,7 @@ package com.epicstartup.tenant.core
 import com.epicstartup.tenant.core.localization.AppLanguage
 import com.epicstartup.tenant.core.localization.SiteLocale
 import com.epicstartup.tenant.core.model.PublicOrganization
+import com.epicstartup.tenant.core.support.IconDecode
 import com.epicstartup.tenant.core.support.JwtPayload
 import com.epicstartup.tenant.core.support.PhoneNumber
 import com.epicstartup.tenant.core.support.SiteAddress
@@ -12,6 +13,33 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+
+class IconDecodeTest {
+	@Test
+	fun downsamplesToTheHeaderSize() {
+		// A 36dp header needs 144px at the densest screens; 192 keeps headroom.
+		assertEquals(1, IconDecode.plan(108, 108)?.sampleSize)
+		assertEquals(1, IconDecode.plan(192, 192)?.sampleSize)
+		assertEquals(2, IconDecode.plan(384, 384)?.sampleSize)
+		assertEquals(4, IconDecode.plan(1024, 1024)?.sampleSize)
+		// The shorter side caps the sample size: 1080 / 8 is already below 192.
+		assertEquals(4, IconDecode.plan(2048, 1080)?.sampleSize)
+		// Powers of two only: `BitmapFactory` rounds anything else down.
+		assertEquals(16, IconDecode.sampleSizeFor(4000, 4000))
+	}
+
+	@Test
+	fun refusesWhatIsNotAnIcon() {
+		assertNull(IconDecode.plan(0, 0))
+		assertNull(IconDecode.plan(-1, 512))
+		assertNull(IconDecode.plan(9_000, 512))
+		// 8192² is 67MP: past the pixel budget even though each side fits.
+		assertNull(IconDecode.plan(8_192, 8_192))
+		assertNull(IconDecode.plan(6_000, 6_000))
+		assertNotNull(IconDecode.plan(8_192, 512))
+		assertNotNull(IconDecode.plan(4_000, 4_000))
+	}
+}
 
 class PhoneNumberTest {
 	@Test
