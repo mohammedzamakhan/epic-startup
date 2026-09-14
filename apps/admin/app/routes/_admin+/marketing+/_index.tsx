@@ -1,6 +1,6 @@
 import { msg, Trans } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
-import { requireUserWithRole } from '@repo/auth'
+import { requireAnyUserWithPermission, SYSTEM_PERMISSIONS } from '@repo/auth'
 import { CampaignStatusBadge, type CampaignListItem } from '@repo/marketing'
 import {
 	getPlatformMarketingMetrics,
@@ -64,7 +64,10 @@ const METRIC_ITEMS = [
 ] as const
 
 export async function loader({ request }: LoaderFunctionArgs) {
-	await requireUserWithRole(request, 'admin')
+	await requireAnyUserWithPermission(request, [
+		SYSTEM_PERMISSIONS.READ_PLATFORM_CAMPAIGN_ANY,
+		SYSTEM_PERMISSIONS.READ_PLATFORM_AUTOMATION_ANY,
+	])
 
 	const [metrics, campaigns] = await Promise.all([
 		getPlatformMarketingMetrics(),

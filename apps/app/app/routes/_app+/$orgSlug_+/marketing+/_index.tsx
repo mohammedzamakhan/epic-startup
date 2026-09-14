@@ -15,6 +15,11 @@ import { PageHeader } from '@repo/ui/page-header'
 import { Skeleton } from '@repo/ui/skeleton'
 import { useEffect, useState } from 'react'
 import { Link, useLoaderData, type LoaderFunctionArgs } from 'react-router'
+import { useHasPermission } from '#app/hooks/use-organization-permissions.ts'
+import {
+	ORG_PERMISSIONS,
+	requireAnyUserWithOrganizationPermission,
+} from '#app/utils/organization/permissions.server.ts'
 import { getOperatorTenantClient } from '#app/utils/tenant-api.server.ts'
 
 type MarketingMetricsState = {
@@ -26,7 +31,15 @@ type MarketingMetricsState = {
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
 	const orgSlug = params.orgSlug || ''
-	const { jwt, tenantApiUrl } = await getOperatorTenantClient(request, orgSlug)
+	const { orgId, jwt, tenantApiUrl } = await getOperatorTenantClient(
+		request,
+		orgSlug,
+	)
+
+	await requireAnyUserWithOrganizationPermission(request, orgId, [
+		ORG_PERMISSIONS.READ_CAMPAIGN_ANY,
+		ORG_PERMISSIONS.READ_AUTOMATION_ANY,
+	])
 
 	return {
 		jwt,
@@ -38,6 +51,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 export default function MarketingOverview() {
 	const { _ } = useLingui()
 	const { jwt, tenantApiUrl, orgSlug } = useLoaderData<typeof loader>()
+	const hasPermission = useHasPermission()
+	const canReadCampaigns = hasPermission('read:campaign:any')
+	const canReadAutomations = hasPermission('read:automation:any')
+	const canManageCampaigns = hasPermission('update:campaign:any')
 	const [metrics, setMetrics] = useState<MarketingMetricsState>({
 		emailsSent: 0,
 		openRate: '0.0',
@@ -76,18 +93,26 @@ export default function MarketingOverview() {
 	]
 
 	const quickLinks = [
-		{
-			to: 'campaigns',
-			icon: 'send' as const,
-			title: _(msg`Broadcasts`),
-			description: _(msg`One-time email and SMS`),
-		},
-		{
-			to: 'automations',
-			icon: 'route' as const,
-			title: _(msg`Automations`),
-			description: _(msg`Event-driven workflows`),
-		},
+		...(canReadCampaigns
+			? [
+					{
+						to: 'campaigns',
+						icon: 'send' as const,
+						title: _(msg`Broadcasts`),
+						description: _(msg`One-time email and SMS`),
+					},
+				]
+			: []),
+		...(canReadAutomations
+			? [
+					{
+						to: 'automations',
+						icon: 'route' as const,
+						title: _(msg`Automations`),
+						description: _(msg`Event-driven workflows`),
+					},
+				]
+			: []),
 	]
 
 	useEffect(() => {
@@ -218,12 +243,14 @@ export default function MarketingOverview() {
 								<p className="text-muted-foreground text-sm">
 									{_(msg`No campaigns yet.`)}
 								</p>
-								<Link
-									to={`/${orgSlug}/marketing/campaigns/new`}
-									className="text-foreground mt-2 inline-block text-sm underline-offset-4 hover:underline"
-								>
-									{_(msg`Create your first broadcast`)}
-								</Link>
+								{canManageCampaigns ? (
+									<Link
+										to={`/${orgSlug}/marketing/campaigns/new`}
+										className="text-foreground mt-2 inline-block text-sm underline-offset-4 hover:underline"
+									>
+										{_(msg`Create your first broadcast`)}
+									</Link>
+								) : null}
 							</div>
 						) : (
 							<ItemGroup>

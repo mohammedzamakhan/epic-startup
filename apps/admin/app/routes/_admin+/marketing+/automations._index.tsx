@@ -1,7 +1,7 @@
 import { i18n } from '@lingui/core'
 import { msg, t, Trans } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
-import { requireUserWithRole } from '@repo/auth'
+import { requireUserWithPermission, SYSTEM_PERMISSIONS } from '@repo/auth'
 import {
 	deletePlatformJourney,
 	duplicatePlatformJourney,
@@ -50,13 +50,19 @@ const JOURNEY_STATUS_LABELS: Record<
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-	await requireUserWithRole(request, 'admin')
+	await requireUserWithPermission(
+		request,
+		SYSTEM_PERMISSIONS.READ_PLATFORM_AUTOMATION_ANY,
+	)
 	const journeys = await listPlatformJourneys()
 	return { journeys, error: null }
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-	await requireUserWithRole(request, 'admin')
+	await requireUserWithPermission(
+		request,
+		SYSTEM_PERMISSIONS.UPDATE_PLATFORM_AUTOMATION_ANY,
+	)
 	const formData = await request.formData()
 	const intent = formData.get('intent')
 	const journeyId = String(formData.get('journeyId') || '')

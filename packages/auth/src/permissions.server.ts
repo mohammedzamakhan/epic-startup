@@ -87,6 +87,13 @@ export async function requireUserWithPermission(
 	return authorize.userPermission(request, permission)
 }
 
+export async function requireAnyUserWithPermission(
+	request: Request,
+	permissions: PermissionString[],
+) {
+	return authorize.userAnyPermission(request, permissions)
+}
+
 export async function requireUserWithRole(request: Request, name: string) {
 	return authorize.userRole(request, name)
 }

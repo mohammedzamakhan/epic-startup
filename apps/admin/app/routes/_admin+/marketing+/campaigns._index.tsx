@@ -1,6 +1,6 @@
 import { msg, Trans } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
-import { requireUserWithRole } from '@repo/auth'
+import { requireUserWithPermission, SYSTEM_PERMISSIONS } from '@repo/auth'
 import { CampaignListGrid } from '@repo/marketing'
 import { listPlatformCampaigns } from '@repo/marketing/server/platform-campaigns'
 import { cn } from '@repo/ui'
@@ -22,7 +22,10 @@ const STATUS_FILTERS: Array<{
 ]
 
 export async function loader({ request }: LoaderFunctionArgs) {
-	await requireUserWithRole(request, 'admin')
+	await requireUserWithPermission(
+		request,
+		SYSTEM_PERMISSIONS.READ_PLATFORM_CAMPAIGN_ANY,
+	)
 	const campaigns = await listPlatformCampaigns()
 	return { campaigns, error: null }
 }
