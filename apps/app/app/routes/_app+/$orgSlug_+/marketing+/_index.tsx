@@ -64,7 +64,6 @@ export default function MarketingOverview() {
 	const [campaigns, setCampaigns] = useState<CampaignListItem[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
-
 	const metricItems: Array<{
 		key: keyof MarketingMetricsState
 		label: string
@@ -116,6 +115,13 @@ export default function MarketingOverview() {
 	]
 
 	useEffect(() => {
+		// Campaign metrics and records are only fetched for users who can read
+		// broadcasts; automation-only access renders just the quick links.
+		if (!canReadCampaigns) {
+			setLoading(false)
+			return
+		}
+
 		async function fetchMarketingData() {
 			try {
 				const [metricsRes, campaignsRes] = await Promise.all([
@@ -159,7 +165,7 @@ export default function MarketingOverview() {
 		}
 
 		void fetchMarketingData()
-	}, [jwt, tenantApiUrl, _])
+	}, [jwt, tenantApiUrl, canReadCampaigns, _])
 
 	const recentCampaigns = campaigns.slice(0, 5)
 
@@ -198,7 +204,7 @@ export default function MarketingOverview() {
 
 			{error ? (
 				<p className="text-destructive text-sm">{error}</p>
-			) : (
+			) : canReadCampaigns ? (
 				<>
 					<section aria-label={_(msg`Performance metrics`)}>
 						<ItemGroup className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -285,7 +291,7 @@ export default function MarketingOverview() {
 						)}
 					</section>
 				</>
-			)}
+			) : null}
 		</div>
 	)
 }

@@ -74,9 +74,11 @@ async function withRenderedEmails(
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
+	// This route is the automation editor, so it requires write access; the
+	// list stays readable with read-only permission.
 	await requireUserWithPermission(
 		request,
-		SYSTEM_PERMISSIONS.READ_PLATFORM_AUTOMATION_ANY,
+		SYSTEM_PERMISSIONS.UPDATE_PLATFORM_AUTOMATION_ANY,
 	)
 	const journeyId = params.journeyId || ''
 	const journey = await getPlatformJourneyById(journeyId)
