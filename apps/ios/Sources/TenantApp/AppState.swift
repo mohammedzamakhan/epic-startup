@@ -5,7 +5,9 @@ import TenantKit
 /// Persisted, non-sensitive app preferences (the site this app is connected to
 /// and the customer's language choice). Tokens never live here — they are in the
 /// Keychain via `CustomerSession`.
-struct AppPreferences {
+///
+/// A reference type so `AppState` can mutate it without being `var` itself.
+final class AppPreferences {
 	private let defaults: UserDefaults
 
 	init(defaults: UserDefaults = .standard) {
@@ -120,14 +122,15 @@ final class AppState: ObservableObject {
 	}
 
 	/// Connects the app to a tenant the customer typed in.
+	///
+	/// The binding is only persisted once the tenant's payload resolves, so a
+	/// typo cannot leave the app pointed at a site that does not exist.
 	func connect(to input: String) async {
 		guard let address = SiteAddress.parse(input, brandDomain: configuration.brandDomain) else {
 			errorMessage = language.string("connect.error")
 			return
 		}
-		configuration.siteAddress = address
-		preferences.siteAddress = address
-		await loadSite()
+		await loadSite(bindingTo: address)
 	}
 
 	func retry() async {
@@ -138,19 +141,35 @@ final class AppState: ObservableObject {
 		await loadSite()
 	}
 
-	private func loadSite() async {
+	private func loadSite(bindingTo address: SiteAddress? = nil) async {
+		let previousAddress = configuration.siteAddress
+		if let address {
+			// The client captures the configuration, so rebuild it for the new binding.
+			configuration.siteAddress = address
+			client = TenantAPIClient(configuration: configuration)
+		}
+
 		phase = .loading
 		errorMessage = nil
 		do {
 			let organization = try await client.fetchOrganization()
+			if let address {
+				preferences.siteAddress = address
+			}
 			self.organization = organization
 			self.theme = SiteTheme(theme: organization.theme)
 			configureSession(for: organization)
 			phase = .ready
 		} catch let error as APIError {
-			phase = .failed(message(for: error))
+			if address != nil {
+				configuration.siteAddress = previousAddress
+				client = TenantAPIClient(configuration: configuration)
+				phase = previousAddress.isBound ? .failed(message(for: error)) : .needsSite
+			} else {
+				phase = .failed(message(for: error))
+			}
 		} catch {
-			phase = .failed(error.localizedDescription)
+			phase = .failed(message(for: error))
 		}
 	}
 
@@ -289,17 +308,14 @@ final class AppState: ObservableObject {
 
 	// MARK: - Helpers
 
-	/// Server messages are English; network/transport failures get a localized one.
-	private func message(for error: APIError) -> String {
-		if error.isTransportFailure {
+	/// Server messages are English; transport failures get a localized one.
+	private func message(for error: Error) -> String {
+		guard let apiError = error as? APIError else {
 			return language.string("login.networkError")
 		}
-		if error.isRateLimited || error.statusCode >= 500 {
-			return error.message
+		if apiError.isTransportFailure {
+			return language.string("login.networkError")
 		}
-		if error.statusCode == 400 || error.statusCode == 401 {
-			return error.message
-		}
-		return error.message
+		return apiError.message
 	}
 }

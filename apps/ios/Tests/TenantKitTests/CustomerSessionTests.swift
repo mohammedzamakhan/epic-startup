@@ -162,6 +162,48 @@ final class CustomerSessionTests: XCTestCase {
 		XCTAssertEqual(recorded?.body["orgId"] as? String, "org_1")
 	}
 
+	func testConcurrentUnauthorizedCallsShareOneRefresh() async throws {
+		let accessToken = makeAccessToken()
+		let refreshed = makeAccessToken(name: "Ada Lovelace")
+		let storage = InMemoryTokenStorage(
+			tokens: AuthTokens(accessToken: accessToken, refreshToken: "refresh-1")
+		)
+		// Two 401s (one per caller), then a single refresh, then both retries.
+		let transport = StubTransport(rawResponses: [
+			(status: 401, data: Data(#"{"error":"Invalid or expired token"}"#.utf8)),
+			(status: 401, data: Data(#"{"error":"Invalid or expired token"}"#.utf8)),
+			(status: 200, data: Data(#"{"success":true,"accessToken":"\#(refreshed)","refreshToken":"refresh-2"}"#.utf8)),
+			(status: 200, data: Data(#"{"customer":{"id":"cust_1","name":"Ada Lovelace"}}"#.utf8)),
+			(status: 200, data: Data(#"{"customer":{"id":"cust_1","name":"Ada Lovelace"}}"#.utf8)),
+		])
+		let session = makeSession(transport: transport, storage: storage)
+
+		async let first = session.profile()
+		async let second = session.profile()
+		_ = try await (first, second)
+
+		let refreshCalls = transport.recorded.filter { $0.url.path == "/auth/refresh" }
+		XCTAssertEqual(refreshCalls.count, 1, "refresh tokens rotate; parallel refreshes would revoke the session")
+		XCTAssertEqual(storage.load()?.refreshToken, "refresh-2")
+	}
+
+	func testUpdateProfileKeepsRefreshTokenWhenResponseOmitsIt() async throws {
+		let storage = InMemoryTokenStorage(
+			tokens: AuthTokens(accessToken: makeAccessToken(), refreshToken: "refresh-1")
+		)
+		let rotated = makeAccessToken(name: "Ada Byron")
+		let transport = StubTransport(rawResponses: [
+			(status: 200, data: Data(#"{"success":true,"accessToken":"\#(rotated)"}"#.utf8)),
+			(status: 200, data: Data(#"{"customer":{"id":"cust_1","name":"Ada Byron"}}"#.utf8)),
+		])
+		let session = makeSession(transport: transport, storage: storage)
+
+		_ = try await session.updateProfile(name: "Ada Byron", email: nil)
+
+		XCTAssertEqual(storage.load()?.accessToken, rotated)
+		XCTAssertEqual(storage.load()?.refreshToken, "refresh-1")
+	}
+
 	func testSignedOutSessionRefusesAuthorizedCalls() async {
 		let session = makeSession(transport: StubTransport(), storage: InMemoryTokenStorage())
 

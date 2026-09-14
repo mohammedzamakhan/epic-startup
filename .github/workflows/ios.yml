@@ -159,13 +159,14 @@ jobs:
           } >> "$GITHUB_ENV"
           xcodegen generate
 
-      - name: 🚀 Fastlane ${{ inputs.lane }}
+      - name: 🚀 Fastlane release lane
         working-directory: apps/ios
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           SUBMIT_FOR_REVIEW: ${{ inputs.submit_for_review && '1' || '0' }}
-        run: bundle exec fastlane ios ${{ inputs.lane }}
+          LANE: ${{ inputs.lane }}
+        run: bundle exec fastlane ios "$LANE"
 
       - name: 📦 Upload build artifacts
         if: always()

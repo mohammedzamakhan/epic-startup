@@ -9,6 +9,10 @@ public actor CustomerSession {
 	private let client: TenantAPIClient
 	private let storage: TokenStorage
 	private var currentTokens: AuthTokens?
+	/// One in-flight refresh shared by every caller: tenant-api rotates refresh
+	/// tokens and revokes the family when a token is replayed, so two parallel
+	/// refreshes would sign the customer out.
+	private var refreshTask: Task<AuthTokens, Error>?
 
 	public init(client: TenantAPIClient, storage: TokenStorage = TokenStorageFactory.makeDefault()) {
 		self.client = client
@@ -48,7 +52,7 @@ public actor CustomerSession {
 			code: code.trimmingCharacters(in: .whitespacesAndNewlines)
 		)
 		if let accessToken = result.accessToken {
-			setTokens(AuthTokens(accessToken: accessToken, refreshToken: result.refreshToken))
+			store(AuthTokens(accessToken: accessToken, refreshToken: result.refreshToken))
 		}
 		return result
 	}
@@ -97,7 +101,14 @@ public actor CustomerSession {
 				accessToken: token
 			)
 		}
-		setTokens(next)
+		// `/auth/profile` rotates the refresh token; keep the current one if the
+		// response omits it so the session can still be refreshed.
+		store(
+			AuthTokens(
+				accessToken: next.accessToken,
+				refreshToken: next.refreshToken ?? currentTokens?.refreshToken
+			)
+		)
 		return try await profile()
 	}
 
@@ -105,8 +116,31 @@ public actor CustomerSession {
 
 	@discardableResult
 	public func refresh() async throws -> AuthTokens {
+		if let refreshTask {
+			return try await refreshTask.value
+		}
+
+		let task = Task<AuthTokens, Error> { [client] in
+			try await CustomerSession.performRefresh(client: client, session: self)
+		}
+		refreshTask = task
+
+		do {
+			let tokens = try await task.value
+			refreshTask = nil
+			return tokens
+		} catch {
+			refreshTask = nil
+			throw error
+		}
+	}
+
+	private static func performRefresh(
+		client: TenantAPIClient,
+		session: CustomerSession
+	) async throws -> AuthTokens {
 		guard
-			let tokens = currentTokens,
+			let tokens = await session.currentTokens,
 			let refreshToken = tokens.refreshToken,
 			let orgId = tokens.orgId
 		else {
@@ -120,16 +154,18 @@ public actor CustomerSession {
 				accessToken: refreshed.accessToken,
 				refreshToken: refreshed.refreshToken ?? refreshToken
 			)
-			setTokens(merged)
+			await session.store(merged)
 			return merged
 		} catch {
-			clearTokens()
+			await session.clearTokens()
 			throw error
 		}
 	}
 
-	private func setTokens(_ tokens: AuthTokens) {
+	private func store(_ tokens: AuthTokens) {
 		currentTokens = tokens
+		// A Keychain failure only costs the session on next launch; the customer
+		// stays signed in for this run rather than being dropped mid-flow.
 		storage.save(tokens)
 	}
 

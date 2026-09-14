@@ -67,7 +67,9 @@ implications of white-label apps:
 apps/ios/
 ├── Package.swift              # TenantKit (Foundation only) + tests
 ├── project.yml                # XcodeGen spec for the iOS app target
-├── Config/Shared.xcconfig     # endpoints + white-label binding (tenant file included last)
+├── Config/Debug.xcconfig      # local dev endpoints (includes the tenant file last)
+├── Config/Release.xcconfig    # production endpoints (includes the tenant file last)
+├── Config/Shared.xcconfig     # identity + version defaults
 ├── tenants/<slug>.json        # per-tenant build config (bundle id, name, site, version)
 ├── scripts/                   # tenant config + app icon generator, tenant lister
 ├── fastlane/                  # TestFlight / App Store lanes
@@ -103,12 +105,13 @@ open apps/ios/EpicTenantApp.xcodeproj
 ```
 
 Local development expects the usual dev servers: App on `:3001` and tenant-api
-on `:3007` (US) / `:3009` (KSA), as configured by `Config/Shared.xcconfig`.
+on `:3007` (US) / `:3009` (KSA), as configured by `Config/Debug.xcconfig`.
 
 ## Pointing the app at a tenant
 
-`Config/Shared.xcconfig` ships local defaults. A production/white-label build
-sets:
+`Config/Debug.xcconfig` ships local defaults; `Config/Release.xcconfig` ships
+production hosts. A white-label build sets the tenant's binding (normally
+through `tenants/<slug>.json` — see the release section above):
 
 ```
 EPIC_USE_TLS = YES

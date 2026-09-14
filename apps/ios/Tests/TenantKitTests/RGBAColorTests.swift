@@ -87,6 +87,18 @@ final class RGBAColorTests: XCTestCase {
 		assertColor(RGBAColor.from(cssValue: "transparent"), 0, 0, 0, alpha: 0)
 	}
 
+	func testRejectsEmptyFunctionBodies() {
+		XCTAssertNil(RGBAColor.from(cssValue: "rgb()"))
+		XCTAssertNil(RGBAColor.from(cssValue: "hsl()"))
+		XCTAssertNil(RGBAColor.from(cssValue: "oklch()"))
+	}
+
+	func testRejectsUnparsableHue() {
+		XCTAssertNil(RGBAColor.from(cssValue: "oklch(0.5 0.1 not-a-hue)"))
+		// `none` is valid CSS and means an achromatic color.
+		XCTAssertNotNil(RGBAColor.from(cssValue: "oklch(0.5 0 none)"))
+	}
+
 	/// Relative color syntax (`oklch(from var(--destructive) …)`) cannot be
 	/// resolved without a CSS engine — callers fall back to their default token.
 	func testRejectsRelativeColorSyntax() {

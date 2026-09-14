@@ -8,12 +8,22 @@ final class SupportTests: XCTestCase {
 	func testNormalizesPhoneNumbersLikeTenantAPI() {
 		XCTAssertEqual(PhoneNumber.normalize("+1 (555) 000-1111"), "+15550001111")
 		XCTAssertEqual(PhoneNumber.normalize(" +966 50 000 0000 "), "+966500000000")
-		XCTAssertTrue(PhoneNumber.isValid("+1555"))
+	}
+
+	func testRejectsNonNumericPhoneNumbers() {
+		XCTAssertTrue(PhoneNumber.isValid("+15550001111"))
+		XCTAssertTrue(PhoneNumber.isValid("+966 50 000 0000"))
 		XCTAssertFalse(PhoneNumber.isValid("123"))
+		XCTAssertFalse(PhoneNumber.isValid("+1555"))
+		XCTAssertFalse(PhoneNumber.isValid("abcdefg"))
+		XCTAssertFalse(PhoneNumber.isValid("+1555-ABC-1111"))
+		XCTAssertFalse(PhoneNumber.isValid("+12345678901234567890"))
 	}
 
 	func testFormatsPhoneNumbersForDisplay() {
 		XCTAssertEqual(PhoneNumber.display("+15550001111"), "+1 555 000 1111")
+		XCTAssertEqual(PhoneNumber.display("+966500000000"), "+966 500 000 000")
+		// No `+`: nothing to group, and the raw value is returned unchanged.
 		XCTAssertEqual(PhoneNumber.display("5550001111"), "5550001111")
 	}
 

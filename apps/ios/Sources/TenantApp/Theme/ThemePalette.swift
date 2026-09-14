@@ -18,6 +18,7 @@ struct ThemePalette: Equatable {
 	var accent: Color
 	var accentForeground: Color
 	var destructive: Color
+	var destructiveForeground: Color
 	var border: Color
 	var radius: CGFloat
 	var headingFont: Font?
@@ -43,6 +44,7 @@ struct ThemePalette: Equatable {
 		accent = color(.accent)
 		accentForeground = color(.accentForeground)
 		destructive = color(.destructive)
+		destructiveForeground = color(.destructiveForeground)
 		border = color(.border)
 		radius = CGFloat(theme.radius())
 

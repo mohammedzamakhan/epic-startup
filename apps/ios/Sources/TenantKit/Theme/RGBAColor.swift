@@ -145,6 +145,7 @@ public struct RGBAColor: Equatable, Sendable, Hashable {
 		let inner = String(value[value.index(after: open)..<value.index(before: value.endIndex)])
 		let body = inner.replacingOccurrences(of: ",", with: " ")
 		var parts = body.split(separator: "/").map { String($0) }
+		guard !parts.isEmpty else { return nil }
 		var alpha: String?
 		if parts.count > 1 {
 			alpha = parts[1].trimmingCharacters(in: .whitespaces)
@@ -241,7 +242,15 @@ public struct RGBAColor: Equatable, Sendable, Hashable {
 		guard let lightness = componentValue(components[0], scale: 1) else { return nil }
 		guard let chroma = Double(components[1]) else { return nil }
 		let hueText = components[2].replacingOccurrences(of: "deg", with: "")
-		let hue = hueText == "none" ? 0 : (Double(hueText) ?? 0)
+		let hue: Double
+		if hueText == "none" {
+			hue = 0
+		} else if let parsedHue = Double(hueText) {
+			hue = parsedHue
+		} else {
+			// An unparsable hue would silently become red; let the caller fall back.
+			return nil
+		}
 		return fromOKLCHComponents(
 			lightness: lightness,
 			chroma: chroma,

@@ -58,7 +58,7 @@ struct AnnouncementBanner: View {
 	private var foreground: Color {
 		switch announcement.type {
 		case "warning": return palette.accentForeground
-		case "error": return .white
+		case "error": return palette.destructiveForeground
 		default: return palette.primaryForeground
 		}
 	}

@@ -35,8 +35,8 @@ targets:
       - package: TenantKit
         product: TenantKit
     configFiles:
-      Debug: Config/Shared.xcconfig
-      Release: Config/Shared.xcconfig
+      Debug: Config/Debug.xcconfig
+      Release: Config/Release.xcconfig
     settings:
       base:
         PRODUCT_NAME: EpicTenantApp

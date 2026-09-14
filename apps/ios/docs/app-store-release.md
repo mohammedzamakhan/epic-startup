@@ -97,7 +97,9 @@ What the workflow does:
 2. `xcodebuild` a **simulator** build of the app target (the only place the
    SwiftUI code is compiled, since Xcode is macOS-only).
 3. Per tenant: generate `Config/Generated/Tenant.xcconfig` + app icon, run
-   XcodeGen, then `fastlane ios beta|release` with the tenant's API key.
+   XcodeGen, then `fastlane ios beta|release` with the tenant's API key. Release
+   builds start from `Config/Release.xcconfig` (production hosts, TLS on) and
+   the tenant file is included last, so it wins over both defaults.
 4. Upload the `.ipa` and dSYMs as workflow artifacts.
 
 Locally (needs macOS + Xcode 26 + `bundle install`):

@@ -11,7 +11,10 @@ import Security
 /// device, never sent to the control plane.
 public protocol TokenStorage: Sendable {
 	func load() -> AuthTokens?
-	func save(_ tokens: AuthTokens?)
+	/// Returns `false` when the tokens could not be persisted (for example a
+	/// Keychain error). Callers keep the in-memory session either way.
+	@discardableResult
+	func save(_ tokens: AuthTokens?) -> Bool
 }
 
 /// Test/Linux storage. Not used by the shipping app.
@@ -29,10 +32,12 @@ public final class InMemoryTokenStorage: TokenStorage, @unchecked Sendable {
 		return tokens
 	}
 
-	public func save(_ tokens: AuthTokens?) {
+	@discardableResult
+	public func save(_ tokens: AuthTokens?) -> Bool {
 		lock.lock()
 		defer { lock.unlock() }
 		self.tokens = tokens
+		return true
 	}
 }
 
@@ -58,22 +63,24 @@ public final class KeychainTokenStorage: TokenStorage, @unchecked Sendable {
 		return try? JSONDecoder().decode(AuthTokens.self, from: data)
 	}
 
-	public func save(_ tokens: AuthTokens?) {
+	@discardableResult
+	public func save(_ tokens: AuthTokens?) -> Bool {
 		guard let tokens else {
-			SecItemDelete(baseQuery() as CFDictionary)
-			return
+			let status = SecItemDelete(baseQuery() as CFDictionary)
+			return status == errSecSuccess || status == errSecItemNotFound
 		}
-		guard let data = try? JSONEncoder().encode(tokens) else { return }
+		guard let data = try? JSONEncoder().encode(tokens) else { return false }
 
 		let query = baseQuery()
 		let attributes: [String: Any] = [kSecValueData as String: data]
 		let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-		if status == errSecItemNotFound {
-			var insert = query
-			insert[kSecValueData as String] = data
-			insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-			SecItemAdd(insert as CFDictionary, nil)
-		}
+		if status == errSecSuccess { return true }
+		guard status == errSecItemNotFound else { return false }
+
+		var insert = query
+		insert[kSecValueData as String] = data
+		insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+		return SecItemAdd(insert as CFDictionary, nil) == errSecSuccess
 	}
 
 	private func baseQuery() -> [String: Any] {

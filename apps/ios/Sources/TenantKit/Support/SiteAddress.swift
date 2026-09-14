@@ -26,6 +26,11 @@ public struct SiteAddress: Equatable, Sendable {
 		return origin.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 	}
 
+	/// Whether this address actually binds the app to one tenant.
+	public var isBound: Bool {
+		!(slug ?? "").isEmpty || !(host ?? "").isEmpty
+	}
+
 	public var queryItems: [URLQueryItem] {
 		var items: [URLQueryItem] = []
 		if let host, !host.isEmpty {

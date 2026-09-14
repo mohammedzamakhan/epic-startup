@@ -122,7 +122,7 @@ struct ProfileView: View {
 
 	private func loadFromProfile() {
 		guard let profile = state.profile else { return }
-		if !didLoad || profile.name != name {
+		if !didLoad || profile.name != name || (profile.email ?? "") != email {
 			name = profile.name ?? ""
 			email = profile.email ?? ""
 			didLoad = true
