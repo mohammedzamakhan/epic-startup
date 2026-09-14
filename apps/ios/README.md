@@ -100,9 +100,14 @@ npm run ios:test -w ios
 
 # iOS app (macOS + Xcode + XcodeGen)
 brew install xcodegen
-npm run ios:generate -w ios
-open apps/ios/EpicTenantApp.xcodeproj
+npm run ios:open -w ios     # generate the project and open it in Xcode (then ⌘R)
+npm run ios:sim -w ios      # or: build, boot the simulator, install, and launch
 ```
+
+`npm run ios:sim` is the CLI equivalent of ⌘R — note that `xcodebuild build`
+alone only compiles, it never installs or launches the app. It accepts a device
+name (`npm run ios:sim -w ios -- "iPhone 17"`) and falls back to the first
+available iPhone if the requested one is not installed.
 
 Local development expects the usual dev servers: App on `:3001` and tenant-api
 on `:3007` (US) / `:3009` (KSA), as configured by `Config/Debug.xcconfig`.
