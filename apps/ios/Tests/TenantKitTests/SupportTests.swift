@@ -84,6 +84,19 @@ final class SupportTests: XCTestCase {
 		XCTAssertNil(SiteAddress.parse("   ", brandDomain: "epic-startup.com"))
 	}
 
+	func testWhiteLabelBindingWinsOverAStoredAddress() {
+		let build = SiteAddress(slug: "acme", origin: URL(string: "https://acme.epic-startup.com"))
+		let stored = SiteAddress(slug: "other", origin: URL(string: "https://other.epic-startup.com"))
+
+		// A branded build must not be re-pointed by an earlier un-branded install.
+		XCTAssertEqual(SiteAddress.resolve(build: build, stored: stored), build)
+
+		// An un-branded build keeps whatever the customer chose.
+		let unbound = SiteAddress()
+		XCTAssertEqual(SiteAddress.resolve(build: unbound, stored: stored), stored)
+		XCTAssertEqual(SiteAddress.resolve(build: unbound, stored: nil), unbound)
+	}
+
 	func testBuildsQueryItemsForSlugAndHost() {
 		XCTAssertEqual(
 			SiteAddress(slug: "acme").queryItems.map(\.name),

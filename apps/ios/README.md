@@ -13,6 +13,29 @@ same public contracts as `apps/sites` and `apps/tenant-api`:
 Scope is intentionally small: a branded shell, phone-OTP login, and the customer
 profile. CMS pages, blocks, and shop stay on the org's website.
 
+## Two build modes (read this first)
+
+|                | Un-branded (**default**)                                   | White-label (per tenant)                             |
+| -------------- | ---------------------------------------------------------- | ---------------------------------------------------- |
+| Tenant binding | none — `EPIC_SITE_SLUG` / `EPIC_SITE_HOST` are empty       | baked into the binary from `tenants/<slug>.json`     |
+| First launch   | asks for the site address, then loads that tenant's brand  | goes straight to the tenant's branding and sign-in   |
+| Store listing  | one app shared by every tenant                             | one app per tenant                                   |
+| Used for       | local development, and the platform's own multi-tenant app | a tenant that wants its own branded app on the store |
+
+`npm run ios:sim` builds the **un-branded** app, which is why it asks for a site
+address on first launch. To build the branded app — where the tenant is already
+known and nothing is asked — generate a tenant config first:
+
+```bash
+npm run ios:tenant -w ios -- --tenant acme   # writes Config/Generated/Tenant.xcconfig
+npm run ios:sim -w ios                       # no "connect to your site" screen
+```
+
+The binding also decides tenant-api's origin check: a white-label build sends
+`EPIC_SITE_ORIGIN` as the `Origin` header, which is how the server knows which
+tenant's customers the app may authenticate (see
+[docs/app-store-release.md](docs/app-store-release.md)).
+
 ## Does Turbo support a Swift app?
 
 Turbo does not need to understand Swift — it runs the package scripts declared

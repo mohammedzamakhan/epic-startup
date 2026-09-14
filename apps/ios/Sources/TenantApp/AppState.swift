@@ -77,9 +77,19 @@ final class AppState: ObservableObject {
 	) {
 		self.configuration = configuration
 		self.preferences = preferences
-		if let stored = preferences.siteAddress {
-			self.configuration.siteAddress = stored
+
+		// A white-label build is bound to one tenant at build time; that binding
+		// wins over anything a customer typed into an earlier un-branded install,
+		// so the app never asks (or re-points) in the shipping case.
+		let buildAddress = configuration.siteAddress
+		self.configuration.siteAddress = SiteAddress.resolve(
+			build: buildAddress,
+			stored: preferences.siteAddress
+		)
+		if buildAddress.isBound {
+			preferences.siteAddress = nil
 		}
+
 		self.client = TenantAPIClient(configuration: self.configuration)
 	}
 

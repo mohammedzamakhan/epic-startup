@@ -31,6 +31,17 @@ public struct SiteAddress: Equatable, Sendable {
 		!(slug ?? "").isEmpty || !(host ?? "").isEmpty
 	}
 
+	/// Picks the binding a running app should use.
+	///
+	/// A build that ships bound to one tenant (white-label) always wins: the
+	/// tenant is baked into the binary, so an address the customer typed into an
+	/// earlier un-branded install must not silently re-point the app at another
+	/// tenant. Un-branded builds keep whatever the customer chose before.
+	public static func resolve(build: SiteAddress, stored: SiteAddress?) -> SiteAddress {
+		if build.isBound { return build }
+		return stored ?? build
+	}
+
 	public var queryItems: [URLQueryItem] {
 		var items: [URLQueryItem] = []
 		if let host, !host.isEmpty {
