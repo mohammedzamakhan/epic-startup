@@ -35,13 +35,43 @@ Two deliberate choices keep CI green:
 2. **Xcode project is generated, not committed.** `project.yml` (XcodeGen) is
    the source of truth, so the repo has no binary `.xcodeproj` to merge.
 
+## Releasing to the App Store / TestFlight
+
+`apps/ios` is set up to ship a **branded app per tenant** (white-label) or one
+un-branded app where customers connect their own site:
+
+```bash
+npm run ios:tenants -w ios                        # list tenant configs
+npm run ios:tenant -w ios -- --tenant acme        # write Config/Generated + app icon
+gh workflow run ios.yml -f tenant=acme -f lane=beta     # TestFlight
+gh workflow run ios.yml -f tenant=acme -f lane=release  # App Store upload
+```
+
+- Per-tenant builds are described by `tenants/<slug>.json` (bundle id, app name,
+  site binding, version) — no secrets in the repo; App Store Connect keys live
+  in a GitHub environment named `tenant-<slug>`.
+- The app icon is pulled from the tenant's published site icon; theme, colours,
+  announcements, and the in-app name keep coming from the API at runtime, so
+  most tenant changes never need a store release.
+- The **🍎 iOS** workflow runs TenantKit tests plus a simulator build on every
+  PR, and the release lanes on manual dispatch (`macos-26`, Xcode 26 — Apple's
+  current minimum for uploads).
+
+Full runbook, including Apple account ownership and the Guideline 4.3 (spam)
+implications of white-label apps:
+**[docs/app-store-release.md](docs/app-store-release.md)**.
+
 ## Layout
 
 ```
 apps/ios/
 ├── Package.swift              # TenantKit (Foundation only) + tests
 ├── project.yml                # XcodeGen spec for the iOS app target
-├── Config/Shared.xcconfig     # endpoints + white-label binding
+├── Config/Shared.xcconfig     # endpoints + white-label binding (tenant file included last)
+├── tenants/<slug>.json        # per-tenant build config (bundle id, name, site, version)
+├── scripts/                   # tenant config + app icon generator, tenant lister
+├── fastlane/                  # TestFlight / App Store lanes
+├── docs/app-store-release.md  # publishing runbook (accounts, 4.3 risk, versioning)
 ├── Sources/
 │   ├── TenantKit/             # platform-independent core (Linux-testable)
 │   │   ├── Configuration/     # TenantConfiguration (env → URLs, data region)

@@ -27,3 +27,19 @@ EPIC_BRAND_DOMAIN = epic-startup.test
 EPIC_SITE_SLUG =
 EPIC_SITE_HOST =
 EPIC_SITE_ORIGIN =
+
+// App identity defaults. These live here (not in project.yml) so that a
+// per-tenant file included at the bottom of this file can override them — Xcode
+// gives target build settings precedence over xcconfig values.
+PRODUCT_BUNDLE_IDENTIFIER = com.epicstartup.tenant
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
+
+// ---------------------------------------------------------------------------
+// Per-tenant overrides, written by `npm run ios:tenant -w ios`
+// (scripts/generate-tenant.mjs) from `tenants/<slug>.json`. Included last so the
+// tenant wins over the local-development defaults above. `#include?` tolerates
+// the file being absent, which is the normal state for local development: the
+// app then asks the customer which site to connect to.
+// ---------------------------------------------------------------------------
+#include? "Generated/Tenant.xcconfig"

@@ -11,5 +11,13 @@ DerivedData/
 xcuserdata/
 *.moved-aside
 
+# Per-tenant build config + generated icons (scripts/generate-tenant.mjs)
+Config/Generated/
+
+# fastlane / build output
+build/
+vendor/bundle/
+Gemfile.lock
+
 # macOS
 .DS_Store
