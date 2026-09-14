@@ -36,7 +36,7 @@ if [ ! -d "${SCHEME}.xcodeproj" ] || [ -n "${REGENERATE:-}" ]; then
 fi
 
 # Find a simulator to use: the requested one, else the first available iPhone.
-device="${1:-${SIM_DEVICE:-iPhone 16}}"
+device="${1:-${SIM_DEVICE:-iPhone 17}}"
 available_iphone() {
 	xcrun simctl list devices available |
 		sed -n 's/^ *\(iPhone[^(]*[^ (]\) ([0-9A-F-]\{36\}) (.*/\1/p' |
