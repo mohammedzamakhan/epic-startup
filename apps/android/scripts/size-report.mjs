@@ -79,14 +79,21 @@ const budget = join(APP_ROOT, 'size-budget.json')
 if (existsSync(budget)) {
 	const limits = JSON.parse(readFileSync(budget, 'utf8'))
 	console.log('\nBudget:')
+	let overBudget = false
 	for (const [label, relative] of ARTIFACTS) {
 		const limit = limits[relative]
 		if (!limit) continue
 		const path = join(APP_ROOT, relative)
 		const size = existsSync(path) ? statSync(path).size : 0
 		const status = size <= limit ? 'ok' : 'OVER'
+		if (status === 'OVER') overBudget = true
 		console.log(
 			`  ${status.padEnd(5)} ${label.padEnd(12)} ${human(size)} / ${human(limit)}`,
 		)
+	}
+	if (overBudget) {
+		// The workflow step (and the local `npm run android:size`) must fail, not
+		// just print: a release that blows the budget is a release to look at.
+		process.exitCode = 1
 	}
 }

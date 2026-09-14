@@ -63,7 +63,10 @@ function brandInfoFromEnv() {
 	if (!name || !domain) return null
 
 	const shortName = (process.env.BRAND_SHORT_NAME || '').trim() || name
-	const slug = (process.env.BRAND_SLUG || '').trim() || toBrandSlug(shortName)
+	const explicitSlug = (process.env.BRAND_SLUG || '').trim()
+	// A hand-written slug goes through the same sanitizer as a derived one, so
+	// it can always become a Kotlin package segment and a reverse-DNS id.
+	const slug = explicitSlug ? toBrandSlug(explicitSlug) : toBrandSlug(shortName)
 	return {
 		name,
 		shortName,
@@ -188,31 +191,48 @@ async function promptFavicon() {
 	return resolvedPath
 }
 
+/**
+ * Escapes a value for a single-quoted TypeScript string *and* for the
+ * replacement half of `String.replace`, where `$&`, `$1`, … are patterns and a
+ * literal `$` has to be written `$$`.
+ */
 function escapeString(str) {
-	return str.replace(/'/g, "\\'").replace(/\n/g, '\\n')
+	return str
+		.replace(/'/g, "\\'")
+		.replace(/\n/g, '\\n')
+		.replace(/\$/g, () => '$$')
+}
+
+/** A slug that starts with a digit cannot be a Kotlin package or bundle id. */
+function withIdentifierStart(slug) {
+	return /^[a-z]/.test(slug) ? slug : `app-${slug}`
 }
 
 function toBrandSlug(name) {
-	const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+	const slug = String(name)
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
 	let start = 0
 	let end = slug.length
 	while (start < end && slug.charCodeAt(start) === 45) start += 1
 	while (end > start && slug.charCodeAt(end - 1) === 45) end -= 1
-	return slug.slice(start, end) || 'app'
+	return withIdentifierStart(slug.slice(start, end) || 'app')
 }
 
 /** `epic-startup` → `epicstartup`: the brand's compact, identifier-safe id. */
 function toBrandId(slug) {
-	return String(slug).replace(/-/g, '')
+	return withIdentifierStart(String(slug).replace(/-/g, ''))
 }
 
 /** `Epic Startup` → `EpicStartup`: used for the Xcode project/product name. */
 function toBrandPascal(name) {
-	return String(name)
+	const pascal = String(name)
 		.split(/[^A-Za-z0-9]+/)
 		.filter(Boolean)
 		.map((word) => word[0].toUpperCase() + word.slice(1))
 		.join('')
+	// A Swift type name cannot start with a digit.
+	return /^[A-Za-z]/.test(pascal) ? pascal : `App${pascal}`
 }
 
 /** `epic-startup` → `EPIC_STARTUP`: the xcconfig / Info.plist key prefix. */
@@ -236,6 +256,9 @@ function normalizeAppDomain(value, fallback) {
 		.replace(/^https?:\/\//, '')
 		.replace(/\/.*$/, '')
 		.replace(/\.$/, '')
+		// A hostname cannot hold anything else; keeping the value to this
+		// alphabet also keeps it literal in every replacement below.
+		.replace(/[^a-z0-9.-]/g, '')
 	if (!normalized || !normalized.includes('.')) {
 		return fallback
 	}
@@ -319,8 +342,14 @@ const THIRD_PARTY_EPIC_RE = /@?epic-web|epicweb|epicreact|EpicWeb|EpicReact/g
  * of it: the name (`Epic Startup`), the upstream template name (`Epic Stack`),
  * the slug (`epic-startup`), the compact id (`epicstartup`), the snake and
  * title-hyphen forms (`epic_startup`, `Epic-Startup`), the env/key prefixes
- * (`EPIC_`, `epic_`, `epic-`, `epic.`), the domains, and the PascalCase
- * identifiers built from the bare brand (`EpicToaster`, `EpicProgress`).
+ * (`EPIC_`, `epic_`, `epic-`), the domains, and the PascalCase identifiers built
+ * from the bare brand (`EpicToaster`, `EpicProgress`). The native apps' dotted
+ * `epic.` preference names are handled by `nativeAppTokenPairs`.
+ *
+ * The rules are applied in a single pass, longest token first. A replacement is
+ * written straight to the output, so brand text that itself contains a template
+ * token (a brand named "Epic Coffee") or a `$` cannot be rewritten again — or
+ * read as a `$&`/`$1` pattern — by a later rule.
  */
 function replaceBrandTokens(content, { name, slug, domain }) {
 	const brandId = toBrandId(slug)
@@ -329,6 +358,7 @@ function replaceBrandTokens(content, { name, slug, domain }) {
 	const pascalName = toBrandPascal(name)
 	const titleHyphenName = toBrandTitleHyphen(name)
 	const snakeDefault = DEFAULT_BRAND_SLUG.replace(/-/g, '_')
+	const upperDefault = snakeDefault.toUpperCase()
 
 	if (
 		name === DEFAULT_BRAND_NAME &&
@@ -348,61 +378,105 @@ function replaceBrandTokens(content, { name, slug, domain }) {
 	const withPlaceholders = content
 		.replace(PROTECTED_SLUG_RE, protect)
 		.replace(THIRD_PARTY_EPIC_RE, protect)
+		// The fork's own brand is protected too, so running the setup again (or
+		// using a brand whose name contains a template word) leaves it alone.
+		.replace(
+			new RegExp(
+				brandIdentifierShapes({ name, slug, domain })
+					.sort((a, b) => b.length - a.length)
+					.map(escapeRegExp)
+					.join('|'),
+				'g',
+			),
+			protect,
+		)
+
+	// Longest / most specific forms first: `epic-startup.com` was handled above,
+	// then the names, the slug, the upstream template name, and the snake,
+	// title-hyphen, PascalCase and bare-`Epic` shapes. A rule whose value equals
+	// its token is kept on purpose: it stops a shorter rule from matching the
+	// same text (`Epic Startup` must not become `Epic Startup Startup`).
+	const rules = [
+		[escapeRegExp(`${DEFAULT_BRAND_SLUG}.com`), domain],
+		[escapeRegExp(`${DEFAULT_BRAND_ID}.com`), domain],
+		[escapeRegExp('epicstack.dev'), domain],
+		[escapeRegExp(DEFAULT_BRAND_NAME), name],
+		[String.raw`Epic\s+Stack`, name],
+		[escapeRegExp('Epic+Stack'), name.replace(/ /g, '+')],
+		[escapeRegExp(DEFAULT_BRAND_SLUG), slug],
+		[escapeRegExp('epic-stack'), slug],
+		[escapeRegExp('epicnotes'), slug],
+		[escapeRegExp('epicstack'), brandId],
+		[escapeRegExp(upperDefault), upperSlug],
+		[escapeRegExp(snakeDefault), snakeSlug],
+		[escapeRegExp('Epic-Startup'), titleHyphenName],
+		[escapeRegExp('EpicStartup'), pascalName],
+		[escapeRegExp('EPIC_'), `${upperSlug}_`],
+		[escapeRegExp('epic_'), `${snakeSlug}_`],
+		[escapeRegExp('Epic-'), `${titleHyphenName}-`],
+		[escapeRegExp('epic-'), `${slug}-`],
+		// Bare `Epic` used as an identifier prefix: EpicToaster, …
+		[String.raw`Epic(?=[A-Z])`, pascalName],
+		// …and standalone (`^^Epic^^`, `fromName: 'Epic Support'`).
+		[String.raw`\bEpic\b`, name],
+		[escapeRegExp(DEFAULT_BRAND_ID), brandId],
+	]
 
 	const replaced = withPlaceholders
 		.split(GITHUB_URL_RE)
-		.map((part, index) => {
-			if (index % 2 === 1) return part
-
-			let next = part
-			// Domains first: the `.com` forms are the brand's public domain.
-			if (domain !== DEFAULT_BRAND_DOMAIN) {
-				next = next.replaceAll(`${DEFAULT_BRAND_SLUG}.com`, domain)
-				next = next.replaceAll(`${DEFAULT_BRAND_ID}.com`, domain)
-				next = next.replaceAll('epicstack.dev', domain)
-			}
-			if (name !== DEFAULT_BRAND_NAME) {
-				next = next.replaceAll(DEFAULT_BRAND_NAME, name)
-				// The upstream template's name, in prose (sometimes wrapped
-				// across lines) and URL-encoded in an OAuth app name.
-				next = next.replace(/Epic\s+Stack/g, name)
-				next = next.replaceAll('Epic+Stack', name.replace(/ /g, '+'))
-			}
-			if (slug !== DEFAULT_BRAND_SLUG) {
-				// Longest / most specific forms first: `epic-startup.com` was
-				// already handled above, then the slug, the upstream template
-				// name, and the snake, title-hyphen and PascalCase shapes.
-				next = next.replaceAll(DEFAULT_BRAND_SLUG, slug)
-				next = next.replaceAll('epic-stack', slug)
-				next = next.replaceAll('epicnotes', slug)
-				next = next.replaceAll('epicstack', brandId)
-				next = next.replaceAll(snakeDefault.toUpperCase(), upperSlug)
-				next = next.replaceAll(snakeDefault, snakeSlug)
-				next = next.replaceAll('Epic-Startup', titleHyphenName)
-				next = next.replaceAll('EpicStartup', pascalName)
-				next = next.replaceAll('EPIC_', `${upperSlug}_`)
-				next = next.replaceAll('epic_', `${snakeSlug}_`)
-				next = next.replaceAll('Epic-', `${titleHyphenName}-`)
-				next = next.replaceAll('epic-', `${slug}-`)
-				// Bare `Epic` used as an identifier prefix: EpicToaster, …
-				next = next.replace(/Epic(?=[A-Z])/g, pascalName)
-				// …and standalone (`^^Epic^^`, `fromName: 'Epic Support'`).
-				next = next.replace(/\bEpic\b/g, name)
-			}
-			// `epicstartup` (no separator) is the brand's compact id: the
-			// reverse-DNS prefix of the native apps, the support email, and the
-			// Twitter handle.
-			if (brandId !== DEFAULT_BRAND_ID) {
-				next = next.replaceAll(DEFAULT_BRAND_ID, brandId)
-			}
-			return next
-		})
+		.map((part, index) =>
+			index % 2 === 1 ? part : replaceBrandRules(part, rules),
+		)
 		.join('')
 
 	return replaced.replace(
 		/__BRAND_PROTECT_(\d+)__/g,
 		(_, index) => protectedSlices[Number(index)] ?? _,
 	)
+}
+
+/** Regex-escapes a literal token so it can join the replacement alternation. */
+function escapeRegExp(value) {
+	return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Every shape the *new* brand takes. They are protected before the template
+ * tokens are rewritten, so a second run — or a brand that itself contains a
+ * template word, like "Epic Coffee" — cannot rewrite the fork's own brand.
+ */
+function brandIdentifierShapes({ name, slug, domain }) {
+	const snakeSlug = slug.replace(/-/g, '_')
+	return [
+		name,
+		// URL-encoded in OAuth app names, the way `Epic+Stack` is.
+		name.replace(/ /g, '+'),
+		domain,
+		slug,
+		toBrandId(slug),
+		toBrandPascal(name),
+		toBrandTitleHyphen(name),
+		snakeSlug,
+		snakeSlug.toUpperCase(),
+	].filter(Boolean)
+}
+
+/**
+ * Applies every rule in one pass, longest token first. The replacement is a
+ * function, so a `$` in the brand text stays literal.
+ */
+function replaceBrandRules(text, rules) {
+	if (!text) return text
+	const pattern = new RegExp(
+		rules.map(([source], index) => `(?<rule${index}>${source})`).join('|'),
+		'g',
+	)
+	return text.replace(pattern, (match, ...rest) => {
+		const groups = rest.at(-1)
+		if (!groups || typeof groups !== 'object') return match
+		const matched = Object.keys(groups).find((key) => groups[key] !== undefined)
+		return matched === undefined ? match : rules[Number(matched.slice(4))][1]
+	})
 }
 
 function shouldSkipBrandRewrite(relPath) {
@@ -764,18 +838,19 @@ function nativeAppTokenPairs(brandInfo) {
 	// The other native identifier shapes (bundle ids, `EPIC_*`, `Epic*`,
 	// `EpicTenantApp`) are covered by the global pass; only the dotted
 	// preference/Keystore names are native-specific.
-	return [{ pattern: /\bepic\./g, replacement: `${brandInfo.slug}.` }]
+	return [{ pattern: /\bepic\./g, replacement: () => `${brandInfo.slug}.` }]
 }
 
 function nativeAppDisplayNamePairs(brandInfo) {
+	// Functions, not templates: a brand name may contain `$`.
 	return [
 		{
 			pattern: /^(EPIC_APP_DISPLAY_NAME = )Tenant$/m,
-			replacement: `$1${brandInfo.name}`,
+			replacement: (_match, prefix) => `${prefix}${brandInfo.name}`,
 		},
 		{
 			pattern: /tenantValue\("appName", "Tenant"\)/,
-			replacement: `tenantValue("appName", "${brandInfo.name}")`,
+			replacement: () => `tenantValue("appName", "${brandInfo.name}")`,
 		},
 	]
 }
@@ -959,7 +1034,17 @@ function reportRemainingBrandTokens(brandInfo) {
 			.join('')
 			.replace(PROTECTED_SLUG_RE, '')
 			.replace(THIRD_PARTY_EPIC_RE, '')
-		const matches = withoutProtected.match(REMAINING_BRAND_RE)
+		// The new brand may itself contain a template-shaped word (a fork named
+		// "Epic Coffee", whose header becomes `X-Epic-Coffee-Org-Id`): those are
+		// the fork's own brand, not a leftover.
+		const brandTokens = brandIdentifierShapes(brandInfo).sort(
+			(a, b) => b.length - a.length,
+		)
+		const withoutBrand = brandTokens.reduce(
+			(text, token) => text.split(token).join(''),
+			withoutProtected,
+		)
+		const matches = withoutBrand.match(REMAINING_BRAND_RE)
 		if (matches && matches.length > 0) {
 			remaining.push({
 				relPath,
@@ -1101,6 +1186,31 @@ function copyFavicon(faviconPath) {
 	}
 }
 
+/**
+ * The native apps embed these values as identifiers — a Kotlin package
+ * (`com.<brandId>.tenant`), a reverse-DNS bundle id, a Swift type name — so a
+ * brand that cannot produce valid ones is rejected before any file is written.
+ */
+function assertBrandIdentifiers({ name, slug }) {
+	const brandId = toBrandId(slug)
+	const pascalName = toBrandPascal(name)
+	if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(slug)) {
+		throw new Error(
+			`The brand slug "${slug}" must be lowercase letters, digits and dashes.`,
+		)
+	}
+	if (!/^[a-z][a-z0-9]*$/.test(brandId)) {
+		throw new Error(
+			`The brand slug "${slug}" cannot form a package id ("${brandId}").`,
+		)
+	}
+	if (!/^[A-Za-z][A-Za-z0-9]*$/.test(pascalName)) {
+		throw new Error(
+			`The brand name "${name}" cannot form a Swift type name ("${pascalName}").`,
+		)
+	}
+}
+
 async function main() {
 	try {
 		// Check if SKIP_BRAND_SETUP is set
@@ -1123,6 +1233,7 @@ async function main() {
 		}
 
 		const brandInfo = envBrand ?? (await promptBrandInfo())
+		assertBrandIdentifiers(brandInfo)
 		updateBrandConfig(brandInfo)
 		updateEnvFiles(brandInfo)
 		updateMobileAppConfig(brandInfo)

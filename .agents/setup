@@ -81,9 +81,38 @@ step_done
 step "Android toolchain (JDK 17 + SDK platform 36)"
 # apps/android is framework-only but still needs a JDK, the Android SDK, and
 # build-tools to run `npm run android:test|build|apk|bundle -w android`.
-if ! command -v javac >/dev/null 2>&1 && [ -z "${JAVA_HOME:-}" ]; then
+# The Android build targets Java 17, so the *version* matters, not just the
+# presence of `javac`: a runner with JDK 11 on PATH would otherwise skip the
+# install and fail the Gradle build.
+jdk_major="$(javac -version 2>/dev/null | sed -E 's/^javac ([0-9]+).*/\1/')"
+case "$jdk_major" in
+	'' | *[!0-9]*) jdk_major=0 ;;
+esac
+if [ "$jdk_major" -lt 17 ]; then
 	sudo apt-get update -qq
 	sudo apt-get install -y -qq openjdk-17-jdk-headless
+fi
+
+# Gradle prefers JAVA_HOME over PATH, so point it — and the non-interactive
+# login shells the orb uses — at the JDK that is actually installed.
+jdk_bin="$(command -v javac || true)"
+jdk_home=""
+if [ -n "$jdk_bin" ]; then
+	jdk_home="$(dirname "$(dirname "$(readlink -f "$jdk_bin" || true)")")"
+fi
+if [ -z "$jdk_home" ] || [ ! -x "$jdk_home/bin/javac" ]; then
+	printf 'No JDK 17+ found after installing openjdk-17-jdk-headless\n' >&2
+	exit 1
+fi
+export JAVA_HOME="$jdk_home"
+export PATH="$JAVA_HOME/bin:$PATH"
+printf '    %s\n' "$(javac -version 2>&1)"
+if ! grep -q 'JAVA_HOME' "$HOME/.bash_profile" 2>/dev/null; then
+	{
+		printf '\n# JDK for apps/android (added by .agents/setup)\n'
+		printf 'export JAVA_HOME="%s"\n' "$jdk_home"
+		printf 'export PATH="$JAVA_HOME/bin:$PATH"\n'
+	} >>"$HOME/.bash_profile"
 fi
 
 android_sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/android-sdk}}"

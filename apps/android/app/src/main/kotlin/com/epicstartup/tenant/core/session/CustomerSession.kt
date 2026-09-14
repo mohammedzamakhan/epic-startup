@@ -73,6 +73,16 @@ class CustomerSession(
 	}
 
 	fun signOut() {
+		val previous = clearLocalSession()
+		client.logout(previous?.refreshToken, previous?.orgId)
+	}
+
+	/**
+	 * Ends the session without telling tenant-api: used when the stored session
+	 * belongs to another tenant, whose credentials must not be sent to *this*
+	 * org's regional node (that node may be in the other region).
+	 */
+	fun clearLocalSession(): AuthTokens? {
 		val previous = synchronized(lock) {
 			sessionGeneration += 1
 			refreshFuture?.cancel(false)
@@ -80,7 +90,7 @@ class CustomerSession(
 			currentTokens
 		}
 		clearTokens()
-		client.logout(previous?.refreshToken, previous?.orgId)
+		return previous
 	}
 
 	// MARK: - Authorized calls
@@ -220,9 +230,10 @@ class CustomerSession(
 	private fun await(future: CompletableFuture<AuthTokens>): AuthTokens = try {
 		future.get()
 	} catch (error: ExecutionException) {
-		val cause = error.cause
-		if (cause is RuntimeException) throw cause
-		throw ApiException(0, cause?.message ?: "Network error")
+		// Rethrow what the owner saw — an `ApiException` carries the status the
+		// caller needs (401 clears the session, 5xx is transient) and would
+		// otherwise be flattened into a transport failure.
+		throw error.cause ?: ApiException(0, "Network error")
 	} catch (error: CancellationException) {
 		throw ApiException.unauthorized()
 	} catch (error: InterruptedException) {

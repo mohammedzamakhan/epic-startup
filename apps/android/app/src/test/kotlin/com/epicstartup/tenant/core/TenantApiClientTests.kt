@@ -314,6 +314,21 @@ class TenantConfigurationTest {
 	}
 
 	@Test
+	fun refusesHostlessAndUserInfoUrls() {
+		assertTrue(!TenantConfiguration.isTransportSafe("https://"))
+		assertTrue(!TenantConfiguration.isTransportSafe("https:///path"))
+		assertTrue(!TenantConfiguration.isTransportSafe("https://user:secret@example.com"))
+		// The host that matters is the one the request reaches, not the text
+		// before the `@`.
+		assertTrue(!TenantConfiguration.isTransportSafe("http://localhost@evil.example"))
+		// `127.` is a name here, not an IPv4 loopback address.
+		assertTrue(!TenantConfiguration.isTransportSafe("http://127.example.com"))
+		assertTrue(!TenantConfiguration.isTransportSafe("http://127.0.0.1.evil.example"))
+		assertTrue(!TenantConfiguration.isTransportSafe("http://127.0.0.256:3001"))
+		assertTrue(TenantConfiguration.isTransportSafe("http://127.10.20.30:3001"))
+	}
+
+	@Test
 	fun fallsBackToTheLocalDevelopmentDefaultsWhenAMisconfiguredUrlIsRefused() {
 		val configuration = TenantConfiguration.from(
 			appUrl = "http://evil.example.com",

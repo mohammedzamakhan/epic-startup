@@ -1,6 +1,8 @@
 package com.epicstartup.tenant.core.config
 
 import com.epicstartup.tenant.core.support.SiteAddress
+import java.net.URI
+import java.net.URISyntaxException
 
 /**
  * How the app reaches the platform.
@@ -104,27 +106,31 @@ data class TenantConfiguration(
 			return candidate.trimEnd('/')
 		}
 
-		/** HTTPS anywhere, HTTP only on loopback (emulator and device development). */
+		/**
+		 * HTTPS anywhere, HTTP only on loopback (emulator and device development).
+		 *
+		 * The URL is parsed rather than scanned, so the host that is checked is
+		 * the host the request actually reaches: `http://localhost@evil.example`
+		 * is refused (its host is `evil.example`), and a URL without a host
+		 * (`https://`, `https:///path`) is refused instead of resolving to a
+		 * base URL that cannot reach anything.
+		 */
 		fun isTransportSafe(url: String): Boolean {
-			val trimmed = url.trim()
-			val separator = trimmed.indexOf("://")
-			if (separator <= 0) return false
-			val scheme = trimmed.substring(0, separator).lowercase()
-			val authority = trimmed.substring(separator + 3).substringBefore('/')
-				.substringBefore('?')
-				.substringBefore('#')
-			return when (scheme) {
+			val uri = parseUri(url) ?: return false
+			if (uri.userInfo != null) return false
+			val host = uri.host?.takeIf { it.isNotEmpty() } ?: return false
+			return when (uri.scheme?.lowercase()) {
 				"https" -> true
-				"http" -> isLoopbackHost(hostOf(authority))
+				"http" -> isLoopbackHost(host)
 				else -> false
 			}
 		}
 
-		/** Strips the port from an authority, keeping IPv6 brackets intact. */
-		private fun hostOf(authority: String): String {
-			val host = authority.substringBefore('@')
-			if (host.startsWith("[")) return host.substringBefore(']') + "]"
-			return host.substringBefore(':')
+		/** `java.net.URI` (not `URL`) so a malformed authority is rejected, not resolved. */
+		private fun parseUri(url: String): URI? = try {
+			URI(url.trim())
+		} catch (error: URISyntaxException) {
+			null
 		}
 
 		/**
@@ -139,7 +145,22 @@ data class TenantConfiguration(
 				normalized == "[::1]" ||
 				normalized == "10.0.2.2" ||
 				normalized.endsWith(".localhost") ||
-				normalized.startsWith("127.")
+				isIpv4Loopback(normalized)
+		}
+
+		/**
+		 * Accepts `127.0.0.1` (any address in `127/8`) but not a *name* that
+		 * merely starts with `127.`, which would resolve wherever DNS says.
+		 */
+		private fun isIpv4Loopback(host: String): Boolean {
+			val octets = host.split('.')
+			if (octets.size != 4 || octets.first() != "127") return false
+			return octets.all { octet ->
+				octet.isNotEmpty() &&
+					octet.length <= 3 &&
+					octet.all { it.isDigit() } &&
+					octet.toInt() <= 255
+			}
 		}
 	}
 }

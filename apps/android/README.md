@@ -67,8 +67,10 @@ What that costs, and the rules that keep it:
   reflection-based library is ever added, drop that exclusion in
   `app/build.gradle.kts`.
 - **Locales are limited** to the six the org sites ship
-  (`resourceConfigurations`), so no locale resources are dead weight, and AAB
-  language splits keep each device's download to one language.
+  (`resourceConfigurations`), so no locale resources are dead weight. AAB
+  language splits are turned **off** (`bundle.language.enableSplit = false`)
+  because the app can switch language at runtime, so every download carries all
+  six locales (a few KB of strings).
 
 `size-budget.json` + `npm run android:size -w android` fail loudly when a change
 blows the budget.
@@ -245,6 +247,12 @@ iconBackground=#0F172A
 Without it the app is un-branded: release builds target production, debug builds
 target the local dev servers, and the customer connects their own site on first
 launch.
+
+A published tenant also needs `site.origin` (or `site.host`, from which the
+generator derives the origin — `https://<host>`, or `http://` for a local
+build): tenant-api resolves the org from the `Origin` header the app sends on
+sign-in, and answers `404` without one, so `generate-tenant.mjs` fails the build
+when neither is set.
 
 ## i18n
 

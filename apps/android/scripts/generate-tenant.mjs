@@ -9,13 +9,20 @@
  *   3. `app/src/main/res/mipmap-<density>/ic_launcher_foreground.png` — the
  *      tenant's published site icon, centred in the adaptive icon's safe zone.
  *
- * The committed placeholder icon is restored first, so a tenant without a
- * published icon can never inherit the previous tenant's icon (same rule as
- * apps/ios/scripts/generate-tenant.mjs).
+ * Every run starts by restoring the committed placeholder icon and background
+ * colour, so a tenant without a published icon can never inherit the previous
+ * tenant's icon (same rule as apps/ios/scripts/generate-tenant.mjs). The
+ * placeholders are committed per density (`scripts/assets/
+ * ic-launcher-foreground-<density>.png`), so restoring them needs no tooling.
  *
- * Icon composition needs ImageMagick (`magick`): `brew install imagemagick`,
- * `apt-get install imagemagick`, or `choco install imagemagick` on Windows.
- * Without it the placeholder icon is kept and the build continues.
+ * Composing a tenant's own icon needs ImageMagick (`magick`): `brew install
+ * imagemagick`, `apt-get install imagemagick`, or `choco install imagemagick`
+ * on Windows. Without it the placeholder icon is restored and the build
+ * continues.
+ *
+ * The committed placeholders are `scripts/assets/ic-launcher-placeholder.png`
+ * composited onto a transparent canvas; regenerate them after changing that
+ * artwork with `node scripts/generate-tenant.mjs --write-placeholders`.
  *
  * No secrets pass through here: the Play upload key lives in the tenant's
  * GitHub environment (see docs/play-store-release.md).
@@ -24,27 +31,56 @@
  *   node scripts/generate-tenant.mjs --tenant acme [--build-number 123]
  *                                    [--icon-source <url|path>] [--no-icon]
  *                                    [--no-api] [--out <path>]
+ *   node scripts/generate-tenant.mjs --write-placeholders
  */
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+	copyFileSync,
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	writeFileSync,
+} from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const RES_ROOT = join(APP_ROOT, 'app/src/main/res')
-const PLACEHOLDER_ICON = join(
-	APP_ROOT,
-	'scripts/assets/ic-launcher-placeholder.png',
-)
+const ASSETS_DIR = join(APP_ROOT, 'scripts/assets')
+const PLACEHOLDER_ICON = join(ASSETS_DIR, 'ic-launcher-placeholder.png')
 const BACKGROUND_FILE = join(RES_ROOT, 'values/ic_launcher_background.xml')
 
-/** Adaptive icons: a 108dp canvas whose outer 18dp may be masked away. */
+/**
+ * Adaptive icons: a 108dp canvas whose outer 18dp may be masked away. Each
+ * density has a committed placeholder foreground, copied (not composed) when a
+ * tenant has no icon of its own.
+ */
 const FOREGROUND_DENSITIES = [
-	{ dir: 'mipmap-mdpi', size: 108 },
-	{ dir: 'mipmap-hdpi', size: 162 },
-	{ dir: 'mipmap-xhdpi', size: 216 },
-	{ dir: 'mipmap-xxhdpi', size: 324 },
-	{ dir: 'mipmap-xxxhdpi', size: 432 },
+	{
+		dir: 'mipmap-mdpi',
+		size: 108,
+		placeholder: 'ic-launcher-foreground-mdpi.png',
+	},
+	{
+		dir: 'mipmap-hdpi',
+		size: 162,
+		placeholder: 'ic-launcher-foreground-hdpi.png',
+	},
+	{
+		dir: 'mipmap-xhdpi',
+		size: 216,
+		placeholder: 'ic-launcher-foreground-xhdpi.png',
+	},
+	{
+		dir: 'mipmap-xxhdpi',
+		size: 324,
+		placeholder: 'ic-launcher-foreground-xxhdpi.png',
+	},
+	{
+		dir: 'mipmap-xxxhdpi',
+		size: 432,
+		placeholder: 'ic-launcher-foreground-xxxhdpi.png',
+	},
 ]
 /** Share of the canvas the artwork occupies (inside the 66dp safe zone). */
 const FOREGROUND_SCALE = 0.6
@@ -57,7 +93,7 @@ function parseArgs(argv) {
 		const value = argv[index]
 		if (!value.startsWith('--')) continue
 		const [name, inline] = value.slice(2).split('=')
-		if (['no-icon', 'no-api'].includes(name)) {
+		if (['no-icon', 'no-api', 'write-placeholders'].includes(name)) {
 			args.flags.add(name)
 			continue
 		}
@@ -167,23 +203,33 @@ function composeForeground(source, destination, size) {
 	)
 }
 
-/** Restores the committed placeholder icon (every generation starts here). */
+/** Restores the committed placeholder icon and background (every run starts here). */
 function resetIcons() {
-	if (!existsSync(PLACEHOLDER_ICON))
-		fail(`Missing placeholder icon at ${PLACEHOLDER_ICON}`)
-	if (!haveImageMagick()) {
-		log(
-			'ImageMagick (magick) not found; keeping the committed placeholder icon',
-		)
-		return false
-	}
-	for (const { dir, size } of FOREGROUND_DENSITIES) {
+	for (const { dir, placeholder } of FOREGROUND_DENSITIES) {
+		const source = join(ASSETS_DIR, placeholder)
+		if (!existsSync(source)) {
+			fail(
+				`Missing placeholder icon at ${source} (regenerate with --write-placeholders)`,
+			)
+		}
 		const target = join(RES_ROOT, dir, 'ic_launcher_foreground.png')
 		mkdirSync(dirname(target), { recursive: true })
-		composeForeground(PLACEHOLDER_ICON, target, size)
+		// A copy, not a composition: restoring the placeholder must work (and
+		// must remove a previous tenant's icon) even without ImageMagick.
+		copyFileSync(source, target)
 	}
 	writeBackground(DEFAULT_BACKGROUND)
-	return true
+}
+
+/** Rebuilds the committed placeholders from the artwork, so the two never drift. */
+function writePlaceholders() {
+	if (!haveImageMagick())
+		fail('ImageMagick (magick) is required to rebuild the placeholder icons')
+	if (!existsSync(PLACEHOLDER_ICON))
+		fail(`Missing placeholder artwork at ${PLACEHOLDER_ICON}`)
+	for (const { placeholder, size } of FOREGROUND_DENSITIES) {
+		composeForeground(PLACEHOLDER_ICON, join(ASSETS_DIR, placeholder), size)
+	}
 }
 
 function writeBackground(color) {
@@ -202,9 +248,16 @@ function writeBackground(color) {
 }
 
 async function resolveIcon(config, organization, { iconSource, useIcon }) {
-	const ready = resetIcons()
-	if (!useIcon || !ready)
-		return { applied: false, reason: 'icon generation disabled' }
+	resetIcons()
+	if (!useIcon)
+		return { applied: false, reason: 'icon generation disabled (--no-icon)' }
+	if (!haveImageMagick()) {
+		return {
+			applied: false,
+			reason:
+				'ImageMagick (magick) not found; the placeholder icon was restored',
+		}
+	}
 
 	const scheme = /^localhost|^127\.|^10\.0\.2\.2/.test(config.appUrl)
 		? 'http'
@@ -273,12 +326,54 @@ function escapeProperty(value) {
 	return String(value).replace(/\\/g, '\\\\').replace(/\n/g, '\\n')
 }
 
-function writeTenantProperties({ config, file, buildNumber, out }) {
+/** A build talking to a public host uses TLS; a local one does not. */
+function resolveUseTls(config) {
+	if (typeof config.useTls === 'boolean') return config.useTls
+	return !/^localhost|^127\.|^10\.0\.2\.2/.test(config.appUrl)
+}
+
+/**
+ * The `Origin` the app sends on sign-in. tenant-api resolves the tenant from
+ * it, so a published tenant needs one: `site.origin`, or `site.host` (the
+ * scheme follows the build: `https` unless this is a local one).
+ */
+function resolveSiteOrigin(site, useTls, file) {
+	const configured = typeof site.origin === 'string' ? site.origin.trim() : ''
+	const host = typeof site.host === 'string' ? site.host.trim() : ''
+	const raw =
+		configured || (host ? `${useTls ? 'https' : 'http'}://${host}` : '')
+	if (!raw) {
+		fail(
+			`tenants/${file} needs site.origin (or site.host): tenant-api resolves the tenant from the Origin header the app sends on sign-in`,
+		)
+	}
+	let url
+	try {
+		url = new URL(raw)
+	} catch {
+		fail(`tenants/${file} has an invalid site.origin: ${raw}`)
+	}
+	if (!url.host || !['http:', 'https:'].includes(url.protocol)) {
+		fail(`tenants/${file} has an invalid site.origin: ${raw}`)
+	}
+	if (useTls && url.protocol !== 'https:') {
+		fail(
+			`tenants/${file} site.origin must be https for a published tenant: ${raw}`,
+		)
+	}
+	// An `Origin` header carries no path, so normalize what a browser sends.
+	return url.origin
+}
+
+function writeTenantProperties({
+	config,
+	file,
+	buildNumber,
+	out,
+	useTls,
+	siteOrigin,
+}) {
 	const site = config.site ?? {}
-	const useTls =
-		typeof config.useTls === 'boolean'
-			? config.useTls
-			: !/^localhost|^127\.|^10\.0\.2\.2/.test(config.appUrl)
 	const entries = [
 		['applicationId', config.bundleId],
 		['appName', config.displayName],
@@ -291,7 +386,7 @@ function writeTenantProperties({ config, file, buildNumber, out }) {
 		['tenantApiKsa', config.tenantApiKsa ?? ''],
 		['siteSlug', site.host ? '' : (site.slug ?? '')],
 		['siteHost', site.host ?? ''],
-		['siteOrigin', site.origin ?? ''],
+		['siteOrigin', siteOrigin],
 		['iconBackground', config.iconBackground ?? DEFAULT_BACKGROUND],
 	]
 
@@ -310,6 +405,14 @@ function writeTenantProperties({ config, file, buildNumber, out }) {
 
 async function main() {
 	const args = parseArgs(process.argv.slice(2))
+	if (args.flags.has('write-placeholders')) {
+		writePlaceholders()
+		log(
+			'Rebuilt the committed placeholder icons from scripts/assets/ic-launcher-placeholder.png',
+		)
+		return
+	}
+
 	const slug = args.tenant ?? process.env.TENANT_SLUG
 	if (!slug) fail('Pass --tenant <slug> (or set TENANT_SLUG)')
 
@@ -323,6 +426,8 @@ async function main() {
 			`tenants/${file} needs site.slug or site.host — a published app must be bound to one tenant`,
 		)
 	}
+	const useTls = resolveUseTls(config)
+	const siteOrigin = resolveSiteOrigin(config.site ?? {}, useTls, file)
 
 	const buildNumber = String(
 		args['build-number'] ?? process.env.GITHUB_RUN_NUMBER ?? '1',
@@ -342,7 +447,14 @@ async function main() {
 		iconSource: args['icon-source'],
 		useIcon: !args.flags.has('no-icon'),
 	})
-	const properties = writeTenantProperties({ config, file, buildNumber, out })
+	const properties = writeTenantProperties({
+		config,
+		file,
+		buildNumber,
+		out,
+		useTls,
+		siteOrigin,
+	})
 
 	console.log('')
 	console.log(`✓ ${config.displayName} (${config.slug})`)
@@ -350,9 +462,7 @@ async function main() {
 	console.log(
 		`  version        ${config.marketingVersion ?? '1.0.0'} (${buildNumber})`,
 	)
-	console.log(
-		`  site           ${config.site.origin ?? config.site.host ?? config.site.slug}`,
-	)
+	console.log(`  site           ${siteOrigin}`)
 	console.log(`  properties     ${properties}`)
 	console.log(
 		`  app icon       ${icon.applied ? icon.reason : `placeholder (${icon.reason})`}`,

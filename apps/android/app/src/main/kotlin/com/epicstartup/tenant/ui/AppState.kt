@@ -220,22 +220,27 @@ class AppState(private val context: Context) {
 	private fun configureSession(organization: PublicOrganization) {
 		configuration = configuration.withDataRegion(organization.resolvedDataRegion)
 		val client = TenantApiClient(configuration)
-		val session = CustomerSession(client, KeystoreTokenStorage(context))
 		this.client = client
-		this.session = session
 
 		TaskRunner.run(
+			// The session is built here, not on the main thread: its constructor
+			// reads SharedPreferences and unwraps the Android Keystore.
 			work = {
+				val session = CustomerSession(client, KeystoreTokenStorage(context))
 				val tokens = session.restore()
-				// A stored session belongs to one org; drop it when the tenant changes.
+				// A stored session belongs to one org; drop it when the tenant
+				// changes. It is cleared locally on purpose — the tokens may
+				// belong to a tenant in another region, and this org's node must
+				// never see them.
 				if (tokens != null && tokens.orgId != organization.id) {
-					session.signOut()
-					null
+					session.clearLocalSession()
+					null to session
 				} else {
-					tokens
+					tokens to session
 				}
 			},
-			onSuccess = { tokens ->
+			onSuccess = { (tokens, session) ->
+				this.session = session
 				isSignedIn = tokens != null
 				notifyChanged()
 				if (tokens != null) loadProfile()

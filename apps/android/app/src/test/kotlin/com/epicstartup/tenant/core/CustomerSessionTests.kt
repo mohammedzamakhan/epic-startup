@@ -246,6 +246,69 @@ class CustomerSessionTest {
 	}
 
 	@Test
+	fun clearLocalSessionDropsTheSessionWithoutCallingTheApi() {
+		val storage = InMemoryTokenStorage(AuthTokens(accessToken, "refresh_1"))
+		val (session, transport) = session(storage) { _ -> jsonResponse(200, jsonBody("success" to true)) }
+
+		session.clearLocalSession()
+
+		assertFalse(session.isSignedIn)
+		assertNull(storage.load())
+		// A session stored by another tenant must not be revoked through this
+		// org's node: that node may be in the other data region.
+		assertTrue(transport.requests.isEmpty())
+	}
+
+	@Test
+	fun coalescedCallersSeeTheOriginalRefreshFailure() {
+		val transport = GatedTransport { request ->
+			when {
+				request.url.endsWith("/auth/refresh") -> jsonResponse(
+					401,
+					jsonBody("error" to "invalid_grant"),
+				)
+				else -> jsonResponse(200, jsonBody("success" to true))
+			}
+		}
+		val session = CustomerSession(
+			TenantApiClient(makeConfiguration(), transport),
+			InMemoryTokenStorage(AuthTokens(accessToken, "refresh_1")),
+		)
+
+		val ownerFailure = AtomicReference<Exception?>()
+		val joinedFailure = AtomicReference<Exception?>()
+		val owner = Thread {
+			try {
+				session.refresh()
+			} catch (error: Exception) {
+				ownerFailure.set(error)
+			}
+		}
+		owner.start()
+		assertTrue(transport.awaitFirstRequest(), "the first refresh should reach the transport")
+
+		val joined = Thread {
+			try {
+				session.refresh()
+			} catch (error: Exception) {
+				joinedFailure.set(error)
+			}
+		}
+		joined.start()
+		Thread.sleep(100)
+		transport.releaseAll()
+		owner.join(5_000)
+		joined.join(5_000)
+
+		// Both callers must see the status the owner saw: a flattened transport
+		// failure would skip the sign-in prompt in `AppState.loadProfile`.
+		assertEquals(401, (assertNotNull(ownerFailure.get()) as ApiException).statusCode)
+		val joinedError = assertNotNull(joinedFailure.get()) as ApiException
+		assertEquals(401, joinedError.statusCode)
+		assertTrue(joinedError.isUnauthorized)
+	}
+
+	@Test
 	fun updateProfileKeepsTheCurrentRefreshTokenWhenTheResponseOmitsIt() {
 		val (session, _) = session(InMemoryTokenStorage(AuthTokens(accessToken, "refresh_1"))) { request ->
 			when {

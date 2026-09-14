@@ -62,6 +62,9 @@ internal class BrandHeaderView(context: Context, private val palette: ThemePalet
 			return
 		}
 		ImageLoader.load(iconUrl) { bitmap ->
+			// A slower request for a previous URL must not overwrite the icon
+			// this header is currently bound to.
+			if (iconUrl != currentIconUrl) return@load
 			val radius = context.dpFloat(palette.controlRadiusPx.coerceAtLeast(6f))
 			icon.setImageDrawable(RoundedCornerDrawable(bitmap, radius))
 			icon.visibility = VISIBLE
