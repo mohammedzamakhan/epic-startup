@@ -107,7 +107,7 @@ jobs:
             build
 
   release:
-    name: 🚀 ${{ matrix.tenant }} → ${{ inputs.lane }}
+    name: 🚀 Release to TestFlight / App Store
     needs: [tenants, test]
     if: github.event_name == 'workflow_dispatch'
     runs-on: macos-26
