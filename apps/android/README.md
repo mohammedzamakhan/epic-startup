@@ -141,31 +141,89 @@ apps/android/
 The `core` half is plain Kotlin + `org.json`, so it runs on the JVM: `core`
 never imports `android.*`, and the only bridge is `RgbaColor.toArgb()`.
 
-## Running it
+## Run it locally
 
 ```bash
 # Unit tests (any OS, no emulator)
 npm run android:test -w android
-
-# Build + install on a running emulator/device
-npm run android:install -w android
-# or open it in Android Studio: apps/android (it will pick up gradle.properties)
-
-# Local dev servers
-npm run dev                      # app :3001, tenant-api :3007 (US) / :3009 (KSA), sites :3008
 ```
+
+Then, to actually run the app on an emulator or device:
+
+**1. Start the dev servers** (repo root):
+
+```bash
+npm run dev      # app :3001, tenant-api :3007 (US) + :3009 (KSA), sites :3008
+```
+
+**2. Create and _publish_ an organization.** The app can only sign in customers
+of a published org, because publishing is what provisions that org's regional
+tenant SQLite. In the App (http://localhost:3001, seeded operator `kody` /
+`KodyLovesYou!2026`): pick an organization (or create one) → **Website** → turn
+the **Organization site** switch on. Note the **slug** — it is the first path
+segment (`/acme/website`) and it is what you type into the app. Skipping this
+step makes `send-code` answer
+`404 {"error":"Organization not found or DB not provisioned"}`.
+
+**3. Start an emulator** (or plug in a phone with USB debugging on):
+
+```bash
+emulator -list-avds
+emulator -avd <name> &
+# or: Android Studio → Device Manager → ▶
+```
+
+**4. Build, install and launch the app:**
+
+```bash
+npm run android:run -w android
+```
+
+Android Studio users can just open `apps/android` and press ▶ — the npm script
+is the CLI equivalent (Gradle's `installDebug` only installs; `android:run` also
+starts the Activity and prints what to do next).
+
+**5. In the app:** the un-branded debug build asks for a site address on first
+launch — type the org's **slug** (e.g. `acme`) and press **Connect**. Then enter
+a phone number (any plausible number works locally, e.g. `+15550000000`) and
+read the 6-digit code from the terminal running `npm run dev`:
+
+```
+tenant-api:dev: [SMS MOCK] To: +15550000000 | Message: Your verification code is: 123456
+```
+
+SMS is mocked locally (no Twilio credentials), so the code is always in that log
+line. A new number lands on the "Your name" screen, then the profile screen.
+
+A white-label build skips the connect step:
+`npm run android:tenant -w android -- --tenant ci` bakes in `site.slug`, so the
+app opens straight into that tenant's branding.
+
+### Physical device
+
+The debug defaults point at `10.0.2.2`, which only exists inside an emulator. On
+a real phone, forward the ports and build against loopback:
+
+```bash
+adb reverse tcp:3001 tcp:3001
+adb reverse tcp:3007 tcp:3007
+npm run android:run -w android -- -PdevHost=localhost
+```
+
+### If it does not work
+
+| Symptom                                          | Cause                                                                                          |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| "Network error" on connect or sign in            | dev servers are not running, or the device cannot reach the host (3001/3007 must be listening) |
+| Connect says "We couldn't find that site"        | wrong slug, or the org's site is not published                                                 |
+| Sign in says "Organization not found or DB not…" | step 2 was skipped (the org's website was never published)                                     |
+| The code never arrives                           | read the `[SMS MOCK]` line in the dev server output — local SMS is mocked                      |
+| The request is blocked as cleartext              | endpoints must be loopback or `10.0.2.2` (see `res/xml/network_security_config.xml`)           |
 
 `scripts/gradle.sh` finds the SDK via `ANDROID_HOME` / `ANDROID_SDK_ROOT`,
 `local.properties`, or the usual install locations, and explains what to install
 if none is present. Requirements: JDK 17+, Android SDK platform 36 +
 build-tools 36.
-
-Local development uses `10.0.2.2` (the emulator's alias for the host machine) as
-configured in `app/build.gradle.kts` for un-branded debug builds. On a physical
-device either run `adb reverse tcp:3001 tcp:3001` (and point the endpoints at
-`localhost`) or write a `tenant.properties` with the machine's LAN address —
-cleartext is refused for anything but loopback
-(`res/xml/network_security_config.xml`).
 
 ## Pointing the app at a tenant
 

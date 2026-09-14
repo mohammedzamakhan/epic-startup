@@ -33,6 +33,13 @@ fun tenantFlag(key: String, fallback: Boolean): Boolean =
 // Release signing comes from `app/keystore.properties` (gitignored, written by
 // CI from the tenant's GitHub environment). Without it the release build is
 // unsigned, which is what `npm run android:apk` does locally to measure size.
+// Un-branded debug builds point at the emulator's host alias. A physical device
+// (or a machine where the dev servers are not on the host loopback) can override
+// it, typically after `adb reverse`:
+//
+//   npm run android:run -w android -- -PdevHost=localhost
+val devHost = (project.findProperty("devHost") as? String)?.trim().orEmpty().ifEmpty { "10.0.2.2" }
+
 val keystore = Properties().apply {
 	val file = rootProject.file("app/keystore.properties")
 	if (file.exists()) file.inputStream().use { load(it) }
@@ -89,10 +96,10 @@ android {
 			// Cleartext is only permitted for loopback hosts.
 			if (!isTenantBuild) {
 				resValue("bool", "tenant_use_tls", "false")
-				resValue("string", "tenant_app_base_url", "10.0.2.2:3001")
+				resValue("string", "tenant_app_base_url", "$devHost:3001")
 				resValue("string", "tenant_brand_domain", "epic-startup.test")
-				resValue("string", "tenant_api_us_base_url", "10.0.2.2:3007")
-				resValue("string", "tenant_api_ksa_base_url", "10.0.2.2:3009")
+				resValue("string", "tenant_api_us_base_url", "$devHost:3007")
+				resValue("string", "tenant_api_ksa_base_url", "$devHost:3009")
 			}
 		}
 		release {

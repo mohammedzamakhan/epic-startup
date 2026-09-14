@@ -13,6 +13,7 @@
     "android:tenant": "node scripts/generate-tenant.mjs",
     "android:tenants": "node scripts/list-tenants.mjs",
     "android:install": "bash scripts/gradle.sh installDebug",
+    "android:run": "bash scripts/run-app.sh",
     "android:beta": "bundle exec fastlane android beta",
     "android:release": "bundle exec fastlane android release"
   },

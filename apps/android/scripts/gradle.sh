@@ -21,20 +21,9 @@ MSG
 	exit 1
 fi
 
-if [ -z "${ANDROID_HOME:-}" ] && [ -z "${ANDROID_SDK_ROOT:-}" ] && [ ! -f local.properties ]; then
-	for candidate in \
-		"$HOME/android-sdk" \
-		"$HOME/Library/Android/sdk" \
-		"/usr/local/lib/android/sdk" \
-		"/opt/android-sdk"; do
-		if [ -d "$candidate" ]; then
-			export ANDROID_HOME="$candidate"
-			break
-		fi
-	done
-fi
-
-if [ -z "${ANDROID_HOME:-}" ] && [ -z "${ANDROID_SDK_ROOT:-}" ] && [ ! -f local.properties ]; then
+# shellcheck source=scripts/android-sdk.sh
+source "$APP_ROOT/scripts/android-sdk.sh"
+if ! export_android_sdk; then
 	cat >&2 <<'MSG'
 ✖ No Android SDK found. Either install Android Studio, or:
     1. download the command line tools from https://developer.android.com/studio
