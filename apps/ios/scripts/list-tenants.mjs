@@ -45,11 +45,20 @@ const tenants = readdirSync(TENANTS_DIR)
 	.sort((a, b) => a.slug.localeCompare(b.slug))
 
 if (args.flags.has('json')) {
-	console.log(JSON.stringify(tenants.map((tenant) => tenant.slug)))
+	// Objects (not bare slugs) so the release workflow can honour a tenant's
+	// custom GitHub environment.
+	console.log(
+		JSON.stringify(
+			tenants.map((tenant) => ({
+				slug: tenant.slug,
+				environment: tenant.environment,
+			})),
+		),
+	)
 } else {
 	for (const tenant of tenants) {
 		console.log(
-			`${tenant.slug.padEnd(20)} ${tenant.release ? 'release' : 'build-only'}  ${tenant.displayName}`,
+			`${tenant.slug.padEnd(20)} ${tenant.release ? 'release' : 'build-only'}  ${tenant.displayName}  [${tenant.environment}]`,
 		)
 	}
 }

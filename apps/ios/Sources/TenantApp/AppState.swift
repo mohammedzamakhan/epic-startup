@@ -170,16 +170,16 @@ final class AppState: ObservableObject {
 			self.theme = SiteTheme(theme: organization.theme)
 			configureSession(for: organization)
 			phase = .ready
-		} catch let error as APIError {
+		} catch {
 			if address != nil {
+				// Roll back for any failure (decoding errors included) so a failed
+				// attempt cannot strand the app on a binding that does not resolve.
 				configuration.siteAddress = previousAddress
 				client = TenantAPIClient(configuration: configuration)
 				phase = previousAddress.isBound ? .failed(message(for: error)) : .needsSite
 			} else {
 				phase = .failed(message(for: error))
 			}
-		} catch {
-			phase = .failed(message(for: error))
 		}
 	}
 

@@ -108,7 +108,7 @@ Locally (needs macOS + Xcode 26 + `bundle install`):
 cd apps/ios
 npm run ios:tenant -w ios -- --tenant acme --build-number 42
 npm run ios:generate -w ios
-open EpicTenantApp.xcodeproj          # or: npm run ios:xcode:run -w ios
+open EpicTenantApp.xcodeproj          # or: npm run ios:sim -w ios
 ```
 
 ## Versioning

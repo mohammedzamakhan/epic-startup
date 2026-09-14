@@ -204,6 +204,69 @@ final class CustomerSessionTests: XCTestCase {
 		XCTAssertEqual(storage.load()?.refreshToken, "refresh-1")
 	}
 
+	func testSignOutDiscardsAnInFlightRefresh() async throws {
+		let storage = InMemoryTokenStorage(
+			tokens: AuthTokens(accessToken: makeAccessToken(), refreshToken: "refresh-1")
+		)
+		let rotated = makeAccessToken(name: "Ada Lovelace")
+		let transport = StubTransport(delayedResponses: [
+			(status: 401, data: Data(#"{"error":"Invalid or expired token"}"#.utf8), delayMs: 0),
+			// Delayed so sign-out is guaranteed to land while this is in flight.
+			(status: 200, data: Data(#"{"success":true,"accessToken":"\#(rotated)","refreshToken":"refresh-2"}"#.utf8), delayMs: 200),
+			(status: 200, data: Data(#"{"success":true}"#.utf8), delayMs: 0),
+		])
+		let session = makeSession(transport: transport, storage: storage)
+
+		async let profile: CustomerProfile? = try? await session.profile()
+		try await Task.sleep(nanoseconds: 60_000_000) // let the 401 land and the refresh start
+		await session.signOut()
+		_ = await profile
+
+		XCTAssertNil(storage.load(), "a refresh that finished after sign-out must not restore the session")
+		let isSignedIn = await session.isSignedIn
+		XCTAssertFalse(isSignedIn)
+	}
+
+	func testTransientRefreshFailureKeepsTheSession() async throws {
+		let storage = InMemoryTokenStorage(
+			tokens: AuthTokens(accessToken: makeAccessToken(), refreshToken: "refresh-1")
+		)
+		let transport = StubTransport(rawResponses: [
+			(status: 401, data: Data(#"{"error":"Invalid or expired token"}"#.utf8)),
+			(status: 500, data: Data(#"{"error":"Internal Server Error"}"#.utf8)),
+		])
+		let session = makeSession(transport: transport, storage: storage)
+
+		do {
+			_ = try await session.profile()
+			XCTFail("Expected the server error to surface")
+		} catch let error as APIError {
+			XCTAssertEqual(error.statusCode, 500)
+		} catch {
+			XCTFail("Unexpected error: \(error)")
+		}
+
+		XCTAssertNotNil(storage.load(), "a 5xx must not sign the customer out")
+		XCTAssertEqual(storage.load()?.refreshToken, "refresh-1")
+	}
+
+	func testUpdateProfileOmitsEmailWhenNil() async throws {
+		let storage = InMemoryTokenStorage(
+			tokens: AuthTokens(accessToken: makeAccessToken(), refreshToken: "refresh-1")
+		)
+		let transport = StubTransport(rawResponses: [
+			(status: 200, data: Data(#"{"success":true,"accessToken":"\#(makeAccessToken(name: "Ada"))"}"#.utf8)),
+			(status: 200, data: Data(#"{"customer":{"id":"cust_1","name":"Ada","email":"kept@example.com"}}"#.utf8)),
+		])
+		let session = makeSession(transport: transport, storage: storage)
+
+		_ = try await session.updateProfile(name: "Ada", email: nil)
+
+		let request = try XCTUnwrap(transport.recorded.first)
+		XCTAssertNil(request.body["email"], "nil must omit the field so a stored email is not cleared")
+		XCTAssertEqual(request.body["name"] as? String, "Ada")
+	}
+
 	func testSignedOutSessionRefusesAuthorizedCalls() async {
 		let session = makeSession(transport: StubTransport(), storage: InMemoryTokenStorage())
 

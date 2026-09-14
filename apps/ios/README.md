@@ -112,7 +112,7 @@ apps/ios/
 │       ├── Components/        # themed cards, fields, buttons, brand header
 │       ├── Views/             # root, connect, login, verify, name, profile
 │       └── Resources/         # Info.plist + en/ar/de/es/fr/zh .lproj strings
-└── Tests/TenantKitTests/      # 58 unit tests, runnable on Linux
+└── Tests/TenantKitTests/      # unit tests, runnable on Linux (`npm run ios:test -w ios`)
 ```
 
 ## Running it

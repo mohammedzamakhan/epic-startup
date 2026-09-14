@@ -126,10 +126,12 @@ public struct TenantAPIClient: Sendable {
 		request.setValue("application/json", forHTTPHeaderField: "Accept")
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 		request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-		request.httpBody = try JSONSerialization.data(withJSONObject: [
-			"name": name,
-			"email": email ?? "",
-		])
+		// `nil` means "leave the stored email alone"; an empty string clears it.
+		var body: [String: String] = ["name": name]
+		if let email {
+			body["email"] = email
+		}
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
 		let payload = try await send(request, as: VerifyResult.self)
 		guard let nextAccessToken = payload.accessToken, !nextAccessToken.isEmpty else {

@@ -11,10 +11,11 @@ public enum PhoneNumber {
 		return String(stripped)
 	}
 
-	/// Digits only, ignoring a single leading `+`.
+	/// ASCII digits only, ignoring a single leading `+`. `Character.isNumber`
+	/// would also accept Arabic-Indic digits, which the OTP path cannot process.
 	private static func digits(_ normalized: String) -> String {
 		let withoutPrefix = normalized.hasPrefix("+") ? String(normalized.dropFirst()) : normalized
-		return withoutPrefix.filter { $0.isNumber }
+		return withoutPrefix.filter { $0.isASCII && $0.isNumber }
 	}
 
 	/// tenant-api only requires five characters, but a value with letters or

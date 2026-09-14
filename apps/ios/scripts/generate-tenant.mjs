@@ -183,9 +183,18 @@ async function resolveIcon(config, organization, { iconSource, useIcon }) {
 	const isRemote = /^https?:/.test(source)
 	let localPath = source
 	if (isRemote) {
-		const response = await fetch(source, {
-			signal: AbortSignal.timeout(15_000),
-		})
+		let response
+		try {
+			response = await fetch(source, {
+				signal: AbortSignal.timeout(15_000),
+			})
+		} catch (error) {
+			// Keep the committed placeholder rather than failing the whole build.
+			return {
+				applied: false,
+				reason: `icon download failed (${error.message})`,
+			}
+		}
 		if (!response.ok) {
 			return {
 				applied: false,

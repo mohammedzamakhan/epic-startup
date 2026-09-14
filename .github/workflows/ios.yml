@@ -111,7 +111,7 @@ jobs:
     needs: [tenants, test]
     if: github.event_name == 'workflow_dispatch'
     runs-on: macos-26
-    environment: tenant-${{ matrix.tenant }}
+    environment: ${{ matrix.tenant.environment }}
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -124,7 +124,7 @@ jobs:
       - name: 🔑 Write App Store Connect API key
         env:
           ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
-          TENANT_SLUG: ${{ matrix.tenant }}
+          TENANT_SLUG: ${{ matrix.tenant.slug }}
         run: |
           if [ -z "$ASC_KEY_CONTENT" ]; then
             echo "::error::Missing ASC_KEY_CONTENT in the tenant-$TENANT_SLUG environment."
@@ -144,7 +144,7 @@ jobs:
         id: tenant
         working-directory: apps/ios
         env:
-          TENANT_SLUG: ${{ matrix.tenant }}
+          TENANT_SLUG: ${{ matrix.tenant.slug }}
         run: |
           node scripts/generate-tenant.mjs \
             --tenant "$TENANT_SLUG" \
@@ -172,7 +172,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ios-${{ matrix.tenant }}-${{ github.run_number }}
+          name: ios-${{ matrix.tenant.slug }}-${{ github.run_number }}
           path: |
             apps/ios/build/*.ipa
             apps/ios/build/*.app.dSYM.zip

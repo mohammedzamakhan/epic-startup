@@ -16,23 +16,38 @@ final class StubTransport: HTTPTransport, @unchecked Sendable {
 	}
 
 	private let lock = NSLock()
-	private var responses: [(Int, Data)]
+	private var responses: [(status: Int, data: Data, delayMs: Int)]
 	private(set) var recorded: [Recorded] = []
 
 	init(responses: [(status: Int, body: Any)] = []) {
 		self.responses = responses.map { response in
 			let data = (try? JSONSerialization.data(withJSONObject: response.body)) ?? Data()
-			return (response.status, data)
+			return (response.status, data, 0)
 		}
 	}
 
 	init(rawResponses: [(status: Int, data: Data)]) {
-		self.responses = rawResponses
+		self.responses = rawResponses.map { ($0.status, $0.data, 0) }
+	}
+
+	/// Like `rawResponses`, but each reply can be delayed — used to pin down
+	/// interleavings such as a refresh that lands after a sign-out.
+	init(delayedResponses: [(status: Int, data: Data, delayMs: Int)]) {
+		self.responses = delayedResponses.map { ($0.status, $0.data, $0.delayMs) }
 	}
 
 	func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
 		lock.lock()
-		let response = responses.isEmpty ? (200, Data("{}".utf8)) : responses.removeFirst()
+		let response = responses.isEmpty ? (200, Data("{}".utf8), 0) : responses.removeFirst()
+		lock.unlock()
+
+		if response.2 > 0 {
+			// Swallow cancellation: a reply already in flight still arrives, which
+			// is the case the session-level sign-out guard has to handle.
+			try? await Task.sleep(nanoseconds: UInt64(response.2) * 1_000_000)
+		}
+
+		lock.lock()
 		let body: [String: Any] = {
 			guard let data = request.httpBody else { return [:] }
 			return (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]

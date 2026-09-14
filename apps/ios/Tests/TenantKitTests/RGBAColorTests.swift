@@ -82,6 +82,12 @@ final class RGBAColorTests: XCTestCase {
 		assertColor(RGBAColor.from(cssValue: "hsl(120, 100%, 25%)"), 0, 0.5, 0)
 	}
 
+	func testRejectsInvalidAlpha() {
+		XCTAssertNil(RGBAColor.from(cssValue: "rgb(255 0 0 / invalid)"))
+		XCTAssertNil(RGBAColor.from(cssValue: "oklch(0.5 0.1 30 / nope)"))
+		XCTAssertNil(RGBAColor.from(cssValue: "hsl(0 100% 50% / half)"))
+	}
+
 	func testParsesNamedColors() {
 		assertColor(RGBAColor.from(cssValue: "white"), 1, 1, 1)
 		assertColor(RGBAColor.from(cssValue: "transparent"), 0, 0, 0, alpha: 0)

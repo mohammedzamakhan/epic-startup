@@ -18,6 +18,8 @@ final class SupportTests: XCTestCase {
 		XCTAssertFalse(PhoneNumber.isValid("abcdefg"))
 		XCTAssertFalse(PhoneNumber.isValid("+1555-ABC-1111"))
 		XCTAssertFalse(PhoneNumber.isValid("+12345678901234567890"))
+		// Arabic-Indic digits are numbers but not ASCII, and the OTP path cannot process them.
+		XCTAssertFalse(PhoneNumber.isValid("+٥٥٥٠٠٠١١١١"))
 	}
 
 	func testFormatsPhoneNumbersForDisplay() {

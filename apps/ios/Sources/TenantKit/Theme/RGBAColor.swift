@@ -166,12 +166,15 @@ public struct RGBAColor: Equatable, Sendable, Hashable {
 		return number / scale
 	}
 
-	private static func alphaValue(_ text: String?) -> Double {
+	/// `nil` when an explicit alpha is present but unparsable, so the caller can
+	/// keep its fallback token instead of silently rendering an opaque color.
+	private static func alphaValue(_ text: String?) -> Double? {
 		guard let text, !text.isEmpty else { return 1 }
 		if text.hasSuffix("%") {
-			return (Double(text.dropLast()) ?? 100) / 100
+			guard let percentage = Double(text.dropLast()) else { return nil }
+			return percentage / 100
 		}
-		return Double(text) ?? 1
+		return Double(text)
 	}
 
 	private static func fromFunctional(_ value: String, prefix: String) -> RGBAColor? {
@@ -186,7 +189,8 @@ public struct RGBAColor: Equatable, Sendable, Hashable {
 			return nil
 		}
 		let resolvedAlpha = alpha ?? (components.count >= 4 ? components[3] : nil)
-		return RGBAColor(red: red, green: green, blue: blue, alpha: alphaValue(resolvedAlpha))
+		guard let alphaValue = alphaValue(resolvedAlpha) else { return nil }
+		return RGBAColor(red: red, green: green, blue: blue, alpha: alphaValue)
 	}
 
 	private static func fromHSL(_ value: String) -> RGBAColor? {
@@ -200,11 +204,16 @@ public struct RGBAColor: Equatable, Sendable, Hashable {
 		else {
 			return nil
 		}
+		guard
+			let alphaValue = alphaValue(alpha ?? (components.count >= 4 ? components[3] : nil))
+		else {
+			return nil
+		}
 		return fromHSLComponents(
 			hue: hue,
 			saturation: saturation,
 			lightness: lightness,
-			alpha: alphaValue(alpha ?? (components.count >= 4 ? components[3] : nil))
+			alpha: alphaValue
 		)
 	}
 
@@ -241,6 +250,7 @@ public struct RGBAColor: Equatable, Sendable, Hashable {
 		}
 		guard let lightness = componentValue(components[0], scale: 1) else { return nil }
 		guard let chroma = Double(components[1]) else { return nil }
+		guard let alphaValue = alphaValue(alpha) else { return nil }
 		let hueText = components[2].replacingOccurrences(of: "deg", with: "")
 		let hue: Double
 		if hueText == "none" {
@@ -255,7 +265,7 @@ public struct RGBAColor: Equatable, Sendable, Hashable {
 			lightness: lightness,
 			chroma: chroma,
 			hue: hue,
-			alpha: alphaValue(alpha)
+			alpha: alphaValue
 		)
 	}
 
@@ -266,11 +276,12 @@ public struct RGBAColor: Equatable, Sendable, Hashable {
 		guard
 			let lightness = componentValue(components[0], scale: 1),
 			let a = Double(components[1]),
-			let b = Double(components[2])
+			let b = Double(components[2]),
+			let alphaValue = alphaValue(alpha)
 		else {
 			return nil
 		}
-		return fromOKLabComponents(lightness: lightness, a: a, b: b, alpha: alphaValue(alpha))
+		return fromOKLabComponents(lightness: lightness, a: a, b: b, alpha: alphaValue)
 	}
 
 	/// OKLCH → OKLab → linear sRGB → sRGB (Björn Ottosson's matrices).

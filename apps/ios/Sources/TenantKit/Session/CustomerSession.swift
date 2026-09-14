@@ -13,6 +13,9 @@ public actor CustomerSession {
 	/// tokens and revokes the family when a token is replayed, so two parallel
 	/// refreshes would sign the customer out.
 	private var refreshTask: Task<AuthTokens, Error>?
+	/// Bumped on sign-out so a refresh that was already in flight cannot write
+	/// rotated tokens back into a session the customer just ended.
+	private var sessionGeneration = 0
 
 	public init(client: TenantAPIClient, storage: TokenStorage = TokenStorageFactory.makeDefault()) {
 		self.client = client
@@ -58,6 +61,10 @@ public actor CustomerSession {
 	}
 
 	public func signOut() async {
+		sessionGeneration += 1
+		refreshTask?.cancel()
+		refreshTask = nil
+
 		let refreshToken = currentTokens?.refreshToken
 		let orgId = currentTokens?.orgId
 		clearTokens()
@@ -74,10 +81,9 @@ public actor CustomerSession {
 		do {
 			return try await operation(accessToken)
 		} catch let error as APIError where error.isUnauthorized {
-			guard let refreshed = try? await refresh() else {
-				clearTokens()
-				throw APIError.unauthorized
-			}
+			// `refresh()` clears the session only for a terminal auth failure and
+			// rethrows transient errors, which must not sign the customer out.
+			let refreshed = try await refresh()
 			return try await operation(refreshed.accessToken)
 		}
 	}
@@ -120,8 +126,13 @@ public actor CustomerSession {
 			return try await refreshTask.value
 		}
 
+		let generation = sessionGeneration
 		let task = Task<AuthTokens, Error> { [client] in
-			try await CustomerSession.performRefresh(client: client, session: self)
+			try await CustomerSession.performRefresh(
+				client: client,
+				session: self,
+				generation: generation
+			)
 		}
 		refreshTask = task
 
@@ -137,7 +148,8 @@ public actor CustomerSession {
 
 	private static func performRefresh(
 		client: TenantAPIClient,
-		session: CustomerSession
+		session: CustomerSession,
+		generation: Int
 	) async throws -> AuthTokens {
 		guard
 			let tokens = await session.currentTokens,
@@ -154,22 +166,35 @@ public actor CustomerSession {
 				accessToken: refreshed.accessToken,
 				refreshToken: refreshed.refreshToken ?? refreshToken
 			)
-			await session.store(merged)
+			guard await session.store(merged, generation: generation) else {
+				// The customer signed out while this refresh was in flight.
+				throw APIError.unauthorized
+			}
 			return merged
+		} catch let error as APIError where error.isUnauthorized || error.statusCode == 403 {
+			// The refresh token is dead (expired, revoked, or replayed).
+			await session.clearTokens(generation: generation)
+			throw error
 		} catch {
-			await session.clearTokens()
+			// Timeout, offline, 5xx: the session may still be valid, so keep it.
 			throw error
 		}
 	}
 
-	private func store(_ tokens: AuthTokens) {
+	/// Returns `false` when the session ended (or was replaced) while the caller
+	/// was in flight, in which case the tokens must not be adopted.
+	@discardableResult
+	private func store(_ tokens: AuthTokens, generation: Int? = nil) -> Bool {
+		if let generation, generation != sessionGeneration { return false }
 		currentTokens = tokens
 		// A Keychain failure only costs the session on next launch; the customer
 		// stays signed in for this run rather than being dropped mid-flow.
 		storage.save(tokens)
+		return true
 	}
 
-	private func clearTokens() {
+	private func clearTokens(generation: Int? = nil) {
+		if let generation, generation != sessionGeneration { return }
 		currentTokens = nil
 		storage.save(nil)
 	}
