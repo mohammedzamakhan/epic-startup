@@ -49,6 +49,41 @@ function question(rl, query) {
 	})
 }
 
+/**
+ * Brand values for an unattended run:
+ *
+ *   BRAND_NAME="Acme Coffee" BRAND_DOMAIN=acme.co npm run setup:brand
+ *
+ * `BRAND_SLUG` is derived from the name when omitted; the rest have sensible
+ * defaults. Returns null when the required values are missing.
+ */
+function brandInfoFromEnv() {
+	const name = (process.env.BRAND_NAME || '').trim()
+	const domain = normalizeAppDomain(process.env.BRAND_DOMAIN, '')
+	if (!name || !domain) return null
+
+	const shortName = (process.env.BRAND_SHORT_NAME || '').trim() || name
+	const slug = (process.env.BRAND_SLUG || '').trim() || toBrandSlug(shortName)
+	return {
+		name,
+		shortName,
+		slug,
+		domain,
+		tagline:
+			(process.env.BRAND_TAGLINE || '').trim() ||
+			'Build your next startup even faster',
+		description:
+			(process.env.BRAND_DESCRIPTION || '').trim() ||
+			`${name} is a modern SaaS boilerplate that helps developers and founders launch production-ready applications in minutes.`,
+		url: (process.env.BRAND_URL || '').trim() || `https://${domain}`,
+		supportEmail:
+			(process.env.BRAND_SUPPORT_EMAIL || '').trim() || `support@${domain}`,
+		twitterHandle:
+			(process.env.BRAND_TWITTER || '').trim() || `@${toBrandId(slug)}`,
+		companyName: (process.env.BRAND_COMPANY_NAME || '').trim() || name,
+	}
+}
+
 async function promptBrandInfo() {
 	const rl = createReadlineInterface()
 
@@ -211,9 +246,24 @@ const GITHUB_URL_RE = /(https:\/\/(?:api\.)?github\.com\/[^\s)"'`]+)/g
 const DEFAULT_BRAND_NAME = 'Epic Startup'
 const DEFAULT_BRAND_SLUG = 'epic-startup'
 const DEFAULT_BRAND_ID = 'epicstartup'
-const DEFAULT_BRAND_DOMAIN = 'epic-startup.me'
+const DEFAULT_BRAND_DOMAIN = 'epic-startup.com'
 const PROTECTED_SLUG_RE =
 	/packageJson\[['"']epic-startup['"']\]|epic-startup field/g
+
+// Dot entries that are tool caches or VCS internals. Everything else — including
+// `.agents`, `.husky`, `.gitleaks.toml` and `.env*` — is repo content and is
+// rewritten like any other file.
+const SKIP_DOT_ENTRIES = new Set([
+	'.amp',
+	'.cache',
+	'.idea',
+	'.next',
+	'.output',
+	'.turbo',
+	'.vercel',
+	'.vscode',
+	'.DS_Store',
+])
 
 const SKIP_DIR_NAMES = new Set([
 	'Generated',
@@ -257,8 +307,29 @@ const SKIP_EXTENSIONS = new Set([
 	'.lock',
 ])
 
+/**
+ * Names that merely contain "epic" but belong to other people: the `@epic-web`
+ * npm scope (this repo's tooling) and the EpicWeb/EpicReact learning sites that
+ * `docs/community.md` points at. A rebrand must not touch them.
+ */
+const THIRD_PARTY_EPIC_RE = /@?epic-web|epicweb|epicreact|EpicWeb|EpicReact/g
+
+/**
+ * Rewrites the template's brand in every shape it takes, so a fork carries none
+ * of it: the name (`Epic Startup`), the upstream template name (`Epic Stack`),
+ * the slug (`epic-startup`), the compact id (`epicstartup`), the snake and
+ * title-hyphen forms (`epic_startup`, `Epic-Startup`), the env/key prefixes
+ * (`EPIC_`, `epic_`, `epic-`, `epic.`), the domains, and the PascalCase
+ * identifiers built from the bare brand (`EpicToaster`, `EpicProgress`).
+ */
 function replaceBrandTokens(content, { name, slug, domain }) {
 	const brandId = toBrandId(slug)
+	const snakeSlug = slug.replace(/-/g, '_')
+	const upperSlug = snakeSlug.toUpperCase()
+	const pascalName = toBrandPascal(name)
+	const titleHyphenName = toBrandTitleHyphen(name)
+	const snakeDefault = DEFAULT_BRAND_SLUG.replace(/-/g, '_')
+
 	if (
 		name === DEFAULT_BRAND_NAME &&
 		slug === DEFAULT_BRAND_SLUG &&
@@ -267,32 +338,60 @@ function replaceBrandTokens(content, { name, slug, domain }) {
 		return content
 	}
 
+	// GitHub links (other people's repos, this template's own history) and the
+	// third-party names above are never rewritten.
 	const protectedSlices = []
-	const withPlaceholders = content.replace(PROTECTED_SLUG_RE, (match) => {
+	const protect = (match) => {
 		protectedSlices.push(match)
 		return `__BRAND_PROTECT_${protectedSlices.length - 1}__`
-	})
+	}
+	const withPlaceholders = content
+		.replace(PROTECTED_SLUG_RE, protect)
+		.replace(THIRD_PARTY_EPIC_RE, protect)
 
 	const replaced = withPlaceholders
 		.split(GITHUB_URL_RE)
 		.map((part, index) => {
 			if (index % 2 === 1) return part
+
 			let next = part
+			// Domains first: the `.com` forms are the brand's public domain.
 			if (domain !== DEFAULT_BRAND_DOMAIN) {
-				next = next.replaceAll(DEFAULT_BRAND_DOMAIN, domain)
+				next = next.replaceAll(`${DEFAULT_BRAND_SLUG}.com`, domain)
+				next = next.replaceAll(`${DEFAULT_BRAND_ID}.com`, domain)
+				next = next.replaceAll('epicstack.dev', domain)
 			}
 			if (name !== DEFAULT_BRAND_NAME) {
 				next = next.replaceAll(DEFAULT_BRAND_NAME, name)
+				// The upstream template's name, in prose (sometimes wrapped
+				// across lines) and URL-encoded in an OAuth app name.
+				next = next.replace(/Epic\s+Stack/g, name)
+				next = next.replaceAll('Epic+Stack', name.replace(/ /g, '+'))
 			}
 			if (slug !== DEFAULT_BRAND_SLUG) {
+				// Longest / most specific forms first: `epic-startup.com` was
+				// already handled above, then the slug, the upstream template
+				// name, and the snake, title-hyphen and PascalCase shapes.
 				next = next.replaceAll(DEFAULT_BRAND_SLUG, slug)
+				next = next.replaceAll('epic-stack', slug)
+				next = next.replaceAll('epicnotes', slug)
+				next = next.replaceAll('epicstack', brandId)
+				next = next.replaceAll(snakeDefault.toUpperCase(), upperSlug)
+				next = next.replaceAll(snakeDefault, snakeSlug)
+				next = next.replaceAll('Epic-Startup', titleHyphenName)
+				next = next.replaceAll('EpicStartup', pascalName)
+				next = next.replaceAll('EPIC_', `${upperSlug}_`)
+				next = next.replaceAll('epic_', `${snakeSlug}_`)
+				next = next.replaceAll('Epic-', `${titleHyphenName}-`)
+				next = next.replaceAll('epic-', `${slug}-`)
+				// Bare `Epic` used as an identifier prefix: EpicToaster, …
+				next = next.replace(/Epic(?=[A-Z])/g, pascalName)
+				// …and standalone (`^^Epic^^`, `fromName: 'Epic Support'`).
+				next = next.replace(/\bEpic\b/g, name)
 			}
 			// `epicstartup` (no separator) is the brand's compact id: the
 			// reverse-DNS prefix of the native apps, the support email, and the
-			// Twitter handle. The `.com` form is the brand's website.
-			if (domain !== DEFAULT_BRAND_DOMAIN) {
-				next = next.replaceAll(`${DEFAULT_BRAND_ID}.com`, domain)
-			}
+			// Twitter handle.
 			if (brandId !== DEFAULT_BRAND_ID) {
 				next = next.replaceAll(DEFAULT_BRAND_ID, brandId)
 			}
@@ -332,19 +431,13 @@ function listRewritableFiles(dir, acc = []) {
 
 		if (entry.isDirectory()) {
 			if (SKIP_DIR_NAMES.has(entry.name)) continue
-			if (entry.name.startsWith('.') && entry.name !== '.github') continue
+			if (SKIP_DOT_ENTRIES.has(entry.name)) continue
 			listRewritableFiles(fullPath, acc)
 			continue
 		}
 
 		if (shouldSkipBrandRewrite(relPath)) continue
-		if (
-			entry.name.startsWith('.') &&
-			!entry.name.startsWith('.env') &&
-			entry.name !== '.github'
-		) {
-			continue
-		}
+		if (SKIP_DOT_ENTRIES.has(entry.name)) continue
 
 		acc.push(relPath)
 	}
@@ -397,7 +490,7 @@ function updateBrandConfig(brandInfo) {
 		`\tslug: '${escapedSlug}',`,
 	)
 	content = content.replace(
-		/\tdomain: 'epic-startup.me',/g,
+		/\tdomain: 'epic-startup.com',/g,
 		`\tdomain: '${escapedDomain}',`,
 	)
 	content = content.replace(
@@ -545,7 +638,7 @@ function updateEnvFiles(brandInfo) {
 				`PUBLIC_ROOT_APP=${localDomain}`,
 			)
 			content = content.replace(
-				/CLOUDFLARE_CUSTOM_HOSTNAME_CNAME_TARGET=sites\.epic-startup\.me/g,
+				/CLOUDFLARE_CUSTOM_HOSTNAME_CNAME_TARGET=sites\.epic-startup\.com/g,
 				`CLOUDFLARE_CUSTOM_HOSTNAME_CNAME_TARGET=sites.${domain}`,
 			)
 			if (envFile.startsWith('apps/app/')) {
@@ -668,25 +761,12 @@ const NATIVE_APP_TOKEN_RE =
 	/epicstartup|EPIC_|EpicTenantApp|Epic-Startup|\bEpic(?=[A-Z])|\bepic\./
 
 function nativeAppTokenPairs(brandInfo) {
-	const brandPascal = toBrandPascal(brandInfo.name)
-	return [
-		// Order matters: the project name first, then the key prefixes.
-		{ pattern: /EpicTenantApp/g, replacement: `${brandPascal}TenantApp` },
-		{
-			pattern: /Epic-Startup/g,
-			replacement: toBrandTitleHyphen(brandInfo.name),
-		},
-		{ pattern: /\bEpic(?=[A-Z])/g, replacement: brandPascal },
-		{ pattern: /EPIC_/g, replacement: `${toBrandUpper(brandInfo.slug)}_` },
-		{ pattern: /\bepic\./g, replacement: `${brandInfo.slug}.` },
-	]
+	// The other native identifier shapes (bundle ids, `EPIC_*`, `Epic*`,
+	// `EpicTenantApp`) are covered by the global pass; only the dotted
+	// preference/Keystore names are native-specific.
+	return [{ pattern: /\bepic\./g, replacement: `${brandInfo.slug}.` }]
 }
 
-/**
- * The un-branded app is the platform's own app, so its default name follows the
- * brand instead of the template's "Tenant" placeholder. Tenant builds override
- * it from `tenants/<slug>.json`.
- */
 function nativeAppDisplayNamePairs(brandInfo) {
 	return [
 		{
@@ -815,7 +895,10 @@ function updateNativeAppConfigs(brandInfo) {
 
 function updateMobileDeepLinkScheme(brandInfo) {
 	// `expo.scheme` is the brand slug; the navigation helpers hardcode the
-	// template's scheme (`epicnotes://`), so they have to follow it.
+	// template's scheme (`epicnotes://`), so they have to follow it — but only
+	// when the brand actually changed.
+	if (brandInfo.slug === DEFAULT_BRAND_SLUG) return
+
 	let updated = 0
 	for (const relPath of listRewritableFiles(join(rootDir, 'apps/mobile'))) {
 		const filePath = join(rootDir, relPath)
@@ -836,6 +919,75 @@ function updateMobileDeepLinkScheme(brandInfo) {
 	if (updated > 0) {
 		log(`✅ Updated the mobile deep-link scheme in ${updated} files`, 'green')
 	}
+}
+
+/**
+ * Brand-shaped tokens only: the English word "epic" ("an epic day on the
+ * slopes") is not a brand reference and must not be reported.
+ */
+const REMAINING_BRAND_RE =
+	/\bepic(?:startup|stack|notes)|\bEPIC_[A-Z0-9_]*|\bepic[._-][\w.-]*|\bEpic\b|\bEpic(?=[A-Z])|\bEpic\s+Stack\b|\bEpic\+Stack\b/g
+
+/**
+ * Last line of defence: a fork should carry none of the template's brand. This
+ * scans every rewritable file for "epic" and reports what is left, so a missed
+ * spot is visible immediately instead of months later.
+ */
+function reportRemainingBrandTokens(brandInfo) {
+	log('\n🔎 Checking for leftover template brand references', 'bright')
+
+	if (
+		brandInfo.name === DEFAULT_BRAND_NAME &&
+		brandInfo.slug === DEFAULT_BRAND_SLUG &&
+		brandInfo.domain === DEFAULT_BRAND_DOMAIN
+	) {
+		log('Brand unchanged — nothing to check.', 'gray')
+		return
+	}
+
+	const remaining = []
+	for (const relPath of listRewritableFiles(rootDir)) {
+		let content
+		try {
+			content = readFileSync(join(rootDir, relPath), 'utf-8')
+		} catch {
+			continue
+		}
+		const withoutProtected = content
+			.split(GITHUB_URL_RE)
+			.filter((_, index) => index % 2 === 0)
+			.join('')
+			.replace(PROTECTED_SLUG_RE, '')
+			.replace(THIRD_PARTY_EPIC_RE, '')
+		const matches = withoutProtected.match(REMAINING_BRAND_RE)
+		if (matches && matches.length > 0) {
+			remaining.push({
+				relPath,
+				tokens: [...new Set(matches.map((token) => token.toLowerCase()))],
+			})
+		}
+	}
+
+	if (remaining.length === 0) {
+		log('✅ No template brand references left', 'green')
+		log(
+			'   (third-party names such as @epic-web, EpicWeb.dev and EpicReact.dev are kept)',
+			'gray',
+		)
+		return
+	}
+
+	log(`⚠️  ${remaining.length} files still mention "epic":`, 'yellow')
+	for (const { relPath, tokens } of remaining.slice(0, 30)) {
+		log(`   - ${relPath}  (${tokens.join(', ')})`, 'gray')
+	}
+	if (remaining.length > 30) {
+		log(`   - …and ${remaining.length - 30} more`, 'gray')
+	}
+	log(
+		'   Third-party names (@epic-web, EpicWeb.dev, EpicReact.dev) are expected to remain.',
+		'gray',
+	)
 }
 
 function rebuildBrandPackage() {
@@ -879,6 +1031,22 @@ function updateMobileAppConfig(brandInfo) {
 			`${brandInfo.slug}://`,
 			`https://${domain}`,
 		]
+
+		// Compare before writing: serializing reformats the file, and an
+		// unchanged brand must not dirty the tree.
+		const current = JSON.parse(content)
+		const unchanged =
+			current.expo?.name === mobileAppName &&
+			current.expo?.slug === slug &&
+			current.expo?.scheme === brandInfo.slug &&
+			current.expo?.ios?.bundleIdentifier === bundleId &&
+			current.expo?.android?.package === bundleId &&
+			JSON.stringify(current.expo?.linking?.prefixes) ===
+				JSON.stringify(appConfig.expo.linking.prefixes)
+		if (unchanged) {
+			log('✅ Mobile app configuration already matches the brand', 'green')
+			return
+		}
 
 		// Write back the updated configuration
 		writeFileSync(appJsonPath, JSON.stringify(appConfig, null, '\t'), 'utf-8')
@@ -941,23 +1109,30 @@ async function main() {
 			return
 		}
 
-		// Check if running in non-interactive mode
-		if (!process.stdin.isTTY) {
+		// Unattended runs (CI, scripted setups) take the brand from the
+		// environment; otherwise fall back to the interactive prompts.
+		const envBrand = brandInfoFromEnv()
+		if (!envBrand && !process.stdin.isTTY) {
 			log('Running in non-interactive mode. Skipping brand setup.', 'gray')
-			log('Run "npm run setup:brand" later to customize your brand.', 'gray')
+			log(
+				'Run "npm run setup:brand" later to customize your brand, or set',
+				'gray',
+			)
+			log('BRAND_NAME and BRAND_DOMAIN to run it unattended.', 'gray')
 			return
 		}
 
-		const brandInfo = await promptBrandInfo()
+		const brandInfo = envBrand ?? (await promptBrandInfo())
 		updateBrandConfig(brandInfo)
 		updateEnvFiles(brandInfo)
 		updateMobileAppConfig(brandInfo)
 		updateMobileDeepLinkScheme(brandInfo)
 		updateStaticBrandFiles(brandInfo)
 		updateNativeAppConfigs(brandInfo)
+		reportRemainingBrandTokens(brandInfo)
 		rebuildBrandPackage()
 
-		const faviconPath = await promptFavicon()
+		const faviconPath = envBrand ? null : await promptFavicon()
 		if (faviconPath) {
 			copyFavicon(faviconPath)
 		}
