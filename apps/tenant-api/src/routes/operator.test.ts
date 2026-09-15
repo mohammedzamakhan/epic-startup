@@ -115,6 +115,9 @@ describe('Operator Routes', () => {
 		const body = await res.json()
 		expect(body.customer.name).toBe('New Name')
 		expect(body.customer.email).toBe('customer@example.com')
+		expect(body.customer).not.toHaveProperty('phoneVerificationCode')
+		expect(body.customer).not.toHaveProperty('refreshTokenHash')
+		expect(body.customer).not.toHaveProperty('stripeCustomerId')
 	})
 
 	it('computes marketing metrics via SQL aggregates accurately', async () => {

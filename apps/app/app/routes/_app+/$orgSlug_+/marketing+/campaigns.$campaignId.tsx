@@ -20,7 +20,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 		ORG_PERMISSIONS.READ_CAMPAIGN_ANY,
 	)
 
-	const res = await fetchTenant(`/operator/marketing/campaigns/${campaignId}`)
+	const res = await fetchTenant(
+		`/operator/marketing/campaigns/${encodeURIComponent(campaignId)}`,
+	)
 	if (!res.ok) {
 		return {
 			orgSlug,
