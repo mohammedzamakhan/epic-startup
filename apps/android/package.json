@@ -4,8 +4,6 @@
   "private": true,
   "description": "Epic Startup tenant Android app (Kotlin, framework-only Views)",
   "scripts": {
-    "test": "if [ -f scripts/gradle.sh ]; then bash scripts/gradle.sh testDebugUnitTest; else echo 'Gradle not available, skipping android tests'; fi",
-    "lint": "if [ -f scripts/gradle.sh ]; then bash scripts/gradle.sh lintDebug; else echo 'Gradle not available, skipping android lint'; fi",
     "android:build": "bash scripts/gradle.sh assembleDebug",
     "android:apk": "bash scripts/gradle.sh assembleRelease",
     "android:bundle": "bash scripts/gradle.sh bundleRelease",

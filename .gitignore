@@ -11,8 +11,6 @@ node_modules
 .vscode/
 .idea/
 env.d.ts
-uniwind.d.ts
-uniwind-env.d.ts
 
 /database/data.db
 /database/data.db-journal

@@ -1,38 +1,36 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ENV } from 'varlock/env'
-
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {
 	getGlobalSendMax,
 	rateLimitByKey,
 	resetRateLimits,
 } from './rate-limit.ts'
 
-describe('rate-limit getGlobalSendMax', () => {
-	const original = process.env.GLOBAL_SMS_CAP
-
-	beforeEach(() => {
-		delete process.env.GLOBAL_SMS_CAP
-	})
+describe('getGlobalSendMax', () => {
+	const originalEnv = process.env.GLOBAL_SMS_CAP
 
 	afterEach(() => {
-		if (original !== undefined) {
-			process.env.GLOBAL_SMS_CAP = original
-		} else {
+		if (originalEnv === undefined) {
 			delete process.env.GLOBAL_SMS_CAP
+		} else {
+			process.env.GLOBAL_SMS_CAP = originalEnv
 		}
 	})
 
 	it('returns default 500 when unset', () => {
+		delete process.env.GLOBAL_SMS_CAP
 		expect(getGlobalSendMax()).toBe(500)
 	})
 
 	it('returns parsed integer when valid positive integer', () => {
-		process.env.GLOBAL_SMS_CAP = '250'
-		expect(getGlobalSendMax()).toBe(250)
+		process.env.GLOBAL_SMS_CAP = '1000'
+		expect(getGlobalSendMax()).toBe(1000)
+
+		process.env.GLOBAL_SMS_CAP = '50'
+		expect(getGlobalSendMax()).toBe(50)
 	})
 
 	it('falls back to 500 when invalid or non-positive', () => {
-		process.env.GLOBAL_SMS_CAP = 'invalid-number'
+		process.env.GLOBAL_SMS_CAP = 'not-a-number'
 		expect(getGlobalSendMax()).toBe(500)
 
 		process.env.GLOBAL_SMS_CAP = '-10'
@@ -60,10 +58,9 @@ describe('rateLimitByKey', () => {
 	})
 
 	it('enforces limit in production mode', () => {
-		const originalNodeEnv = ENV.NODE_ENV
+		const originalNodeEnv = process.env.NODE_ENV
 		try {
-			// @ts-expect-error mutating ENV for testing
-			ENV.NODE_ENV = 'production'
+			process.env.NODE_ENV = 'production'
 			const config = { maxRequests: 2, windowMs: 60 * 1000 }
 			expect(rateLimitByKey('prod-test', '+15550001', config)).toEqual({
 				limited: false,
@@ -77,8 +74,7 @@ describe('rateLimitByKey', () => {
 				expect(third.retryAfter).toBeGreaterThan(0)
 			}
 		} finally {
-			// @ts-expect-error restoring ENV
-			ENV.NODE_ENV = originalNodeEnv
+			process.env.NODE_ENV = originalNodeEnv
 		}
 	})
 })
