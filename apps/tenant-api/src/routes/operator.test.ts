@@ -88,6 +88,9 @@ describe('Operator Routes', () => {
 		expect(body.total).toBe(3)
 		expect(body.page).toBe(1)
 		expect(body.limit).toBe(2)
+		expect(body.customers[0]).not.toHaveProperty('phoneVerificationCode')
+		expect(body.customers[0]).not.toHaveProperty('refreshTokenHash')
+		expect(body.customers[0]).not.toHaveProperty('stripeCustomerId')
 	})
 
 	it('updates customer name and email', async () => {

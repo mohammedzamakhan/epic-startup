@@ -4,6 +4,8 @@
   "private": true,
   "description": "Epic Startup tenant iOS app (SwiftUI + TenantKit)",
   "scripts": {
+    "test": "if command -v swift >/dev/null 2>&1; then swift test; else echo 'Swift not available, skipping ios tests'; fi",
+    "lint": "if command -v swift-format >/dev/null 2>&1; then swift-format lint --recursive Sources Tests; else echo 'swift-format not available, skipping ios lint'; fi",
     "ios:build": "swift build",
     "ios:test": "swift test",
     "ios:generate": "xcodegen generate",

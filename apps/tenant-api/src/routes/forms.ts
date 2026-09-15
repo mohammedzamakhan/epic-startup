@@ -64,9 +64,11 @@ const retentionPurgeSchema = z.object({
 const TURNSTILE_FORM_ACTION = 'website-form'
 
 function submissionClientIp(c: Context) {
+	const cfConnectingIp = c.req.header('cf-connecting-ip')?.trim()
+	if (cfConnectingIp) return cfConnectingIp
 	const forwardedFor = c.req.header('x-forwarded-for')
 	const fromForwarded = forwardedFor?.split(',')[0]?.trim()
-	return fromForwarded || c.req.header('cf-connecting-ip') || undefined
+	return fromForwarded || undefined
 }
 
 async function verifyFormTurnstile(c: Context, token: unknown) {
