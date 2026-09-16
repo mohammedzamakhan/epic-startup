@@ -6,11 +6,7 @@ import {
 	ORG_PERMISSIONS,
 	requireUserWithOrganizationPermission,
 } from '@repo/auth'
-import {
-	GITHUB_PROVIDER_NAME,
-	GOOGLE_PROVIDER_NAME,
-	providerNames,
-} from '@repo/auth/constants'
+import { GITHUB_PROVIDER_NAME, providerNames } from '@repo/auth/constants'
 import { cache, cachified } from '@repo/cache'
 import {
 	combineHeaders,
@@ -375,18 +371,32 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 	}
 
 	const utmHeaders = utmResponse?.headers || {}
-	const hasConfiguredClientId = (clientId: string | undefined) => {
+	const hasConfiguredProvider = ({
+		clientId,
+		clientSecret,
+		redirectUri,
+	}: {
+		clientId: string | undefined
+		clientSecret: string | undefined
+		redirectUri: string | undefined
+	}) => {
 		const value = clientId?.trim()
-		if (!value) return false
+		if (!value || !clientSecret?.trim() || !redirectUri?.trim()) return false
 		return ENV.NODE_ENV !== 'production' || !value.startsWith('MOCK_')
 	}
 	const configuredProviders = providerNames.filter((providerName) =>
-		hasConfiguredClientId(
+		hasConfiguredProvider(
 			providerName === GITHUB_PROVIDER_NAME
-				? ENV.GITHUB_CLIENT_ID
-				: providerName === GOOGLE_PROVIDER_NAME
-					? ENV.GOOGLE_CLIENT_ID
-					: undefined,
+				? {
+						clientId: ENV.GITHUB_CLIENT_ID,
+						clientSecret: ENV.GITHUB_CLIENT_SECRET,
+						redirectUri: ENV.GITHUB_REDIRECT_URI,
+					}
+				: {
+						clientId: ENV.GOOGLE_CLIENT_ID,
+						clientSecret: ENV.GOOGLE_CLIENT_SECRET,
+						redirectUri: ENV.GOOGLE_REDIRECT_URI,
+					},
 		),
 	)
 
