@@ -31,7 +31,8 @@ The shared package exposes two common backends:
 
 There are also site-specific KV helpers in
 `apps/app/app/utils/sites/kv-cache.server.ts`. Keep public site cache keys
-organization-scoped and purge them after CMS mutations.
+organization- and host-scoped when the host affects resolution or the response,
+and purge them after CMS mutations.
 
 Astro Sites has a separate edge/public-form cache lifecycle; read
 [project-public-sites](../project-public-sites/SKILL.md) before changing its
@@ -54,9 +55,12 @@ const result = await cachified({
 ```
 
 - Use stable, namespaced keys such as `user:${id}:security` or
-  `site:${orgId}:page:${hash}`.
-- Include every tenant, locale, permission-sensitive input, and query variant
-  that changes the result in the key.
+  `site:${orgId}:page:${host}:${pageSlug}:${home}:${locale}:${queryVariant}`.
+- For the public-site page flow in
+  `apps/app/app/routes/resources+/sites.page.ts`, include `host` in every
+  generated `queryHash`, including host-only requests where the host is what
+  resolves the organization. Preserve every tenant, locale, permission-sensitive
+  input, and query variant that changes the result in the key.
 - Validate fresh and cached data with Zod when the value crosses a trust or
   deployment boundary.
 - Set TTL from acceptable staleness, not from convenience. Use `null` only for

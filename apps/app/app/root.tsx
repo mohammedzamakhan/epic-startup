@@ -6,6 +6,11 @@ import {
 	ORG_PERMISSIONS,
 	requireUserWithOrganizationPermission,
 } from '@repo/auth'
+import {
+	GITHUB_PROVIDER_NAME,
+	GOOGLE_PROVIDER_NAME,
+	providerNames,
+} from '@repo/auth/constants'
 import { cache, cachified } from '@repo/cache'
 import {
 	combineHeaders,
@@ -370,6 +375,20 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 	}
 
 	const utmHeaders = utmResponse?.headers || {}
+	const hasConfiguredClientId = (clientId: string | undefined) => {
+		const value = clientId?.trim()
+		if (!value) return false
+		return ENV.NODE_ENV !== 'production' || !value.startsWith('MOCK_')
+	}
+	const configuredProviders = providerNames.filter((providerName) =>
+		hasConfiguredClientId(
+			providerName === GITHUB_PROVIDER_NAME
+				? ENV.GITHUB_CLIENT_ID
+				: providerName === GOOGLE_PROVIDER_NAME
+					? ENV.GOOGLE_CLIENT_ID
+					: undefined,
+		),
+	)
 
 	return data(
 		{
@@ -384,6 +403,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 			cookieConsent,
 			launchStatus: getLaunchStatus(),
 			docsUrl: ENV.DOCS_URL?.trim() || null,
+			configuredProviders,
 			homePageId,
 			env: {
 				NODE_ENV: ENV.NODE_ENV,

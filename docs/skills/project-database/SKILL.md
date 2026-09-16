@@ -25,8 +25,9 @@ This project has two data planes and they must not be merged:
   form submissions, journeys, and other tenant customer data.
 
 The Worker US path uses one Durable Object (`TenantOrg`) per organization with
-the tenant schema/migrations; the Node path uses a tenant file under
-`TENANT_DB_DIR`. Keep both migration paths compatible.
+the tenant schema/migrations and an isolated `ctx.storage`-backed Drizzle
+database. The Node path uses `tenant_{orgId}.db` under `TENANT_DB_DIR`. Keep
+both migration paths compatible.
 
 Customer PII must not be added to control-plane `User` or `Organization`, App
 sessions, Admin, Sites SSR, or a cross-region cache. Read
@@ -100,11 +101,14 @@ exercise Node and Worker tenant connection/migration tests.
 
 ## Tenant database safety
 
-`tenant_{orgId}.db` is selected from a validated organization and matching
-`DATA_REGION`. Provision/deprovision payloads carry organization metadata, not
-customer rows. Changing `Organization.dataRegion` after provisioning is an
-explicit destructive wipe and does not migrate PII; preserve the confirmation
-and ordering described in the residency guide.
+On the Node path, `tenant_{orgId}.db` is selected from a validated organization
+and matching `DATA_REGION`, and lives under `TENANT_DB_DIR`. On the Worker path,
+the equivalent tenant database is isolated in the organization's `TenantOrg`
+Durable Object `ctx.storage`. Provisioning and deprovisioning must preserve
+those storage boundaries and carry organization metadata, not customer rows.
+Changing `Organization.dataRegion` after provisioning is an explicit destructive
+wipe and does not migrate PII; preserve the confirmation and ordering described
+in the residency guide.
 
 ## References
 

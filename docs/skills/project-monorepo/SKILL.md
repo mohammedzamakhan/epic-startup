@@ -54,7 +54,7 @@ iterating and root scripts for final validation:
 ```sh
 npm run dev:app
 npm run typecheck -- --filter=app
-npx turbo run test --filter=@repo/security
+npx --no-install turbo run test --filter=@repo/security
 npm run validate
 ```
 
