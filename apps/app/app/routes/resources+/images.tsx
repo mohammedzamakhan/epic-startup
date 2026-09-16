@@ -1,5 +1,6 @@
 import { invariantResponse } from '@epic-web/invariant'
 import { getDomainUrl, isCloudflareWorkerRuntime } from '@repo/common'
+import { db, eq, OrganizationMediaAsset } from '@repo/database'
 import { ssrfSafeFetch, validateInstanceUrlWithDns } from '@repo/security'
 import {
 	getSignedGetRequestInfoAsync,
@@ -363,8 +364,32 @@ export async function loader({ request }: Route.LoaderArgs) {
 	const url = new URL(request.url)
 	const searchParams = url.searchParams
 
-	const objectKey = searchParams.get('objectKey')
-	const organizationId = searchParams.get('organizationId')
+	let objectKey = searchParams.get('objectKey')
+	let organizationId = searchParams.get('organizationId')
+	const mediaId = searchParams.get('mediaId')
+
+	if (mediaId) {
+		invariantResponse(
+			/^[a-zA-Z0-9_-]{16,64}$/.test(mediaId),
+			'Invalid mediaId',
+			{
+				status: 400,
+			},
+		)
+		const [asset] = await db
+			.select({
+				objectKey: OrganizationMediaAsset.objectKey,
+				organizationId: OrganizationMediaAsset.organizationId,
+				storageScope: OrganizationMediaAsset.storageScope,
+			})
+			.from(OrganizationMediaAsset)
+			.where(eq(OrganizationMediaAsset.id, mediaId))
+			.limit(1)
+		invariantResponse(asset, 'Media not found', { status: 404 })
+		objectKey = asset.objectKey
+		organizationId =
+			asset.storageScope === 'organization' ? asset.organizationId : null
+	}
 
 	if (objectKey) {
 		if (

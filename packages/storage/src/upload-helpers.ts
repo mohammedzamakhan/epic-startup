@@ -92,6 +92,22 @@ export async function uploadOrganizationImage(
 }
 
 /**
+ * Upload an organization media image
+ */
+export async function uploadOrganizationMediaImage(
+	organizationId: string,
+	file: File | FileUpload,
+	options: UploadOptions,
+) {
+	const fileId = createId()
+	const fileExtension = sanitizeAndExtractExtension(file.name)
+	const timestamp = Date.now()
+	const key = `orgs/${organizationId}/media/images/${timestamp}-${fileId}.${fileExtension}`
+	const config = await options.getConfig(organizationId)
+	return uploadToStorage(file, key, config)
+}
+
+/**
  * Upload a note image
  */
 export async function uploadNoteImage(

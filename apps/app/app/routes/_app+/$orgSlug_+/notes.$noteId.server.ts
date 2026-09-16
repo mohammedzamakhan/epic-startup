@@ -12,6 +12,7 @@ import {
 	eq,
 	inArray,
 	Organization,
+	OrganizationMediaAsset,
 	OrganizationNote,
 	OrganizationNoteFavorite,
 	Integration,
@@ -727,12 +728,52 @@ export async function handleAddCommentIntent({
 			}
 		}
 
+		const libraryAssetCount =
+			parseInt(formData.get('libraryAssetCount') as string) || 0
+		if (libraryAssetCount > 0 && libraryAssetCount <= 10) {
+			const libraryAssetIds: string[] = []
+			for (let i = 0; i < libraryAssetCount; i++) {
+				const id = formData.get(`libraryAssetId-${i}`)
+				if (typeof id === 'string' && id) {
+					libraryAssetIds.push(id)
+				}
+			}
+
+			if (libraryAssetIds.length > 0) {
+				const libraryAssets = await db
+					.select({
+						objectKey: OrganizationMediaAsset.objectKey,
+						altText: OrganizationMediaAsset.altText,
+					})
+					.from(OrganizationMediaAsset)
+					.where(
+						and(
+							inArray(OrganizationMediaAsset.id, libraryAssetIds),
+							eq(OrganizationMediaAsset.organizationId, note.organizationId),
+						),
+					)
+
+				if (libraryAssets.length > 0) {
+					await db.insert(NoteCommentImage).values(
+						libraryAssets.map((asset) => ({
+							commentId: comment.id,
+							objectKey: asset.objectKey,
+							altText: asset.altText,
+						})),
+					)
+				}
+			}
+		}
+
 		await logNoteActivity({
 			noteId,
 			userId,
 			action: 'comment_added',
 			commentId: comment.id,
-			metadata: { parentId, hasImages: imageCount > 0 },
+			metadata: {
+				parentId,
+				hasImages: imageCount > 0 || libraryAssetCount > 0,
+			},
 		})
 
 		const [commenter, noteWithTitle, organization] = await Promise.all([

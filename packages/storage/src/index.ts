@@ -20,6 +20,7 @@ export {
 export {
 	uploadProfileImage,
 	uploadOrganizationImage,
+	uploadOrganizationMediaImage,
 	uploadNoteImage,
 	uploadCommentImage,
 	uploadNoteVideo,

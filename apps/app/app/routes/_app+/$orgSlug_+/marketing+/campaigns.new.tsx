@@ -12,16 +12,21 @@ import {
 } from '@repo/marketing/server/email-render'
 import { Button } from '@repo/ui/button'
 import { Icon } from '@repo/ui/icon'
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
 	Form,
 	Link,
 	redirect,
 	useActionData,
+	useLoaderData,
 	useNavigation,
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 } from 'react-router'
+import {
+	MediaLibraryPicker,
+	type MediaLibraryAsset,
+} from '#app/components/media-library/media-library-picker.tsx'
 import { resolveEmailBrandingForOrg } from '#app/utils/email-branding.server.ts'
 import {
 	ORG_PERMISSIONS,
@@ -29,15 +34,50 @@ import {
 } from '#app/utils/organization/permissions.server.ts'
 import { getOperatorTenantClient } from '#app/utils/tenant-api.server.ts'
 
-function EmailDesignerField() {
+function EmailDesignerField({ orgSlug }: { orgSlug: string }) {
 	const [blocks, setBlocks] = useState<EmailBlock[]>(() =>
 		buildEmailTemplateBlocks('welcome'),
 	)
+	const [libraryPickerOpen, setLibraryPickerOpen] = useState(false)
+	const onSelectCallbackRef = useRef<
+		((url: string, alt: string) => void) | null
+	>(null)
+
+	const handleChooseImage = useCallback(
+		(onSelect: (url: string, alt: string) => void) => {
+			onSelectCallbackRef.current = onSelect
+			setLibraryPickerOpen(true)
+		},
+		[],
+	)
+
+	const handleAssetSelected = useCallback((asset: MediaLibraryAsset) => {
+		if (onSelectCallbackRef.current) {
+			onSelectCallbackRef.current(
+				asset.url,
+				asset.altText || asset.fileName || '',
+			)
+			onSelectCallbackRef.current = null
+		}
+	}, [])
 
 	return (
 		<div className="space-y-3">
 			<input type="hidden" name="blocks" value={JSON.stringify(blocks)} />
-			<EmailBlockEditor blocks={blocks} onChange={setBlocks} />
+			<EmailBlockEditor
+				blocks={blocks}
+				onChange={setBlocks}
+				onChooseImageFromLibrary={orgSlug ? handleChooseImage : undefined}
+			/>
+			{orgSlug ? (
+				<MediaLibraryPicker
+					orgSlug={orgSlug}
+					open={libraryPickerOpen}
+					onOpenChange={setLibraryPickerOpen}
+					onSelect={handleAssetSelected}
+					trigger={null}
+				/>
+			) : null}
 		</div>
 	)
 }
@@ -141,6 +181,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 export default function NewCampaignRoute() {
 	const { _ } = useLingui()
+	const { orgSlug } = useLoaderData<typeof loader>()
 	const actionData = useActionData<typeof action>()
 	const navigation = useNavigation()
 	const isSubmitting = navigation.state === 'submitting'
@@ -172,7 +213,7 @@ export default function NewCampaignRoute() {
 					error={actionData?.error}
 					isSubmitting={isSubmitting}
 					cancelTo=".."
-					emailDesigner={<EmailDesignerField />}
+					emailDesigner={<EmailDesignerField orgSlug={orgSlug} />}
 				/>
 			</Form>
 		</div>
