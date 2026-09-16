@@ -43,7 +43,11 @@ import { z } from 'zod'
 import { EmptyState } from '#app/components/empty-state.tsx'
 import { GeneralErrorBoundary } from '#app/components/error-boundary.tsx'
 import { requireUserOrganization } from '#app/utils/organization/loader.server.ts'
-import { uploadOrganizationMediaImage } from '#app/utils/storage.server.ts'
+import {
+	deleteOrganizationStorageObject,
+	uploadOrganizationMediaFileOnly,
+	uploadOrganizationMediaImage,
+} from '#app/utils/storage.server.ts'
 import { type Route } from './+types/media'
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024
@@ -288,31 +292,44 @@ export async function action({ request, params }: Route.ActionArgs) {
 				{ status: 400 },
 			)
 		}
-		const objectKey = await uploadOrganizationMediaImage(
-			organization.id,
-			result.data.imageFile,
-			userId,
-		)
-		const [replaced] = await db
-			.update(OrganizationMediaAsset)
-			.set({
-				objectKey,
-				mimeType: result.data.imageFile.type,
-				fileSize: result.data.imageFile.size,
-				fileName: result.data.imageFile.name || undefined,
-				updatedAt: new Date(),
-			})
-			.where(
-				and(
-					eq(OrganizationMediaAsset.id, result.data.id),
-					eq(OrganizationMediaAsset.organizationId, organization.id),
-				),
+		let newObjectKey: string | undefined
+		try {
+			const uploaded = await uploadOrganizationMediaFileOnly(
+				organization.id,
+				result.data.imageFile,
 			)
-			.returning()
-		if (!replaced) {
-			return Response.json({ error: 'Media not found.' }, { status: 404 })
+			newObjectKey = uploaded.key
+			const [replaced] = await db
+				.update(OrganizationMediaAsset)
+				.set({
+					objectKey: newObjectKey,
+					mimeType: uploaded.mimeType,
+					fileSize: result.data.imageFile.size,
+					fileName: result.data.imageFile.name || undefined,
+					updatedAt: new Date(),
+				})
+				.where(
+					and(
+						eq(OrganizationMediaAsset.id, result.data.id),
+						eq(OrganizationMediaAsset.organizationId, organization.id),
+					),
+				)
+				.returning()
+			if (!replaced) {
+				await deleteOrganizationStorageObject(newObjectKey, organization.id)
+				return Response.json({ error: 'Media not found.' }, { status: 404 })
+			}
+			return Response.json({ asset: serializeAsset(replaced), replaced: true })
+		} catch (error) {
+			if (newObjectKey) {
+				await deleteOrganizationStorageObject(newObjectKey, organization.id)
+			}
+			console.error('Failed to replace media asset:', error)
+			return Response.json(
+				{ error: 'The image could not be replaced. Please try again.' },
+				{ status: 500 },
+			)
 		}
-		return Response.json({ asset: serializeAsset(replaced), replaced: true })
 	}
 
 	if (intent === 'get-references') {
@@ -705,9 +722,14 @@ export default function MediaLibraryRoute({
 						return (
 							<li
 								key={asset.id}
-								onClick={() => setSelectedAsset(asset)}
-								className="bg-background group hover:border-primary/50 focus-within:ring-primary/20 relative min-w-0 cursor-pointer overflow-hidden rounded-xl border transition-colors focus-within:ring-2"
+								className="bg-background group hover:border-primary/50 focus-within:ring-primary/20 relative min-w-0 overflow-hidden rounded-xl border transition-colors focus-within:ring-2"
 							>
+								<button
+									type="button"
+									onClick={() => setSelectedAsset(asset)}
+									className="absolute inset-0 z-0 cursor-pointer rounded-xl"
+									aria-label={`Open details for ${name}`}
+								/>
 								<div className="bg-muted relative aspect-square overflow-hidden">
 									<img
 										src={asset.url}
@@ -722,6 +744,7 @@ export default function MediaLibraryRoute({
 											type="button"
 											variant="secondary"
 											size="sm"
+											className="relative z-10"
 											onClick={(e) => {
 												e.stopPropagation()
 												void navigator.clipboard.writeText(

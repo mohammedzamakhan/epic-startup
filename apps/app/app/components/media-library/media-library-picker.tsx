@@ -15,7 +15,7 @@ import {
 import { Icon } from '@repo/ui/icon'
 import { Input } from '@repo/ui/input'
 import { ScrollArea } from '@repo/ui/scroll-area'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useFetcher } from 'react-router'
 
 export type MediaLibraryAsset = {
@@ -28,6 +28,11 @@ export type MediaLibraryAsset = {
 	altText: string | null
 	source: string
 	createdAt: string
+}
+
+type MediaActionData = {
+	asset?: MediaLibraryAsset
+	error?: string
 }
 
 export type MediaLibraryPickerProps = {
@@ -77,7 +82,6 @@ export function MediaLibraryPicker({
 	const { _ } = useLingui()
 	const fetcher = useFetcher<MediaLibraryData>()
 	const fileInputRef = useRef<HTMLInputElement>(null)
-	const handledAssetRef = useRef<MediaLibraryAsset | null>(null)
 	const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
 	const isControlled = controlledOpen !== undefined
 	const open = isControlled ? controlledOpen : uncontrolledOpen
@@ -87,17 +91,7 @@ export function MediaLibraryPicker({
 		null,
 	)
 	const [uploadError, setUploadError] = useState<string | null>(null)
-
-	const assets = fetcher.data?.assets ?? []
-	const isLoading = open && fetcher.state === 'loading' && !fetcher.data?.assets
-	const isUploading = fetcher.state === 'submitting'
-	const filteredAssets = assets.filter((asset) => {
-		const searchable = [asset.fileName, asset.altText, asset.source]
-			.filter(Boolean)
-			.join(' ')
-			.toLocaleLowerCase()
-		return searchable.includes(query.trim().toLocaleLowerCase())
-	})
+	const [isUploading, setIsUploading] = useState(false)
 
 	const reset = useCallback(() => {
 		setQuery('')
@@ -106,40 +100,40 @@ export function MediaLibraryPicker({
 		if (fileInputRef.current) fileInputRef.current.value = ''
 	}, [])
 
+	const wasOpenRef = useRef(open)
+	if (open && !wasOpenRef.current) {
+		wasOpenRef.current = true
+		reset()
+		void fetcher.load(`/${orgSlug}/media?index`)
+	} else if (!open && wasOpenRef.current) {
+		wasOpenRef.current = false
+	}
+
+	const assets = fetcher.data?.assets ?? []
+	const isLoading = open && fetcher.state === 'loading' && !fetcher.data?.assets
+	const filteredAssets = assets.filter((asset) => {
+		const searchable = [asset.fileName, asset.altText, asset.source]
+			.filter(Boolean)
+			.join(' ')
+			.toLocaleLowerCase()
+		return searchable.includes(query.trim().toLocaleLowerCase())
+	})
+
 	const handleOpenChange = useCallback(
 		(isOpen: boolean) => {
 			if (!isControlled) {
 				setUncontrolledOpen(isOpen)
 			}
 			controlledOnOpenChange?.(isOpen)
-			if (isOpen) {
-				reset()
-				void fetcher.load(`/${orgSlug}/media?index`)
-			} else {
+			if (!isOpen) {
 				reset()
 			}
 		},
-		[controlledOnOpenChange, fetcher, isControlled, orgSlug, reset],
+		[controlledOnOpenChange, isControlled, reset],
 	)
 
-	useEffect(() => {
-		if (controlledOpen) {
-			void fetcher.load(`/${orgSlug}/media?index`)
-		}
-	}, [controlledOpen, fetcher, orgSlug])
-
-	useEffect(() => {
-		const asset = fetcher.data?.asset
-		if (!asset || asset === handledAssetRef.current) return
-
-		handledAssetRef.current = asset
-		onSelect(asset)
-		handleOpenChange(false)
-		reset()
-	}, [fetcher.data?.asset, handleOpenChange, onSelect, reset])
-
 	const handleUpload = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
+		async (event: React.ChangeEvent<HTMLInputElement>) => {
 			const file = event.currentTarget.files?.[0]
 			event.currentTarget.value = ''
 			if (!file) return
@@ -153,16 +147,33 @@ export function MediaLibraryPicker({
 			}
 
 			setUploadError(null)
+			setIsUploading(true)
 			const formData = new FormData()
 			formData.append('intent', 'upload')
 			formData.append('imageFile', file)
-			void fetcher.submit(formData, {
-				method: 'POST',
-				action: `/${orgSlug}/media`,
-				encType: 'multipart/form-data',
-			})
+
+			try {
+				const response = await fetch(`/${orgSlug}/media`, {
+					method: 'POST',
+					body: formData,
+				})
+				const data = (await response.json()) as MediaActionData
+				if (!response.ok || data.error) {
+					setUploadError(data.error ?? _(msg`Upload failed.`))
+					return
+				}
+				if (data.asset) {
+					onSelect(data.asset)
+					handleOpenChange(false)
+					reset()
+				}
+			} catch {
+				setUploadError(_(msg`Upload failed. Please try again.`))
+			} finally {
+				setIsUploading(false)
+			}
 		},
-		[fetcher, orgSlug, _],
+		[_, handleOpenChange, onSelect, orgSlug, reset],
 	)
 
 	const handleUseSelected = useCallback(() => {

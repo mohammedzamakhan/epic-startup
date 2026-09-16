@@ -10,6 +10,7 @@ export type { UploadOptions } from './src/upload-helpers'
 export {
 	createStorageClient,
 	uploadToStorage,
+	deleteFromStorage,
 	testS3Connection,
 	getSignedGetRequestInfo,
 	getSignedHeadRequestInfo,
@@ -32,4 +33,8 @@ export {
 	uploadWebsiteSeoImage,
 	uploadWebsiteAsset,
 	uploadSiteFont,
+	detectRasterImage,
+	isValidRasterBytes,
+	type DetectedRasterFormat,
+	type UploadedMediaResult,
 } from './src/upload-helpers'

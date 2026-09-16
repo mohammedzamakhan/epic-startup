@@ -150,7 +150,13 @@ const CommentInput: React.FC<CommentInputProps> = ({
 	}
 
 	const handleImagesSelected = (files: File[]) => {
-		setSelectedImages((prev) => [...prev, ...files].slice(0, 3))
+		setSelectedImages((prev) => {
+			const remaining = Math.max(
+				0,
+				3 - selectedLibraryAssets.length - prev.length,
+			)
+			return [...prev, ...files.slice(0, remaining)]
+		})
 	}
 
 	const handleRemoveImage = (index: number) => {
@@ -201,8 +207,13 @@ const CommentInput: React.FC<CommentInputProps> = ({
 					<>
 						<CommentImageUpload
 							onImagesSelected={handleImagesSelected}
-							maxImages={3 - selectedImages.length}
-							disabled={disabled || selectedImages.length >= 3}
+							maxImages={
+								3 - selectedImages.length - selectedLibraryAssets.length
+							}
+							disabled={
+								disabled ||
+								selectedImages.length + selectedLibraryAssets.length >= 3
+							}
 							className="text-muted-foreground"
 						/>
 						{orgSlug ? (
@@ -342,8 +353,13 @@ const CommentInput: React.FC<CommentInputProps> = ({
 					<div className="flex min-w-0 items-center gap-0.5">
 						<CommentImageUpload
 							onImagesSelected={handleImagesSelected}
-							maxImages={3 - selectedImages.length}
-							disabled={disabled || selectedImages.length >= 3}
+							maxImages={
+								3 - selectedImages.length - selectedLibraryAssets.length
+							}
+							disabled={
+								disabled ||
+								selectedImages.length + selectedLibraryAssets.length >= 3
+							}
 							className="text-muted-foreground"
 						/>
 						{orgSlug ? (

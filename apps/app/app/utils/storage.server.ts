@@ -10,6 +10,7 @@ import {
 import { decrypt, getSSOMasterKey } from '@repo/security'
 import {
 	createStorageClient,
+	deleteFromStorage,
 	uploadProfileImage as _uploadProfileImage,
 	uploadOrganizationImage as _uploadOrganizationImage,
 	uploadOrganizationMediaImage as _uploadOrganizationMediaImage,
@@ -146,6 +147,49 @@ export async function uploadProfileImage(
 	)
 }
 
+async function uploadAndRegisterOrganizationMedia({
+	organizationId,
+	file,
+	storageScope,
+	source,
+	createdById,
+	uploadFn,
+}: {
+	organizationId: string
+	file: File | FileUpload
+	storageScope: 'organization' | 'platform'
+	source: MediaSource
+	createdById?: string
+	uploadFn: () => Promise<string>
+}): Promise<string> {
+	const objectKey = await uploadFn()
+	try {
+		await registerOrganizationMediaAsset({
+			organizationId,
+			objectKey,
+			file,
+			storageScope,
+			source,
+			createdById,
+		})
+		return objectKey
+	} catch (error) {
+		try {
+			const options = createUploadOptions()
+			const config = await options.getConfig(
+				storageScope === 'platform' ? undefined : organizationId,
+			)
+			await deleteFromStorage(objectKey, config)
+		} catch (cleanupError) {
+			console.error(
+				`Failed to clean up uploaded object ${objectKey} after registration failure:`,
+				cleanupError,
+			)
+		}
+		throw error
+	}
+}
+
 export async function uploadOrganizationImage(
 	organizationId: string,
 	file: File | FileUpload,
@@ -162,15 +206,39 @@ export async function uploadOrganizationImage(
 		.where(eq(Organization.id, organizationId))
 		.limit(1)
 	if (organization) {
-		await registerOrganizationMediaAsset({
-			organizationId,
-			objectKey,
-			file,
-			storageScope: 'platform',
-			source: 'organization-logo',
-		})
+		try {
+			await registerOrganizationMediaAsset({
+				organizationId,
+				objectKey,
+				file,
+				storageScope: 'platform',
+				source: 'organization-logo',
+			})
+		} catch (error) {
+			try {
+				const config = await defaultOptions.getConfig(undefined)
+				await deleteFromStorage(objectKey, config)
+			} catch (cleanupError) {
+				console.error(
+					`Failed to clean up logo ${objectKey} after registration failure:`,
+					cleanupError,
+				)
+			}
+			throw error
+		}
 	}
 	return objectKey
+}
+
+export async function uploadOrganizationMediaFileOnly(
+	organizationId: string,
+	file: File | FileUpload,
+) {
+	return _uploadOrganizationMediaImage(
+		organizationId,
+		file,
+		createUploadOptions(),
+	)
 }
 
 export async function uploadOrganizationMediaImage(
@@ -178,20 +246,36 @@ export async function uploadOrganizationMediaImage(
 	file: File | FileUpload,
 	createdById?: string,
 ) {
-	const objectKey = await _uploadOrganizationMediaImage(
-		organizationId,
-		file,
-		createUploadOptions(),
-	)
-	await registerOrganizationMediaAsset({
-		organizationId,
-		objectKey,
-		file,
-		storageScope: 'organization',
-		source: 'library',
-		createdById,
-	})
-	return objectKey
+	const { key: objectKey, file: validatedFile } =
+		await _uploadOrganizationMediaImage(
+			organizationId,
+			file,
+			createUploadOptions(),
+		)
+
+	try {
+		await registerOrganizationMediaAsset({
+			organizationId,
+			objectKey,
+			file: validatedFile,
+			storageScope: 'organization',
+			source: 'library',
+			createdById,
+		})
+		return objectKey
+	} catch (error) {
+		try {
+			const options = createUploadOptions()
+			const config = await options.getConfig(organizationId)
+			await deleteFromStorage(objectKey, config)
+		} catch (cleanupError) {
+			console.error(
+				`Failed to clean up uploaded media ${objectKey} after registration failure:`,
+				cleanupError,
+			)
+		}
+		throw error
+	}
 }
 
 export async function uploadNoteImage(
@@ -200,24 +284,30 @@ export async function uploadNoteImage(
 	file: File | FileUpload,
 	organizationId?: string,
 ) {
-	const objectKey = await _uploadNoteImage(
-		userId,
-		noteId,
-		file,
-		createUploadOptions(),
-		organizationId,
-	)
-	if (organizationId) {
-		await registerOrganizationMediaAsset({
-			organizationId,
-			objectKey,
+	if (!organizationId) {
+		return _uploadNoteImage(
+			userId,
+			noteId,
 			file,
-			storageScope: 'organization',
-			source: 'note',
-			createdById: userId,
-		})
+			createUploadOptions(),
+			organizationId,
+		)
 	}
-	return objectKey
+	return uploadAndRegisterOrganizationMedia({
+		organizationId,
+		file,
+		storageScope: 'organization',
+		source: 'note',
+		createdById: userId,
+		uploadFn: () =>
+			_uploadNoteImage(
+				userId,
+				noteId,
+				file,
+				createUploadOptions(),
+				organizationId,
+			),
+	})
 }
 
 export async function uploadCommentImage(
@@ -226,24 +316,30 @@ export async function uploadCommentImage(
 	file: File | FileUpload,
 	organizationId?: string,
 ) {
-	const objectKey = await _uploadCommentImage(
-		userId,
-		commentId,
-		file,
-		createUploadOptions(),
-		organizationId,
-	)
-	if (organizationId) {
-		await registerOrganizationMediaAsset({
-			organizationId,
-			objectKey,
+	if (!organizationId) {
+		return _uploadCommentImage(
+			userId,
+			commentId,
 			file,
-			storageScope: 'organization',
-			source: 'comment',
-			createdById: userId,
-		})
+			createUploadOptions(),
+			organizationId,
+		)
 	}
-	return objectKey
+	return uploadAndRegisterOrganizationMedia({
+		organizationId,
+		file,
+		storageScope: 'organization',
+		source: 'comment',
+		createdById: userId,
+		uploadFn: () =>
+			_uploadCommentImage(
+				userId,
+				commentId,
+				file,
+				createUploadOptions(),
+				organizationId,
+			),
+	})
 }
 
 export async function uploadNoteVideo(
@@ -268,30 +364,37 @@ export async function uploadVideoThumbnail(
 	thumbnailBuffer: Buffer,
 	organizationId?: string,
 ) {
-	const objectKey = await _uploadVideoThumbnail(
-		userId,
-		noteId,
-		videoId,
-		thumbnailBuffer,
-		createUploadOptions(),
-		organizationId,
+	const thumbnailFile = new File(
+		[new Uint8Array(thumbnailBuffer)],
+		'thumbnail.jpg',
+		{ type: 'image/jpeg' },
 	)
-	if (organizationId) {
-		const thumbnailFile = new File(
-			[new Uint8Array(thumbnailBuffer)],
-			'thumbnail.jpg',
-			{ type: 'image/jpeg' },
-		)
-		await registerOrganizationMediaAsset({
+	if (!organizationId) {
+		return _uploadVideoThumbnail(
+			userId,
+			noteId,
+			videoId,
+			thumbnailBuffer,
+			createUploadOptions(),
 			organizationId,
-			objectKey,
-			file: thumbnailFile,
-			storageScope: 'organization',
-			source: 'video-thumbnail',
-			createdById: userId,
-		})
+		)
 	}
-	return objectKey
+	return uploadAndRegisterOrganizationMedia({
+		organizationId,
+		file: thumbnailFile,
+		storageScope: 'organization',
+		source: 'video-thumbnail',
+		createdById: userId,
+		uploadFn: () =>
+			_uploadVideoThumbnail(
+				userId,
+				noteId,
+				videoId,
+				thumbnailBuffer,
+				createUploadOptions(),
+				organizationId,
+			),
+	})
 }
 
 export async function uploadSiteIcon(
@@ -299,19 +402,18 @@ export async function uploadSiteIcon(
 	file: File | FileUpload,
 ) {
 	const defaultOptions = createUploadOptions()
-	const objectKey = await _uploadSiteIcon(organizationId, file, {
-		...defaultOptions,
-		// Force site icons to be stored in the platform's default bucket
-		getConfig: () => defaultOptions.getConfig(undefined),
-	})
-	await registerOrganizationMediaAsset({
+	return uploadAndRegisterOrganizationMedia({
 		organizationId,
-		objectKey,
 		file,
 		storageScope: 'platform',
 		source: 'site-icon',
+		uploadFn: () =>
+			_uploadSiteIcon(organizationId, file, {
+				...defaultOptions,
+				// Force site icons to be stored in the platform's default bucket
+				getConfig: () => defaultOptions.getConfig(undefined),
+			}),
 	})
-	return objectKey
 }
 
 export async function uploadWebsiteSeoImage(
@@ -320,19 +422,18 @@ export async function uploadWebsiteSeoImage(
 	file: File | FileUpload,
 ) {
 	const defaultOptions = createUploadOptions()
-	const objectKey = await _uploadWebsiteSeoImage(organizationId, pageId, file, {
-		...defaultOptions,
-		// Force SEO images to be stored in the platform's default bucket
-		getConfig: () => defaultOptions.getConfig(undefined),
-	})
-	await registerOrganizationMediaAsset({
+	return uploadAndRegisterOrganizationMedia({
 		organizationId,
-		objectKey,
 		file,
 		storageScope: 'platform',
 		source: 'website-seo',
+		uploadFn: () =>
+			_uploadWebsiteSeoImage(organizationId, pageId, file, {
+				...defaultOptions,
+				// Force SEO images to be stored in the platform's default bucket
+				getConfig: () => defaultOptions.getConfig(undefined),
+			}),
 	})
-	return objectKey
 }
 
 export async function uploadWebsiteAsset(
@@ -341,19 +442,18 @@ export async function uploadWebsiteAsset(
 	file: File | FileUpload,
 ) {
 	const defaultOptions = createUploadOptions()
-	const objectKey = await _uploadWebsiteAsset(organizationId, pageId, file, {
-		...defaultOptions,
-		// Force assets to be stored in the platform's default bucket
-		getConfig: () => defaultOptions.getConfig(undefined),
-	})
-	await registerOrganizationMediaAsset({
+	return uploadAndRegisterOrganizationMedia({
 		organizationId,
-		objectKey,
 		file,
 		storageScope: 'platform',
 		source: 'website-asset',
+		uploadFn: () =>
+			_uploadWebsiteAsset(organizationId, pageId, file, {
+				...defaultOptions,
+				// Force assets to be stored in the platform's default bucket
+				getConfig: () => defaultOptions.getConfig(undefined),
+			}),
 	})
-	return objectKey
 }
 
 export async function uploadSiteFont(
@@ -420,3 +520,13 @@ export async function testS3Connection(config: StorageConfig) {
 
 // Re-export types
 export type { StorageConfig }
+export { deleteFromStorage }
+
+export async function deleteOrganizationStorageObject(
+	objectKey: string,
+	organizationId?: string,
+) {
+	const options = createUploadOptions()
+	const config = await options.getConfig(organizationId)
+	await deleteFromStorage(objectKey, config)
+}

@@ -1,6 +1,7 @@
 import { i18n } from '@lingui/core'
 import { msg, t } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
+import { getDomainUrl } from '@repo/common'
 import {
 	buildEmailTemplateBlocks,
 	type EmailBlock,
@@ -53,8 +54,14 @@ function EmailDesignerField({ orgSlug }: { orgSlug: string }) {
 
 	const handleAssetSelected = useCallback((asset: MediaLibraryAsset) => {
 		if (onSelectCallbackRef.current) {
+			const baseUrl =
+				typeof window !== 'undefined' ? window.location.origin : ''
+			const resolvedUrl =
+				asset.url.startsWith('http://') || asset.url.startsWith('https://')
+					? asset.url
+					: `${baseUrl}${asset.url.startsWith('/') ? '' : '/'}${asset.url}`
 			onSelectCallbackRef.current(
-				asset.url,
+				resolvedUrl,
 				asset.altText || asset.fileName || '',
 			)
 			onSelectCallbackRef.current = null
@@ -107,11 +114,39 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 	const formData = await request.formData()
 	const intent = formData.get('intent')
+	const baseUrl = getDomainUrl(request)
+
+	function resolveBlockImageUrls(
+		emailBlocks: EmailBlock[],
+		originUrl: string,
+	): EmailBlock[] {
+		return emailBlocks.map((block) => {
+			if (
+				block.type === 'image' &&
+				typeof block.config?.url === 'string' &&
+				!block.config.url.startsWith('http://') &&
+				!block.config.url.startsWith('https://')
+			) {
+				return {
+					...block,
+					config: {
+						...block.config,
+						url: `${originUrl}${block.config.url.startsWith('/') ? '' : '/'}${block.config.url}`,
+					},
+				}
+			}
+			return block
+		})
+	}
 
 	if (intent === 'email_preview') {
 		const branding = await resolveEmailBrandingForOrg(orgId)
+		const blocks = resolveBlockImageUrls(
+			normalizeEmailBlocks(formData.get('blocks')),
+			baseUrl,
+		)
 		const { html } = await renderMarketingEmail({
-			blocks: formData.get('blocks'),
+			blocks,
 			theme: branding,
 			socials: branding.socials,
 			subject: String(formData.get('subject') || ''),
@@ -135,7 +170,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		blocksRaw.trim()
 	) {
 		const branding = await resolveEmailBrandingForOrg(orgId)
-		const blocks = normalizeEmailBlocks(blocksRaw)
+		const blocks = resolveBlockImageUrls(
+			normalizeEmailBlocks(blocksRaw),
+			baseUrl,
+		)
 		if (blocks.length === 0) {
 			return { error: i18n._(t`Add at least one email block`) }
 		}

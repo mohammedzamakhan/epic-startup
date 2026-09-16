@@ -93,7 +93,7 @@ msgstr ""
 msgid "{backupCodesRemaining} unused codes remaining"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1410
+#: app/routes/organizations+/create.tsx:1417
 msgid "{basePriceLabel} billed annually"
 msgstr ""
 
@@ -210,7 +210,7 @@ msgstr ""
 msgid "{unit}"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:694
+#: app/routes/organizations+/create.tsx:701
 msgid "*.png, *.jpeg files up to 5 MB"
 msgstr ""
 
@@ -374,11 +374,11 @@ msgstr ""
 msgid "Account Suspended"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:752
+#: app/routes/organizations+/create.tsx:759
 msgid "acme"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:717
+#: app/routes/organizations+/create.tsx:724
 msgid "Acme Inc."
 msgstr ""
 
@@ -472,11 +472,11 @@ msgid "Add announcement"
 msgstr ""
 
 #: app/components/organization-invitations.tsx:303
-#: app/routes/organizations+/create.tsx:1180
+#: app/routes/organizations+/create.tsx:1187
 msgid "Add another invitation"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:140
+#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:178
 msgid "Add at least one email block"
 msgstr "Add at least one email block"
 
@@ -598,7 +598,7 @@ msgstr ""
 msgid "Add URL"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:971
+#: app/routes/organizations+/create.tsx:978
 msgid "Add your team members to get started. You can always invite more people later."
 msgstr ""
 
@@ -614,11 +614,11 @@ msgstr "Added section"
 msgid "Adding section"
 msgstr "Adding section"
 
-#: app/routes/organizations+/create.tsx:1429
+#: app/routes/organizations+/create.tsx:1436
 msgid "Additional users: {monthlyPriceLabel}/user/month"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1422
+#: app/routes/organizations+/create.tsx:1429
 msgid "Additional users: {monthlyPriceLabel}/user/month<0>({annualPriceLabel} billed annually per user)</0>"
 msgstr ""
 
@@ -688,7 +688,7 @@ msgstr ""
 msgid "All checks passed. This workflow is ready to publish."
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1434
+#: app/routes/organizations+/create.tsx:1441
 msgid "All core features included"
 msgstr ""
 
@@ -730,11 +730,11 @@ msgstr ""
 msgid "Alt text"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1218
+#: app/routes/_app+/$orgSlug_+/media.tsx:1241
 msgid "Alt Text"
 msgstr "Alt Text"
 
-#: app/routes/organizations+/create.tsx:618
+#: app/routes/organizations+/create.tsx:625
 msgid "An organization is a workspace where teams collect, organize, and work together."
 msgstr ""
 
@@ -781,7 +781,7 @@ msgstr ""
 msgid "Appears on the public site"
 msgstr "Appears on the public site"
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1731
+#: app/routes/_app+/$orgSlug_+/media.tsx:1754
 msgid "Applying…"
 msgstr "Applying…"
 
@@ -948,7 +948,7 @@ msgid "Avg/day"
 msgstr ""
 
 #: app/components/website/create-page-dialog.tsx:198
-#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:196
+#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:234
 msgid "Back"
 msgstr ""
 
@@ -964,7 +964,7 @@ msgstr "Back to blocks"
 msgid "Back to broadcasts"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1691
+#: app/routes/_app+/$orgSlug_+/media.tsx:1714
 msgid "Back to details"
 msgstr "Back to details"
 
@@ -1043,7 +1043,7 @@ msgstr ""
 msgid "Break down complex tasks"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1590
+#: app/routes/_app+/$orgSlug_+/media.tsx:1613
 msgid "Brightness"
 msgstr "Brightness"
 
@@ -1146,8 +1146,8 @@ msgstr "Can edit teammate notes"
 #: ../../packages/marketing/src/components/email/email-design-overlay.tsx:162
 #: app/components/core/feedback-modal.tsx:109
 #: app/components/form-actions.tsx:28
-#: app/components/media-library/media-library-picker.tsx:327
-#: app/components/note/comment-input.tsx:250
+#: app/components/media-library/media-library-picker.tsx:338
+#: app/components/note/comment-input.tsx:261
 #: app/components/note/comment-item.tsx:301
 #: app/components/note/share-note-button.tsx:317
 #: app/components/roles/tenant-role-access-manager.tsx:535
@@ -1166,7 +1166,7 @@ msgstr "Can edit teammate notes"
 #: app/components/website/translate-provider.tsx:258
 #: app/routes/_app+/$orgSlug_+/mcp.tsx:467
 #: app/routes/_app+/$orgSlug_+/mcp.tsx:1090
-#: app/routes/_app+/$orgSlug_+/media.tsx:1375
+#: app/routes/_app+/$orgSlug_+/media.tsx:1398
 #: app/routes/_app+/$orgSlug_+/notes-kanban-board.tsx:861
 #: app/routes/_app+/$orgSlug_+/notes-kanban-board.tsx:917
 #: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1079
@@ -1177,8 +1177,8 @@ msgstr "Can edit teammate notes"
 #: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1472
 #: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1518
 #: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1556
-#: app/routes/organizations+/create.tsx:814
-#: app/routes/organizations+/create.tsx:950
+#: app/routes/organizations+/create.tsx:821
+#: app/routes/organizations+/create.tsx:957
 msgid "Cancel"
 msgstr ""
 
@@ -1190,7 +1190,7 @@ msgstr ""
 msgid "Cancel editing"
 msgstr ""
 
-#: app/components/note/comment-input.tsx:281
+#: app/components/note/comment-input.tsx:292
 msgid "Cancel reply"
 msgstr "Cancel reply"
 
@@ -1198,7 +1198,7 @@ msgstr "Cancel reply"
 msgid "Cancelled"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1239
+#: app/routes/_app+/$orgSlug_+/media.tsx:1262
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:3967
 msgid "Caption"
 msgstr ""
@@ -1273,7 +1273,7 @@ msgstr ""
 msgid "Check your email"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1274
+#: app/routes/_app+/$orgSlug_+/media.tsx:1297
 msgid "Checking references…"
 msgstr "Checking references…"
 
@@ -1289,7 +1289,7 @@ msgstr "Checkout processor"
 msgid "Choices"
 msgstr "Choices"
 
-#: app/components/media-library/media-library-picker.tsx:151
+#: app/components/media-library/media-library-picker.tsx:145
 msgid "Choose a JPEG, PNG, GIF, WebP, or AVIF image."
 msgstr "Choose a JPEG, PNG, GIF, WebP, or AVIF image."
 
@@ -1310,7 +1310,7 @@ msgid "Choose file..."
 msgstr ""
 
 #: ../../packages/marketing/src/components/email/email-block-inspector.tsx:237
-#: app/components/media-library/media-library-picker.tsx:180
+#: app/components/media-library/media-library-picker.tsx:191
 msgid "Choose from library"
 msgstr "Choose from library"
 
@@ -1318,7 +1318,7 @@ msgstr "Choose from library"
 msgid "Choose which languages your public website supports, and which one visitors see by default."
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:867
+#: app/routes/organizations+/create.tsx:874
 msgid "Choose your plan"
 msgstr ""
 
@@ -1427,7 +1427,7 @@ msgstr ""
 msgid "Columns"
 msgstr ""
 
-#: app/components/note/comment-input.tsx:190
+#: app/components/note/comment-input.tsx:196
 msgid "Comment"
 msgstr ""
 
@@ -1443,7 +1443,7 @@ msgstr ""
 msgid "complete"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1110
+#: app/routes/organizations+/create.tsx:1117
 msgid "Complete Setup"
 msgstr ""
 
@@ -1596,7 +1596,7 @@ msgstr "Contact"
 msgid "Contact form"
 msgstr "Contact form"
 
-#: app/routes/organizations+/create.tsx:1372
+#: app/routes/organizations+/create.tsx:1379
 msgid "Contact support"
 msgstr ""
 
@@ -1622,7 +1622,7 @@ msgid "Content editor"
 msgstr "Content editor"
 
 #: app/routes/_auth+/login.tsx:696
-#: app/routes/organizations+/create.tsx:819
+#: app/routes/organizations+/create.tsx:826
 msgid "Continue"
 msgstr ""
 
@@ -1634,7 +1634,7 @@ msgstr "Continue payout setup"
 #~ msgid "Continue Stripe setup"
 #~ msgstr ""
 
-#: app/routes/organizations+/create.tsx:954
+#: app/routes/organizations+/create.tsx:961
 msgid "Continue to Payment"
 msgstr ""
 
@@ -1646,7 +1646,7 @@ msgstr ""
 msgid "Continue with your password"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1612
+#: app/routes/_app+/$orgSlug_+/media.tsx:1635
 msgid "Contrast"
 msgstr "Contrast"
 
@@ -1683,7 +1683,7 @@ msgstr ""
 msgid "Copy code"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:734
+#: app/routes/_app+/$orgSlug_+/media.tsx:757
 #: app/routes/_app+/$orgSlug_+/notes-cards.tsx:363
 #: app/routes/_app+/$orgSlug_+/notes-cards.tsx:374
 msgid "Copy link"
@@ -1718,7 +1718,7 @@ msgstr "Create a custom role to assign specific permissions to teammates."
 msgid "Create a new API key to connect your AI assistants to {orgName} data."
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:613
+#: app/routes/organizations+/create.tsx:620
 msgid "Create a new organization"
 msgstr ""
 
@@ -2115,7 +2115,7 @@ msgstr ""
 #: app/components/roles/tenant-role-access-manager.tsx:932
 #: app/components/settings/passkey-manager.tsx:220
 #: app/routes/_app+/$orgSlug_+/marketing+/automations._index.tsx:469
-#: app/routes/_app+/$orgSlug_+/media.tsx:1363
+#: app/routes/_app+/$orgSlug_+/media.tsx:1386
 #: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1033
 #: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1091
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:476
@@ -2252,7 +2252,7 @@ msgstr ""
 #: app/components/website/form-builder-sidebar.tsx:683
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:3732
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:4042
-#: app/routes/organizations+/create.tsx:791
+#: app/routes/organizations+/create.tsx:798
 msgid "Description"
 msgstr ""
 
@@ -2294,7 +2294,7 @@ msgstr ""
 msgid "Didn't receive the email? Check your spam folder, or try again with a different email address."
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1107
+#: app/routes/_app+/$orgSlug_+/media.tsx:1130
 msgid "Dimensions:"
 msgstr "Dimensions:"
 
@@ -2525,8 +2525,8 @@ msgstr "Edit Custom Role"
 msgid "Edit design"
 msgstr "Edit design"
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1088
-#: app/routes/_app+/$orgSlug_+/media.tsx:1402
+#: app/routes/_app+/$orgSlug_+/media.tsx:1111
+#: app/routes/_app+/$orgSlug_+/media.tsx:1425
 msgid "Edit image"
 msgstr "Edit image"
 
@@ -2651,7 +2651,7 @@ msgid "Enter backup code"
 msgstr ""
 
 #: app/components/organization-invitations.tsx:442
-#: app/routes/organizations+/create.tsx:1221
+#: app/routes/organizations+/create.tsx:1228
 msgid "Enter email address"
 msgstr ""
 
@@ -2792,7 +2792,7 @@ msgstr ""
 msgid "Failed to copy account ID"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:175
+#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:213
 msgid "Failed to create and dispatch campaign"
 msgstr ""
 
@@ -2927,11 +2927,11 @@ msgstr "Fields"
 msgid "File"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1175
+#: app/routes/_app+/$orgSlug_+/media.tsx:1198
 msgid "Filename"
 msgstr "Filename"
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:630
+#: app/routes/_app+/$orgSlug_+/media.tsx:647
 msgid "Find and reuse images uploaded across notes, comments, your website, and organization settings."
 msgstr "Find and reuse images uploaded across notes, comments, your website, and organization settings."
 
@@ -2977,7 +2977,7 @@ msgstr "Form settings"
 #~ msgid "Form Submitted"
 #~ msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1130
+#: app/routes/_app+/$orgSlug_+/media.tsx:1153
 msgid "Format:"
 msgstr "Format:"
 
@@ -3118,7 +3118,7 @@ msgstr ""
 msgid "Gray color"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1656
+#: app/routes/_app+/$orgSlug_+/media.tsx:1679
 msgid "Grayscale"
 msgstr "Grayscale"
 
@@ -3329,7 +3329,7 @@ msgstr ""
 msgid "Includes {includesSeatsValue} user seats"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1417
+#: app/routes/organizations+/create.tsx:1424
 msgid "Includes {seats} user seats"
 msgstr ""
 
@@ -3402,7 +3402,7 @@ msgstr ""
 msgid "Invite new members"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:968
+#: app/routes/organizations+/create.tsx:975
 msgid "Invite team members"
 msgstr ""
 
@@ -3645,7 +3645,7 @@ msgstr "Loading assistant…"
 msgid "Loading channels..."
 msgstr ""
 
-#: app/components/media-library/media-library-picker.tsx:273
+#: app/components/media-library/media-library-picker.tsx:284
 msgid "Loading media…"
 msgstr "Loading media…"
 
@@ -3657,7 +3657,7 @@ msgstr ""
 msgid "Loading step executions from regional SQLite outbox..."
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1194
+#: app/routes/_app+/$orgSlug_+/media.tsx:1217
 msgid "Location"
 msgstr "Location"
 
@@ -3675,7 +3675,7 @@ msgid "Login with a passkey"
 msgstr ""
 
 #: app/components/website/branding-panel.tsx:262
-#: app/routes/organizations+/create.tsx:641
+#: app/routes/organizations+/create.tsx:648
 msgid "Logo"
 msgstr ""
 
@@ -3851,13 +3851,13 @@ msgstr ""
 msgid "Media"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1031
+#: app/routes/_app+/$orgSlug_+/media.tsx:1054
 msgid "Media details"
 msgstr "Media details"
 
 #: app/components/app-sidebar.tsx:289
-#: app/components/media-library/media-library-picker.tsx:214
-#: app/routes/_app+/$orgSlug_+/media.tsx:628
+#: app/components/media-library/media-library-picker.tsx:225
+#: app/routes/_app+/$orgSlug_+/media.tsx:645
 msgid "Media library"
 msgstr "Media library"
 
@@ -3905,7 +3905,7 @@ msgstr "Members & invites"
 msgid "Message"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:154
+#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:192
 msgid "Message content is required"
 msgstr "Message content is required"
 
@@ -3950,7 +3950,7 @@ msgid "Mono"
 msgstr ""
 
 #: app/components/settings/cards/organization/billing-card.tsx:200
-#: app/routes/organizations+/create.tsx:898
+#: app/routes/organizations+/create.tsx:905
 msgid "Monthly"
 msgstr ""
 
@@ -3984,7 +3984,7 @@ msgstr ""
 #: app/components/website/form-builder-sidebar.tsx:673
 #: app/routes/_app+/$orgSlug_+/website+/forms.tsx:197
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:4340
-#: app/routes/organizations+/create.tsx:708
+#: app/routes/organizations+/create.tsx:715
 #: app/utils/website/field-types.ts:25
 #: app/utils/website/field-types.ts:28
 msgid "Name"
@@ -4032,7 +4032,7 @@ msgid "New automation"
 msgstr ""
 
 #: app/routes/_app+/$orgSlug_+/marketing+/campaigns._index.tsx:95
-#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:203
+#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:241
 msgid "New broadcast"
 msgstr ""
 
@@ -4202,11 +4202,11 @@ msgstr "No fields yet"
 msgid "No invoices found"
 msgstr ""
 
-#: app/components/media-library/media-library-picker.tsx:317
+#: app/components/media-library/media-library-picker.tsx:328
 msgid "No media matches your search."
 msgstr "No media matches your search."
 
-#: app/components/media-library/media-library-picker.tsx:319
+#: app/components/media-library/media-library-picker.tsx:330
 msgid "No media yet. Upload an image to get started."
 msgstr "No media yet. Upload an image to get started."
 
@@ -4315,7 +4315,7 @@ msgstr ""
 msgid "Not now"
 msgstr "Not now"
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1279
+#: app/routes/_app+/$orgSlug_+/media.tsx:1302
 msgid "Not used in any notes, comments, or pages"
 msgstr "Not used in any notes, comments, or pages"
 
@@ -4564,7 +4564,7 @@ msgstr ""
 msgid "Organization details and configuration."
 msgstr "Organization details and configuration."
 
-#: app/routes/organizations+/create.tsx:649
+#: app/routes/organizations+/create.tsx:656
 msgid "Organization logo preview"
 msgstr ""
 
@@ -4576,7 +4576,7 @@ msgstr "Organization Settings"
 msgid "Organization site"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1036
+#: app/routes/organizations+/create.tsx:1043
 msgid "Organization size"
 msgstr ""
 
@@ -4720,7 +4720,7 @@ msgid "Pending Invitations"
 msgstr ""
 
 #: app/components/settings/cards/organization/billing-card.tsx:418
-#: app/routes/organizations+/create.tsx:1405
+#: app/routes/organizations+/create.tsx:1412
 msgid "per month"
 msgstr ""
 
@@ -4856,7 +4856,7 @@ msgstr ""
 msgid "Plan Name"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1332
+#: app/routes/organizations+/create.tsx:1339
 msgid "Plan not available"
 msgstr ""
 
@@ -4868,7 +4868,7 @@ msgstr ""
 msgid "Platform-provided role."
 msgstr "Platform-provided role."
 
-#: app/routes/organizations+/create.tsx:1335
+#: app/routes/organizations+/create.tsx:1342
 msgid "Please check configuration"
 msgstr ""
 
@@ -4929,7 +4929,7 @@ msgstr ""
 msgid "Prerender"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1528
+#: app/routes/_app+/$orgSlug_+/media.tsx:1551
 msgid "Presets"
 msgstr "Presets"
 
@@ -4947,7 +4947,7 @@ msgid "Price (USD)"
 msgstr ""
 
 #: app/components/settings/cards/organization/billing-card.tsx:389
-#: app/routes/organizations+/create.tsx:1369
+#: app/routes/organizations+/create.tsx:1376
 msgid "Price not configured"
 msgstr ""
 
@@ -4968,7 +4968,7 @@ msgstr ""
 msgid "Prioritize these tasks"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1438
+#: app/routes/organizations+/create.tsx:1445
 msgid "Priority support"
 msgstr ""
 
@@ -4990,7 +4990,7 @@ msgstr ""
 msgid "Processing"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1715
+#: app/routes/_app+/$orgSlug_+/media.tsx:1738
 msgid "Processing…"
 msgstr "Processing…"
 
@@ -5265,13 +5265,13 @@ msgid "Remove field"
 msgstr "Remove field"
 
 #: app/components/note/comment-image-preview.tsx:81
-#: app/components/note/comment-input.tsx:329
-#: app/components/note/comment-input.tsx:440
+#: app/components/note/comment-input.tsx:340
+#: app/components/note/comment-input.tsx:456
 #: app/components/ui/multi-image-upload.tsx:281
 msgid "Remove image"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1280
+#: app/routes/organizations+/create.tsx:1287
 msgid "Remove invite"
 msgstr ""
 
@@ -5316,12 +5316,12 @@ msgstr ""
 msgid "Replace Asset..."
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1078
+#: app/routes/_app+/$orgSlug_+/media.tsx:1101
 msgid "Replace image"
 msgstr "Replace image"
 
-#: app/components/note/comment-input.tsx:188
-#: app/components/note/comment-input.tsx:382
+#: app/components/note/comment-input.tsx:194
+#: app/components/note/comment-input.tsx:398
 #: app/components/note/comment-item.tsx:303
 msgid "Reply"
 msgstr ""
@@ -5364,11 +5364,11 @@ msgid "Required"
 msgstr "Required"
 
 #: app/components/organization-invitations.tsx:237
-#: app/routes/_app+/$orgSlug_+/media.tsx:1564
+#: app/routes/_app+/$orgSlug_+/media.tsx:1587
 msgid "Reset"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1703
+#: app/routes/_app+/$orgSlug_+/media.tsx:1726
 msgid "Reset adjustments"
 msgstr "Reset adjustments"
 
@@ -5384,7 +5384,7 @@ msgstr ""
 msgid "Reset Password"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:775
+#: app/routes/organizations+/create.tsx:782
 msgid "Reset to auto-generated"
 msgstr ""
 
@@ -5557,7 +5557,7 @@ msgstr ""
 msgid "Sans"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1634
+#: app/routes/_app+/$orgSlug_+/media.tsx:1657
 msgid "Saturation"
 msgstr "Saturation"
 
@@ -5567,23 +5567,23 @@ msgstr ""
 
 #: ../../packages/marketing/src/components/email/email-design-overlay.tsx:170
 #: ../../packages/marketing/src/components/email/merge-tag-field.tsx:347
-#: app/components/note/comment-input.tsx:186
+#: app/components/note/comment-input.tsx:192
 #: app/components/organization-members.tsx:129
 #: app/components/settings/cards/organization/s3-storage-card.tsx:441
 #: app/components/settings/cards/organization/verified-domain-card.tsx:124
 #: app/components/settings/email-form.tsx:90
 #: app/components/ui/photo-crop-form.tsx:236
-#: app/routes/_app+/$orgSlug_+/media.tsx:1391
+#: app/routes/_app+/$orgSlug_+/media.tsx:1414
 #: app/routes/_app+/$orgSlug_+/notes-kanban-board.tsx:858
 msgid "Save"
 msgstr ""
 
 #: app/components/settings/cards/organization/billing-card.tsx:213
-#: app/routes/organizations+/create.tsx:914
+#: app/routes/organizations+/create.tsx:921
 msgid "Save 20%"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1717
+#: app/routes/_app+/$orgSlug_+/media.tsx:1740
 msgid "Save as copy"
 msgstr "Save as copy"
 
@@ -5596,7 +5596,7 @@ msgstr ""
 #: app/components/settings/cards/organization/general-settings-card.tsx:112
 #: app/components/settings/cards/organization/site-analytics-card.tsx:140
 #: app/components/settings/cards/profile-card.tsx:192
-#: app/routes/_app+/$orgSlug_+/media.tsx:1733
+#: app/routes/_app+/$orgSlug_+/media.tsx:1756
 #: app/routes/_app+/$orgSlug_+/notes-cards.tsx:414
 #: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1437
 msgid "Save changes"
@@ -5654,7 +5654,7 @@ msgstr ""
 
 #: ../../packages/marketing/src/components/email/email-design-overlay.tsx:170
 #: app/components/roles/tenant-role-access-manager.tsx:539
-#: app/routes/_app+/$orgSlug_+/media.tsx:1391
+#: app/routes/_app+/$orgSlug_+/media.tsx:1414
 #: app/routes/_app+/$orgSlug_+/website+/forms.$formId.tsx:480
 msgid "Saving…"
 msgstr "Saving…"
@@ -5693,11 +5693,11 @@ msgstr ""
 msgid "Search for users in your organization"
 msgstr ""
 
-#: app/components/media-library/media-library-picker.tsx:233
+#: app/components/media-library/media-library-picker.tsx:244
 msgid "Search media"
 msgstr "Search media"
 
-#: app/components/media-library/media-library-picker.tsx:234
+#: app/components/media-library/media-library-picker.tsx:245
 msgid "Search media library"
 msgstr "Search media library"
 
@@ -5807,7 +5807,7 @@ msgstr ""
 #~ msgid "Select a status"
 #~ msgstr ""
 
-#: app/routes/organizations+/create.tsx:870
+#: app/routes/organizations+/create.tsx:877
 msgid "Select a subscription plan to get started with your organization. Your trial will begin after payment setup."
 msgstr ""
 
@@ -5819,7 +5819,7 @@ msgstr "Select a website page"
 msgid "Select all"
 msgstr ""
 
-#: app/components/media-library/media-library-picker.tsx:217
+#: app/components/media-library/media-library-picker.tsx:228
 msgid "Select an image from your library or upload a new one."
 msgstr "Select an image from your library or upload a new one."
 
@@ -5871,7 +5871,7 @@ msgstr ""
 msgid "Select which event initiates this automated journey."
 msgstr ""
 
-#: app/components/media-library/media-library-picker.tsx:305
+#: app/components/media-library/media-library-picker.tsx:316
 #: app/components/note/share-note-button.tsx:300
 msgid "Selected"
 msgstr ""
@@ -5892,7 +5892,7 @@ msgstr "Sell one product on your public site. The platform keeps {SHOP_PLATFORM_
 msgid "Send"
 msgstr "Send"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:206
+#: app/routes/_app+/$orgSlug_+/marketing+/campaigns.new.tsx:244
 msgid "Send a one-time email or SMS to your audience."
 msgstr ""
 
@@ -5901,7 +5901,7 @@ msgid "Send Email"
 msgstr ""
 
 #: app/components/organization-invitations.tsx:314
-#: app/routes/organizations+/create.tsx:1187
+#: app/routes/organizations+/create.tsx:1194
 msgid "Send Invitations"
 msgstr ""
 
@@ -6151,16 +6151,16 @@ msgstr ""
 msgid "Size"
 msgstr "Size"
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1098
+#: app/routes/_app+/$orgSlug_+/media.tsx:1121
 msgid "Size:"
 msgstr "Size:"
 
-#: app/routes/organizations+/create.tsx:991
+#: app/routes/organizations+/create.tsx:998
 msgid "Skip for now"
 msgstr ""
 
 #: app/components/settings/cards/organization/general-settings-card.tsx:90
-#: app/routes/organizations+/create.tsx:729
+#: app/routes/organizations+/create.tsx:736
 msgid "Slug"
 msgstr ""
 
@@ -6291,7 +6291,7 @@ msgstr ""
 msgid "Stayed on current page"
 msgstr "Stayed on current page"
 
-#: app/routes/organizations+/create.tsx:532
+#: app/routes/organizations+/create.tsx:539
 msgid "Step {currentStep} of {totalSteps}"
 msgstr ""
 
@@ -6498,11 +6498,11 @@ msgstr ""
 msgid "Tell me more"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:796
+#: app/routes/organizations+/create.tsx:803
 msgid "Tell us about your organization..."
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1015
+#: app/routes/organizations+/create.tsx:1022
 msgid "Tell us more about your organization"
 msgstr ""
 
@@ -6665,7 +6665,7 @@ msgstr ""
 msgid "This device"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1018
+#: app/routes/organizations+/create.tsx:1025
 msgid "This helps us customize your experience and provide better insights."
 msgstr ""
 
@@ -6771,7 +6771,7 @@ msgstr ""
 msgid "Transfers search rank"
 msgstr "Transfers search rank"
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1417
+#: app/routes/_app+/$orgSlug_+/media.tsx:1440
 msgid "Transform"
 msgstr "Transform"
 
@@ -6997,15 +6997,23 @@ msgstr ""
 msgid "Upload a site icon"
 msgstr ""
 
+#: app/components/media-library/media-library-picker.tsx:162
+msgid "Upload failed."
+msgstr "Upload failed."
+
+#: app/components/media-library/media-library-picker.tsx:171
+msgid "Upload failed. Please try again."
+msgstr "Upload failed. Please try again."
+
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:5092
 msgid "Upload file"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:667
+#: app/routes/_app+/$orgSlug_+/media.tsx:684
 msgid "Upload image"
 msgstr "Upload image"
 
-#: app/components/media-library/media-library-picker.tsx:256
+#: app/components/media-library/media-library-picker.tsx:267
 msgid "Upload new"
 msgstr "Upload new"
 
@@ -7013,7 +7021,7 @@ msgstr "Upload new"
 msgid "Upload photo"
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:690
+#: app/routes/organizations+/create.tsx:697
 msgid "Upload your logo"
 msgstr ""
 
@@ -7021,12 +7029,12 @@ msgstr ""
 msgid "Uploaded"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1121
+#: app/routes/_app+/$orgSlug_+/media.tsx:1144
 msgid "Uploaded:"
 msgstr "Uploaded:"
 
 #: app/components/website/link-inspector.tsx:542
-#: app/routes/_app+/$orgSlug_+/media.tsx:665
+#: app/routes/_app+/$orgSlug_+/media.tsx:682
 msgid "Uploading…"
 msgstr ""
 
@@ -7040,7 +7048,7 @@ msgstr ""
 msgid "URL Redirects"
 msgstr "URL Redirects"
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1143
+#: app/routes/_app+/$orgSlug_+/media.tsx:1166
 msgid "URL:"
 msgstr "URL:"
 
@@ -7074,7 +7082,7 @@ msgstr ""
 msgid "Use password instead"
 msgstr ""
 
-#: app/components/media-library/media-library-picker.tsx:334
+#: app/components/media-library/media-library-picker.tsx:345
 msgid "Use selected"
 msgstr "Use selected"
 
@@ -7082,7 +7090,7 @@ msgstr "Use selected"
 msgid "Use your own S3-compatible storage instead of the default storage"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/media.tsx:1255
+#: app/routes/_app+/$orgSlug_+/media.tsx:1278
 msgid "Used in"
 msgstr "Used in"
 
@@ -7437,7 +7445,7 @@ msgstr "Write your text message"
 #~ msgstr ""
 
 #: app/components/settings/cards/organization/billing-card.tsx:211
-#: app/routes/organizations+/create.tsx:912
+#: app/routes/organizations+/create.tsx:919
 msgid "Yearly"
 msgstr ""
 
@@ -7536,7 +7544,7 @@ msgstr ""
 msgid "Your customers can buy at <0>/shop</0> on your published site once payments are enabled."
 msgstr ""
 
-#: app/routes/organizations+/create.tsx:1073
+#: app/routes/organizations+/create.tsx:1080
 msgid "Your department"
 msgstr ""
 

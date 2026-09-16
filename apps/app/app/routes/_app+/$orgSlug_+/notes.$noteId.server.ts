@@ -674,6 +674,28 @@ export async function handleAddCommentIntent({
 		}
 	}
 
+	const imageCount = parseInt(formData.get('imageCount') as string) || 0
+	const libraryAssetCount =
+		parseInt(formData.get('libraryAssetCount') as string) || 0
+	if (
+		imageCount < 0 ||
+		libraryAssetCount < 0 ||
+		imageCount + libraryAssetCount > 10
+	) {
+		return data(
+			{
+				result: submission.reply({
+					fieldErrors: {
+						imageCount: [
+							'Invalid image count. Maximum 10 images allowed in total.',
+						],
+					},
+				}),
+			},
+			{ status: 400 },
+		)
+	}
+
 	try {
 		const sanitizedContent = sanitizeCommentContent(content)
 		const [comment] = await db
@@ -687,19 +709,6 @@ export async function handleAddCommentIntent({
 			.returning({ id: NoteComment.id })
 		if (!comment) throw new Error('Failed to create comment')
 
-		const imageCount = parseInt(formData.get('imageCount') as string) || 0
-		if (imageCount < 0 || imageCount > 10) {
-			return data(
-				{
-					result: submission.reply({
-						fieldErrors: {
-							imageCount: ['Invalid image count. Maximum 10 images allowed.'],
-						},
-					}),
-				},
-				{ status: 400 },
-			)
-		}
 		if (imageCount > 0) {
 			const { uploadCommentImage } =
 				await import('#app/utils/storage.server.ts')
@@ -728,9 +737,7 @@ export async function handleAddCommentIntent({
 			}
 		}
 
-		const libraryAssetCount =
-			parseInt(formData.get('libraryAssetCount') as string) || 0
-		if (libraryAssetCount > 0 && libraryAssetCount <= 10) {
+		if (libraryAssetCount > 0) {
 			const libraryAssetIds: string[] = []
 			for (let i = 0; i < libraryAssetCount; i++) {
 				const id = formData.get(`libraryAssetId-${i}`)

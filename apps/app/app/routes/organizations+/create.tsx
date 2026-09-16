@@ -251,14 +251,21 @@ export async function action({ request }: ActionFunctionArgs) {
 				logoFile instanceof File &&
 				logoFile.size > 0
 			) {
-				await registerOrganizationMediaAsset({
-					organizationId: organization.id,
-					objectKey: imageObjectKey,
-					file: logoFile,
-					storageScope: 'platform',
-					source: 'organization-logo',
-					createdById: userId,
-				})
+				try {
+					await registerOrganizationMediaAsset({
+						organizationId: organization.id,
+						objectKey: imageObjectKey,
+						file: logoFile,
+						storageScope: 'platform',
+						source: 'organization-logo',
+						createdById: userId,
+					})
+				} catch (registrationError) {
+					console.error(
+						'Failed to register organization logo media asset:',
+						registrationError,
+					)
+				}
 			}
 			// const launchStatus = getLaunchStatus()
 			// const shouldShowPricing =
