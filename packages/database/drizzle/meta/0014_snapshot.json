@@ -3821,6 +3821,13 @@
 					"notNull": false,
 					"autoincrement": false
 				},
+				"caption": {
+					"name": "caption",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
 				"source": {
 					"name": "source",
 					"type": "text",
