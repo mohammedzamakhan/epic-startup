@@ -123,7 +123,10 @@ export async function action({ request, params }: Route.ActionArgs) {
 		const sanitizedRedirectTo = sanitizeRedirectUrl(redirectTo)
 
 		if (sanitizedRedirectTo) {
-			const redirectToCookie = getRedirectCookieHeader(sanitizedRedirectTo)
+			const redirectToCookie = getRedirectCookieHeader(
+				sanitizedRedirectTo,
+				request,
+			)
 			if (redirectToCookie) {
 				response.headers.append('set-cookie', redirectToCookie)
 			}
