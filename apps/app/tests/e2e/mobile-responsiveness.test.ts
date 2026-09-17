@@ -92,10 +92,13 @@ test.describe('Mobile Responsiveness', () => {
 
 		expect(hasNavigation).toBeTruthy()
 
-		// If notes link is visible, verify it works
+		// If notes link is visible, verify it works and that the mobile sidebar
+		// closes so it does not keep covering the page we navigated to
 		if (await notesLink.isVisible().catch(() => false)) {
 			await notesLink.click()
 			await expect(page).toHaveURL(new RegExp(`/${org.slug}/notes`))
+			// eslint-disable-next-line playwright/no-raw-locators -- data-mobile attribute not supported by semantic queries
+			await expect(page.locator('[data-mobile="true"]')).toBeHidden()
 		}
 	})
 

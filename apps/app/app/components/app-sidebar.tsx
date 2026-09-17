@@ -22,6 +22,7 @@ import {
 	SidebarFooter,
 	SidebarHeader,
 	SidebarMenuButton,
+	useSidebar,
 } from '@repo/ui/sidebar'
 import { UserIcon } from '@repo/ui/user-icon'
 import { UserRoundPlusIcon } from '@repo/ui/user-round-plus'
@@ -615,8 +616,15 @@ export function AppSidebar({
 	const [isFeedbackModalOpen, setIsFeedbackModalOpen] = React.useState(false)
 	const [commandOpen, setCommandOpen] = React.useState(false)
 	const direction = useDirection()
+	const { isMobile, setOpenMobile } = useSidebar()
 
 	useGlobalHotkeys(setCommandOpen)
+
+	// On mobile the sidebar is an off-canvas sheet, so close it after every
+	// navigation instead of leaving it covering the page the user moved to.
+	React.useEffect(() => {
+		if (isMobile) setOpenMobile(false)
+	}, [location.key, isMobile, setOpenMobile])
 
 	const orgSlug =
 		rootData?.userOrganizations?.currentOrganization?.organization.slug
