@@ -620,11 +620,17 @@ export function AppSidebar({
 
 	useGlobalHotkeys(setCommandOpen)
 
-	// On mobile the sidebar is an off-canvas sheet, so close it after every
-	// navigation instead of leaving it covering the page the user moved to.
-	React.useEffect(() => {
-		if (isMobile) setOpenMobile(false)
-	}, [location.key, isMobile, setOpenMobile])
+	// On mobile the sidebar is an off-canvas sheet, so close it from the click
+	// that navigates instead of leaving it covering the page the user moved to.
+	const handleSidebarClick = (event: React.MouseEvent<HTMLDivElement>) => {
+		if (!isMobile) return
+
+		const link = (event.target as Element | null)?.closest('a[href]')
+		// Links that open a new tab do not change the page.
+		if (!link || link.getAttribute('target') === '_blank') return
+
+		setOpenMobile(false)
+	}
 
 	const orgSlug =
 		rootData?.userOrganizations?.currentOrganization?.organization.slug
@@ -667,7 +673,7 @@ export function AppSidebar({
 					isOpen={isFeedbackModalOpen}
 					onOpenChange={setIsFeedbackModalOpen}
 				/>
-				<div className="relative h-full">
+				<div className="relative h-full" onClick={handleSidebarClick}>
 					{/* Account Sidebar */}
 					<motion.div
 						initial={{
