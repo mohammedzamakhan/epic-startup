@@ -28,7 +28,7 @@ const APPS = {
 	'tenant-api': { dir: 'apps/tenant-api', format: 'jsonc' },
 	web: { dir: 'apps/web', format: 'toml' },
 	sites: { dir: 'apps/sites', format: 'toml' },
-	docs: { dir: 'apps/docs', format: 'jsonc' },
+	docs: { dir: 'apps/docs', format: 'json' },
 }
 
 function parseArgs(argv) {

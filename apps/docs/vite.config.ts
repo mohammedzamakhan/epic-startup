@@ -3,13 +3,13 @@ import { holocron } from '@holocron.so/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  plugins: [
-    holocron(),
-    cloudflare({
-      viteEnvironment: {
-        name: 'rsc',
-        childEnvironments: ['ssr'],
-      },
-    }),
-  ],
+	plugins: [
+		holocron(),
+		cloudflare({
+			viteEnvironment: {
+				name: 'rsc',
+				childEnvironments: ['ssr'],
+			},
+		}),
+	],
 })

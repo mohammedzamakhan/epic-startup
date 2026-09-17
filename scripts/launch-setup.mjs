@@ -1295,6 +1295,7 @@ async function main() {
 	const tenantKsa = `https://tenant-ksa.${apex}`
 	const publicAppUrl = appUrl
 	const jobsCronUrl = `https://jobs.${apex}`
+	const docsUrl = `https://docs.${apex}`
 	const localDomain = readConfiguredLocalDomain()
 	const localAppUrl = `https://app.${localDomain}:2999`
 	const localAdminUrl = `https://admin.${localDomain}:2999`
@@ -1383,9 +1384,9 @@ async function main() {
 		tenant_api_url: tenantUs,
 		tenant_api_url_ksa: tenantKsa,
 		jobs_cron_worker_url: jobsCronUrl,
-		docs_url: '',
+		docs_url: docsUrl,
 		...stagingHostnames(apex),
-		docs_url_staging: '',
+		docs_url_staging: docsUrl.replace(`docs.`, `docs-staging.`),
 	}
 	log(`\nJobs cron URL: ${jobsCronUrl}`, 'gray')
 	log(

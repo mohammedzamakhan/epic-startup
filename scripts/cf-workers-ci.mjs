@@ -112,7 +112,7 @@ const APPS = {
 		turboFilter: 'docs',
 		deploy: {
 			cwd: 'apps/docs',
-			config: 'wrangler.json',
+			config: 'wrangler.deploy.jsonc',
 			wranglerEmptyEnv: true,
 		},
 	},
