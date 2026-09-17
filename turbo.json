@@ -104,8 +104,9 @@
 			"cache": false,
 			"persistent": true
 		},
-		"build:docs": {
-			"outputs": [".mintlify/doc-build/**"],
+		"docs#build": {
+			"dependsOn": ["^build"],
+			"outputs": ["dist/**"],
 			"cache": true
 		},
 		"test:e2e:install": {

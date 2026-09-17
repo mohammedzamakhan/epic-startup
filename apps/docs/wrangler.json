@@ -1,0 +1,6 @@
+{
+  "name": "docs",
+  "main": "spiceflow/cloudflare-entrypoint",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"]
+}

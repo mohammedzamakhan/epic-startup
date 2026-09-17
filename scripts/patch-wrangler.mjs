@@ -28,6 +28,7 @@ const APPS = {
 	'tenant-api': { dir: 'apps/tenant-api', format: 'jsonc' },
 	web: { dir: 'apps/web', format: 'toml' },
 	sites: { dir: 'apps/sites', format: 'toml' },
+	docs: { dir: 'apps/docs', format: 'jsonc' },
 }
 
 function parseArgs(argv) {
@@ -192,6 +193,22 @@ function patchRoutesForApp(appKey, deployEnv, target, launchConfig, patches) {
 			buildZoneRoutes([hostnameFromUrl(url)], rootApp),
 			patches,
 			'admin',
+		)
+		return
+	}
+
+	if (appKey === 'docs') {
+		const url = readPlatformUrl(
+			[`DOCS_URL${suffix}`, 'DOCS_URL'],
+			[isStaging ? 'urls.docs_url_staging' : null, 'urls.docs_url'],
+			launchConfig,
+			isStaging ? stagingDefaults.docs_url_staging : undefined,
+		)
+		applyZoneRoutes(
+			target,
+			buildZoneRoutes([hostnameFromUrl(url)], rootApp),
+			patches,
+			'docs',
 		)
 		return
 	}
@@ -613,6 +630,14 @@ function applyTargetPatches(
 				)
 			}
 		}
+	}
+
+	if (appKey === 'docs') {
+		patch(
+			'name',
+			[`DOCS_WORKER_NAME${suffix}`, 'DOCS_WORKER_NAME'],
+			`bindings.${targetEnv === 'staging' ? 'staging' : 'production'}.docs.worker_name`,
+		)
 	}
 
 	if (appKey === 'jobs-cron') {

@@ -107,6 +107,15 @@ const APPS = {
 			wranglerStagingEnv: true,
 		},
 	},
+	docs: {
+		patchApp: 'docs',
+		turboFilter: 'docs',
+		deploy: {
+			cwd: 'apps/docs',
+			config: 'wrangler.json',
+			wranglerEmptyEnv: true,
+		},
+	},
 }
 
 function parseArgs(argv) {

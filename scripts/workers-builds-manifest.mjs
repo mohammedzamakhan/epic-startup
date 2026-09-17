@@ -62,4 +62,10 @@ export const WORKERS_BUILDS_MANIFEST = [
 			...SHARED_WATCH_PATHS,
 		],
 	},
+	{
+		app: 'docs',
+		bindingKey: 'docs',
+		triggerVar: 'CF_BUILD_TRIGGER_DOCS',
+		watchPaths: ['apps/docs/**', ...SHARED_WATCH_PATHS],
+	},
 ]
