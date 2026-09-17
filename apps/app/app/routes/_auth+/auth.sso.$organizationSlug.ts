@@ -162,7 +162,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 				? error.message
 				: 'Unknown error during SSO initiation',
 		)
-		const response = await handleSSOError(ssoError)
+		const response = await handleSSOError(ssoError, '/login', request)
 		throw response
 	}
 }

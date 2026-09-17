@@ -94,7 +94,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 				callbackData.error,
 				callbackData.error_description,
 			)
-			throw await handleSSOError(oauthError)
+			throw await handleSSOError(oauthError, '/login', request)
 		}
 
 		if (!callbackData.code) {
@@ -103,7 +103,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 				SSOErrorType.INVALID_CALLBACK,
 				'No authorization code received from identity provider',
 			)
-			throw await handleSSOError(error)
+			throw await handleSSOError(error, '/login', request)
 		}
 
 		const redirectTo = getRedirectCookieValue(request)
@@ -290,7 +290,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 				? error.message
 				: 'Unexpected error during SSO callback',
 		)
-		throw await handleSSOError(ssoError)
+		throw await handleSSOError(ssoError, '/login', request)
 	}
 }
 
