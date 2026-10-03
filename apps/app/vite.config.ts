@@ -6,7 +6,7 @@ import { reactRouter } from '@react-router/dev/vite'
 import { getLocalDomain } from '@repo/config/brand'
 import tailwindcss from '@tailwindcss/vite'
 import { varlockVitePlugin } from '@varlock/vite-integration'
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, searchForWorkspaceRoot, type Plugin } from 'vite'
 import { envOnlyMacros } from 'vite-env-only'
 import macrosPlugin from 'vite-plugin-babel-macros'
 
@@ -142,7 +142,10 @@ export default defineConfig((config) => ({
 			ignored: ['**/playwright-report/**', '**/node_modules/.vite-temp/**'],
 		},
 		fs: {
-			allow: ['..'],
+			// Workspace packages (`@repo/*`, e.g. icon sprites in `packages/ui`) live
+			// outside `apps/app`; Vite 8 denies serving them unless the monorepo root
+			// is allowed.
+			allow: [searchForWorkspaceRoot(appDir)],
 		},
 		hmr: {
 			host: 'localhost',
