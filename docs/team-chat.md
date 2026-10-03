@@ -12,8 +12,14 @@ third-party chat service.
 - Channels with realtime messages and history (paged, newest first)
 - Threads (one level of replies), edit and delete, emoji reactions
 - Unread counts, typing indicators, online presence
+- **Direct messages** between any two active members (no extra permission)
+- **Group chats** for members with `create:chat:group` (admins by default); any
+  member can invite others; the creator can let new members read earlier history
+  or only messages from after they joined
 
 ## Access model
+
+### Team channels
 
 Two channel types, set by an admin under **Settings → Chat channels**:
 
@@ -37,6 +43,17 @@ Rules that are easy to get wrong:
 The permission is `org_perm_update_chat_any` (`update:chat:any`), granted to the
 built-in admin role and available to custom roles under **Roles → Team chat**.
 
+### DMs and groups
+
+| Kind    | Who can open it | Admin visibility        |
+| ------- | --------------- | ----------------------- |
+| `dm`    | The two members | No — private to them    |
+| `group` | Listed members  | No — private to members |
+
+Group creation uses `org_perm_create_chat_group` (`create:chat:group`). DMs are
+created from **New message** on the chat page (`findOrCreateDirectMessage` in
+`conversations.server.ts`).
+
 ## Architecture
 
 ```
@@ -59,7 +76,8 @@ Browser ──WebSocket──▶ App Worker (/:orgSlug/chat/ws)
   so chat volume doesn't load the control plane.
 - **One WebSocket per tab** carries every channel. The hibernation API means an
   idle room costs nothing.
-- Message bodies are plain text and rendered as text (never as HTML).
+- Message bodies are stored as **Markdown** (same direction as notes). Rendering
+  must sanitize output (no raw HTML injection).
 
 ### Revoking access
 
@@ -136,6 +154,9 @@ migration `0015_team_chat_channels` adds the channel tables and the permission.
 
 ## Not included (yet)
 
-- Direct messages, file attachments, message search
-- A global unread badge in the sidebar (unread shows inside the chat page)
-- Retention policies: messages are kept until the channel is deleted
+- Rich composer (mentions, emoji, image upload) wired like notes
+- File attachments (R2), full-text search in the Durable Object
+- A global unread badge in the app sidebar (unread shows inside the chat page)
+
+**Retention:** per-organization setting under **Settings → Chat** (30 / 90 / 365
+days or forever). The `ChatOrg` alarm prunes old rows in the DO SQLite store.
