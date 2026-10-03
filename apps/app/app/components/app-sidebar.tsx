@@ -233,6 +233,7 @@ function OrganizationSidebar({
 	const canReadWebsite = hasOrgPermission('read', 'website')
 	const mailboxUnreadCount = useMailboxUnreadCount(orgSlug, canReadWebsite)
 	const mailboxUnreadLabelCount = mailboxUnreadCount ?? 0
+	const canManageChat = hasOrgPermission('update', 'chat')
 	const canReadAnnouncements = hasOrgPermission('read', 'announcement')
 	const canReadCampaigns = hasOrgPermission('read', 'campaign')
 	const canReadAutomations = hasOrgPermission('read', 'automation')
@@ -301,6 +302,12 @@ function OrganizationSidebar({
 					? mailboxUnreadCount
 					: undefined,
 			badgeLabel: _(msg`${mailboxUnreadLabelCount} unread`),
+		},
+		{
+			title: _(msg`Team chat`),
+			url: `/${orgSlug}/chat`,
+			isActive: location.pathname === `/${orgSlug}/chat`,
+			icon: MessageSquareMoreIcon,
 		},
 		{
 			title: _(msg`Marketing`),
@@ -406,6 +413,15 @@ function OrganizationSidebar({
 								title: _(msg`Roles & access`),
 								url: `/${orgSlug}/settings/roles`,
 								isActive: location.pathname === `/${orgSlug}/settings/roles`,
+							},
+						]
+					: []),
+				...(canManageChat
+					? [
+							{
+								title: _(msg`Chat channels`),
+								url: `/${orgSlug}/settings/chat`,
+								isActive: location.pathname === `/${orgSlug}/settings/chat`,
 							},
 						]
 					: []),
