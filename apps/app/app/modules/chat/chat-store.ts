@@ -1,0 +1,449 @@
+import {
+	CHAT_LIMITS,
+	type ChatHistoryResult,
+	type ChatMessage,
+	type ChatPerson,
+	type ChatReaction,
+	type ChatUnread,
+} from '@repo/common/chat'
+
+/**
+ * The slice of Durable Object SQLite (`ctx.storage.sql`) the store needs. Kept
+ * structural so unit tests can back it with `node:sqlite`.
+ */
+export type ChatSql = {
+	exec: (
+		query: string,
+		...bindings: unknown[]
+	) => { toArray(): Record<string, unknown>[] }
+}
+
+export class ChatStoreError extends Error {
+	constructor(
+		readonly code: 'not_found' | 'conflict',
+		message: string,
+	) {
+		super(message)
+		this.name = 'ChatStoreError'
+	}
+}
+
+type MessageRow = {
+	id: number
+	channel_id: string
+	parent_id: number | null
+	author_id: string
+	body: string
+	created_at: number
+	edited_at: number | null
+	deleted_at: number | null
+}
+
+/** Durable Object SQL allows at most 100 bound parameters per statement. */
+const BIND_CHUNK = 90
+
+function chunk<T>(values: T[], size = BIND_CHUNK) {
+	const chunks: T[][] = []
+	for (let index = 0; index < values.length; index += size) {
+		chunks.push(values.slice(index, index + size))
+	}
+	return chunks
+}
+
+const placeholders = (count: number) => new Array(count).fill('?').join(',')
+
+export class ChatStore {
+	constructor(private readonly sql: ChatSql) {}
+
+	private all<T>(query: string, ...bindings: unknown[]) {
+		return this.sql.exec(query, ...bindings).toArray() as T[]
+	}
+
+	private run(query: string, ...bindings: unknown[]) {
+		this.sql.exec(query, ...bindings).toArray()
+	}
+
+	migrate() {
+		this.run(
+			`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+		)
+		this.run(
+			`CREATE TABLE IF NOT EXISTS people (
+				id TEXT PRIMARY KEY,
+				name TEXT NOT NULL,
+				image TEXT,
+				updated_at INTEGER NOT NULL
+			)`,
+		)
+		this.run(
+			`CREATE TABLE IF NOT EXISTS messages (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				channel_id TEXT NOT NULL,
+				parent_id INTEGER,
+				author_id TEXT NOT NULL,
+				body TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				edited_at INTEGER,
+				deleted_at INTEGER
+			)`,
+		)
+		this.run(
+			`CREATE INDEX IF NOT EXISTS messages_channel_top
+				ON messages (channel_id, id) WHERE parent_id IS NULL`,
+		)
+		this.run(
+			`CREATE INDEX IF NOT EXISTS messages_channel_all ON messages (channel_id, id)`,
+		)
+		this.run(
+			`CREATE INDEX IF NOT EXISTS messages_parent
+				ON messages (parent_id, id) WHERE parent_id IS NOT NULL`,
+		)
+		this.run(
+			`CREATE TABLE IF NOT EXISTS reactions (
+				message_id INTEGER NOT NULL,
+				user_id TEXT NOT NULL,
+				emoji TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				PRIMARY KEY (message_id, user_id, emoji)
+			)`,
+		)
+		this.run(
+			`CREATE TABLE IF NOT EXISTS reads (
+				channel_id TEXT NOT NULL,
+				user_id TEXT NOT NULL,
+				last_read_id INTEGER NOT NULL,
+				PRIMARY KEY (channel_id, user_id)
+			)`,
+		)
+	}
+
+	getMeta(key: string) {
+		return (
+			this.all<{ value: string }>(
+				`SELECT value FROM meta WHERE key = ?`,
+				key,
+			)[0]?.value ?? null
+		)
+	}
+
+	setMeta(key: string, value: string) {
+		this.run(
+			`INSERT INTO meta (key, value) VALUES (?, ?)
+				ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+			key,
+			value,
+		)
+	}
+
+	upsertPerson(person: ChatPerson, now: number) {
+		this.run(
+			`INSERT INTO people (id, name, image, updated_at) VALUES (?, ?, ?, ?)
+				ON CONFLICT (id) DO UPDATE SET
+					name = excluded.name,
+					image = excluded.image,
+					updated_at = excluded.updated_at`,
+			person.id,
+			person.name,
+			person.image,
+			now,
+		)
+	}
+
+	getPeople(ids: string[]): ChatPerson[] {
+		const unique = [...new Set(ids)]
+		return chunk(unique).flatMap((part) =>
+			this.all<ChatPerson>(
+				`SELECT id, name, image FROM people WHERE id IN (${placeholders(part.length)})`,
+				...part,
+			),
+		)
+	}
+
+	private hydrate(rows: MessageRow[]): ChatMessage[] {
+		if (rows.length === 0) return []
+		const ids = rows.map((row) => row.id)
+		const replies = new Map<number, { count: number; last: number | null }>()
+		const reactions = new Map<number, Map<string, string[]>>()
+
+		for (const part of chunk(ids)) {
+			for (const row of this.all<{
+				parent_id: number
+				count: number
+				last: number | null
+			}>(
+				`SELECT parent_id, COUNT(*) AS count, MAX(created_at) AS last
+					FROM messages
+					WHERE parent_id IN (${placeholders(part.length)}) AND deleted_at IS NULL
+					GROUP BY parent_id`,
+				...part,
+			)) {
+				replies.set(row.parent_id, { count: row.count, last: row.last })
+			}
+			for (const row of this.all<{
+				message_id: number
+				emoji: string
+				user_id: string
+			}>(
+				`SELECT message_id, emoji, user_id FROM reactions
+					WHERE message_id IN (${placeholders(part.length)})
+					ORDER BY created_at, rowid`,
+				...part,
+			)) {
+				const byEmoji =
+					reactions.get(row.message_id) ?? new Map<string, string[]>()
+				byEmoji.set(row.emoji, [...(byEmoji.get(row.emoji) ?? []), row.user_id])
+				reactions.set(row.message_id, byEmoji)
+			}
+		}
+
+		return rows.map((row) => {
+			const thread = replies.get(row.id)
+			const byEmoji = reactions.get(row.id)
+			return {
+				id: row.id,
+				channel: row.channel_id,
+				parent: row.parent_id,
+				author: row.author_id,
+				body: row.deleted_at === null ? row.body : '',
+				createdAt: row.created_at,
+				editedAt: row.edited_at,
+				deleted: row.deleted_at !== null,
+				replyCount: thread?.count ?? 0,
+				lastReplyAt: thread?.last ?? null,
+				reactions: byEmoji
+					? [...byEmoji].map(([emoji, userIds]) => ({ emoji, userIds }))
+					: [],
+			}
+		})
+	}
+
+	getMessage(id: number): ChatMessage | null {
+		const [row] = this.all<MessageRow>(
+			`SELECT * FROM messages WHERE id = ?`,
+			id,
+		)
+		return row ? (this.hydrate([row])[0] ?? null) : null
+	}
+
+	addMessage(input: {
+		channel: string
+		author: string
+		body: string
+		parent?: number
+		now: number
+	}): ChatMessage {
+		if (input.parent !== undefined) {
+			const parent = this.getMessage(input.parent)
+			if (!parent || parent.channel !== input.channel) {
+				throw new ChatStoreError('not_found', 'The message was not found.')
+			}
+			if (parent.parent !== null) {
+				throw new ChatStoreError(
+					'conflict',
+					'Replies can only be added to top-level messages.',
+				)
+			}
+			if (parent.deleted) {
+				throw new ChatStoreError(
+					'conflict',
+					'You cannot reply to a deleted message.',
+				)
+			}
+		}
+		const [{ id }] = this.all<{ id: number }>(
+			`INSERT INTO messages (channel_id, parent_id, author_id, body, created_at)
+				VALUES (?, ?, ?, ?, ?) RETURNING id`,
+			input.channel,
+			input.parent ?? null,
+			input.author,
+			input.body,
+			input.now,
+		) as [{ id: number }]
+		return this.getMessage(id)!
+	}
+
+	updateBody(id: number, body: string, now: number) {
+		this.run(
+			`UPDATE messages SET body = ?, edited_at = ? WHERE id = ? AND deleted_at IS NULL`,
+			body,
+			now,
+			id,
+		)
+		return this.getMessage(id)
+	}
+
+	softDelete(id: number, now: number) {
+		this.run(
+			`UPDATE messages SET body = '', deleted_at = ? WHERE id = ? AND deleted_at IS NULL`,
+			now,
+			id,
+		)
+		this.run(`DELETE FROM reactions WHERE message_id = ?`, id)
+		return this.getMessage(id)
+	}
+
+	history(
+		channel: string,
+		options: { before?: number; limit?: number } = {},
+	): ChatHistoryResult {
+		const limit = Math.min(
+			options.limit ?? CHAT_LIMITS.historyPage,
+			CHAT_LIMITS.historyPageMax,
+		)
+		const rows =
+			options.before === undefined
+				? this.all<MessageRow>(
+						`SELECT * FROM messages
+							WHERE channel_id = ? AND parent_id IS NULL
+							ORDER BY id DESC LIMIT ?`,
+						channel,
+						limit + 1,
+					)
+				: this.all<MessageRow>(
+						`SELECT * FROM messages
+							WHERE channel_id = ? AND parent_id IS NULL AND id < ?
+							ORDER BY id DESC LIMIT ?`,
+						channel,
+						options.before,
+						limit + 1,
+					)
+		const hasMore = rows.length > limit
+		const page = rows.slice(0, limit).reverse()
+		const messages = this.hydrate(page)
+		return {
+			messages,
+			hasMore,
+			people: this.getPeople(messages.map((message) => message.author)),
+		}
+	}
+
+	thread(channel: string, parentId: number) {
+		const parent = this.getMessage(parentId)
+		if (!parent || parent.channel !== channel || parent.parent !== null) {
+			return null
+		}
+		const rows = this.all<MessageRow>(
+			`SELECT * FROM (
+				SELECT * FROM messages
+				WHERE parent_id = ? ORDER BY id DESC LIMIT ?
+			) ORDER BY id ASC`,
+			parentId,
+			CHAT_LIMITS.threadRepliesMax,
+		)
+		const replies = this.hydrate(rows)
+		return {
+			parent,
+			replies,
+			people: this.getPeople([
+				parent.author,
+				...replies.map((reply) => reply.author),
+			]),
+		}
+	}
+
+	toggleReaction(
+		messageId: number,
+		userId: string,
+		emoji: string,
+		now: number,
+	) {
+		const existing = this.all(
+			`SELECT 1 FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?`,
+			messageId,
+			userId,
+			emoji,
+		)
+		if (existing.length > 0) {
+			this.run(
+				`DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?`,
+				messageId,
+				userId,
+				emoji,
+			)
+		} else {
+			const [{ emojiCount }] = this.all<{ emojiCount: number }>(
+				`SELECT COUNT(DISTINCT emoji) AS emojiCount FROM reactions WHERE message_id = ?`,
+				messageId,
+			) as [{ emojiCount: number }]
+			const emojiAlreadyUsed =
+				this.all(
+					`SELECT 1 FROM reactions WHERE message_id = ? AND emoji = ? LIMIT 1`,
+					messageId,
+					emoji,
+				).length > 0
+			if (!emojiAlreadyUsed && emojiCount >= CHAT_LIMITS.reactionsPerMessage) {
+				throw new ChatStoreError(
+					'conflict',
+					'This message already has the maximum number of different reactions.',
+				)
+			}
+			this.run(
+				`INSERT INTO reactions (message_id, user_id, emoji, created_at) VALUES (?, ?, ?, ?)`,
+				messageId,
+				userId,
+				emoji,
+				now,
+			)
+		}
+		return this.getMessage(messageId)?.reactions ?? ([] as ChatReaction[])
+	}
+
+	markRead(channel: string, userId: string, upTo: number) {
+		const [latest] = this.all<{ latest: number | null }>(
+			`SELECT MAX(id) AS latest FROM messages WHERE channel_id = ?`,
+			channel,
+		)
+		const target = Math.min(upTo, latest?.latest ?? 0)
+		if (target <= 0) return
+		this.run(
+			`INSERT INTO reads (channel_id, user_id, last_read_id) VALUES (?, ?, ?)
+				ON CONFLICT (channel_id, user_id) DO UPDATE SET
+					last_read_id = MAX(last_read_id, excluded.last_read_id)`,
+			channel,
+			userId,
+			target,
+		)
+	}
+
+	unread(channels: string[], userId: string): ChatUnread[] {
+		return [...new Set(channels)].map((channel) => {
+			const [row] = this.all<{
+				unread: number
+				last_read_id: number
+				latest_id: number
+			}>(
+				`SELECT
+					(SELECT COUNT(*) FROM messages
+						WHERE channel_id = ? AND deleted_at IS NULL AND author_id != ?
+						AND id > COALESCE((SELECT last_read_id FROM reads
+							WHERE channel_id = ? AND user_id = ?), 0)) AS unread,
+					COALESCE((SELECT last_read_id FROM reads
+						WHERE channel_id = ? AND user_id = ?), 0) AS last_read_id,
+					COALESCE((SELECT MAX(id) FROM messages WHERE channel_id = ?), 0) AS latest_id`,
+				channel,
+				userId,
+				channel,
+				userId,
+				channel,
+				userId,
+				channel,
+			)
+			return {
+				channel,
+				unread: row?.unread ?? 0,
+				lastReadId: row?.last_read_id ?? 0,
+				latestId: row?.latest_id ?? 0,
+			}
+		})
+	}
+
+	deleteChannel(channel: string) {
+		this.run(
+			`DELETE FROM reactions WHERE message_id IN
+				(SELECT id FROM messages WHERE channel_id = ?)`,
+			channel,
+		)
+		this.run(`DELETE FROM reads WHERE channel_id = ?`, channel)
+		this.run(`DELETE FROM messages WHERE channel_id = ?`, channel)
+	}
+}
