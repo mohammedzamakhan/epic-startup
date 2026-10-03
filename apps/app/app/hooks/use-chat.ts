@@ -55,7 +55,7 @@ export type UseChatOptions = {
 export type ChatApi = {
 	state: ChatState
 	loadHistory(channel: string, before?: number): Promise<void>
-	openThread(channel: string, parent: number): Promise<void>
+	openThread(channel: string, parent: number, before?: number): Promise<void>
 	send(channel: string, body: string, parent?: number): Promise<ChatMessage>
 	edit(message: number, body: string): Promise<void>
 	remove(message: number): Promise<void>
@@ -275,13 +275,18 @@ export function useChat({
 	)
 
 	const openThread = useCallback(
-		async (channel: string, parent: number) => {
+		async (channel: string, parent: number, before?: number) => {
 			const result = await request<ChatThreadResult>({
 				t: 'thread',
 				channel,
 				parent,
+				before,
 			})
-			dispatch({ type: 'thread', result })
+			dispatch({
+				type: 'thread',
+				result,
+				mode: before ? 'prepend' : 'replace',
+			})
 		},
 		[request],
 	)

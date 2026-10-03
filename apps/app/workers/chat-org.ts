@@ -147,7 +147,13 @@ export class ChatOrg extends DurableObject<Env> {
 
 		const conn = this.connectionFor(server)!
 		this.engine.open(conn, { id: userId, name, image })
+		void this.scheduleRetentionAlarm()
 		return new Response(null, { status: 101, webSocket: client })
+	}
+
+	async alarm() {
+		await this.runRetentionPrune()
+		await this.ctx.storage.setAlarm(Date.now() + 24 * 60 * 60 * 1000)
 	}
 
 	async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer) {
@@ -194,6 +200,28 @@ export class ChatOrg extends DurableObject<Env> {
 
 	deleteChannel(channelId: string) {
 		this.engine.deleteChannel(channelId)
+	}
+
+	async runRetentionPrune() {
+		if (!this.orgId) return 0
+		await this.prepare()
+		const { db, eq, Organization } = await import('@repo/database')
+		const [row] = await db
+			.select({ days: Organization.chatRetentionDays })
+			.from(Organization)
+			.where(eq(Organization.id, this.orgId))
+			.limit(1)
+		const days = row?.days
+		if (!days || days <= 0) return 0
+		const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+		return this.store.pruneMessagesBefore(cutoff)
+	}
+
+	private async scheduleRetentionAlarm() {
+		const existing = await this.ctx.storage.getAlarm()
+		if (!existing) {
+			await this.ctx.storage.setAlarm(Date.now() + 60_000)
+		}
 	}
 }
 

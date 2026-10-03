@@ -21,6 +21,7 @@ export type ChatOrgControl = {
 	invalidate(): Promise<void>
 	channelsChanged(): Promise<void>
 	deleteChannel(channelId: string): Promise<void>
+	runRetentionPrune(): Promise<number>
 }
 
 export type ChatOrgStub = ChatOrgControl & {

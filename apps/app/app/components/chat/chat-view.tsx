@@ -63,6 +63,7 @@ export function ChatView({
 
 	const [historyError, setHistoryError] = useState<string | null>(null)
 	const [loadingOlder, setLoadingOlder] = useState(false)
+	const [loadingEarlierReplies, setLoadingEarlierReplies] = useState(false)
 	const [thread, setThread] = useState<{
 		channel: string
 		parent: number
@@ -147,9 +148,10 @@ export function ChatView({
 	)
 	const firstTypingName = typingNames[0] ?? ''
 	const activeName = active?.name ?? ''
-	const threadReplyCount = thread
+	const threadLoadedReplies = thread
 		? (state.threads[thread.parent] ?? []).length
 		: 0
+	const threadMore = thread ? (state.threadMore[thread.parent] ?? false) : false
 
 	// ── actions ────────────────────────────────────────────────────────────
 	const fail = (cause: unknown) =>
@@ -205,6 +207,28 @@ export function ChatView({
 			)
 		: undefined
 	const threadReplies = thread ? (state.threads[thread.parent] ?? []) : []
+	// The parent's server-side count covers replies that are not loaded yet.
+	const threadTotalReplies = Math.max(
+		threadParent?.replyCount ?? 0,
+		threadLoadedReplies,
+	)
+
+	async function loadEarlierReplies() {
+		const first = threadReplies[0]
+		if (!thread || !first || loadingEarlierReplies) return
+		setLoadingEarlierReplies(true)
+		try {
+			await chat.openThread(thread.channel, thread.parent, first.id)
+		} catch (cause) {
+			toast.error(
+				cause instanceof Error
+					? cause.message
+					: _(msg`Could not load replies.`),
+			)
+		} finally {
+			setLoadingEarlierReplies(false)
+		}
+	}
 	const messages = view?.messages ?? []
 
 	return (
@@ -407,12 +431,25 @@ export function ChatView({
 						) : null}
 						<div className="text-muted-foreground px-4 py-2 text-xs">
 							{_(
-								plural(threadReplyCount, {
+								plural(threadTotalReplies, {
 									one: '# reply',
 									other: '# replies',
 								}),
 							)}
 						</div>
+						{threadMore ? (
+							<div className="flex justify-center pb-2">
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={loadingEarlierReplies}
+									onClick={() => void loadEarlierReplies()}
+								>
+									{loadingEarlierReplies ? <Spinner /> : null}
+									<Trans>Load earlier replies</Trans>
+								</Button>
+							</div>
+						) : null}
 						{threadReplies.map((reply, index) => {
 							const previous = threadReplies[index - 1]
 							return (

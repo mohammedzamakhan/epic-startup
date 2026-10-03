@@ -2405,6 +2405,8 @@ export const Organization = sqliteTable(
 		googleTagManagerId: text(),
 		googleAnalyticsId: text(),
 		tiktokPixelId: text(),
+		/** Team chat message retention in days; null keeps messages forever. */
+		chatRetentionDays: integer(),
 	},
 	(table) => [
 		uniqueIndex('Organization_customDomain_key').on(table.customDomain),

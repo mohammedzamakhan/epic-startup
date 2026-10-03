@@ -15,11 +15,14 @@ export const CHAT_LIMITS = {
 	descriptionMax: 280,
 	historyPage: 50,
 	historyPageMax: 100,
-	threadRepliesMax: 200,
+	threadPage: 50,
+	threadPageMax: 100,
 	syncChannelsMax: 200,
 	emojiMax: 32,
 	reactionsPerMessage: 20,
 	frameBytesMax: 16 * 1024,
+	/** Collapse message bodies longer than this in the UI. */
+	collapseBodyAt: 600,
 	/** Distinct explicit members + roles on one channel. */
 	audienceEntriesMax: 500,
 } as const
@@ -54,6 +57,9 @@ export const chatClientFrameSchema = z.discriminatedUnion('t', [
 		id: requestId,
 		channel: channelId,
 		parent: messageId,
+		/** Return replies older than this id (pages upward through the thread). */
+		before: messageId.optional(),
+		limit: z.number().int().min(1).max(CHAT_LIMITS.threadPageMax).optional(),
 	}),
 	z.object({
 		t: z.literal('send'),
@@ -173,8 +179,11 @@ export type ChatHistoryResult = {
 
 export type ChatThreadResult = {
 	parent: ChatMessage
+	/** One page of replies, oldest first. The newest page is returned first. */
 	replies: ChatMessage[]
 	people: ChatPerson[]
+	/** Older replies exist beyond this page. */
+	hasMore: boolean
 }
 
 /** What a tenant admin submits when creating or editing a channel. */

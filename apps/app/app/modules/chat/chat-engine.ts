@@ -50,6 +50,7 @@ export type ChatEngineDeps = {
 
 const MAX_CONNECTIONS_PER_USER = 8
 const MUTATION_LIMIT = { windowMs: 10_000, max: 30 }
+const READ_LIMIT = { windowMs: 10_000, max: 120 }
 const TYPING_MIN_INTERVAL_MS = 2_000
 
 type AudienceEntry = { users: Set<string>; at: number }
@@ -58,6 +59,10 @@ type ModeratorEntry = { value: boolean; at: number }
 export class ChatEngine {
 	private readonly audiences = new Map<string, AudienceEntry>()
 	private readonly mutationWindows = new Map<
+		string,
+		{ start: number; count: number }
+	>()
+	private readonly readWindows = new Map<
 		string,
 		{ start: number; count: number }
 	>()
@@ -173,12 +178,52 @@ export class ChatEngine {
 			case 'typing':
 				return this.onTyping(conn, frame.channel)
 			case 'sync':
+				if (this.readRateLimited(conn.userId)) {
+					return this.sendTo(
+						conn,
+						this.fail(
+							frame.id,
+							'rate_limited',
+							'You are requesting data too fast.',
+						),
+					)
+				}
 				return this.onSync(conn, frame.id, frame.channels)
 			case 'history':
+				if (this.readRateLimited(conn.userId)) {
+					return this.sendTo(
+						conn,
+						this.fail(
+							frame.id,
+							'rate_limited',
+							'You are requesting data too fast.',
+						),
+					)
+				}
 				return this.onHistory(conn, frame)
 			case 'thread':
+				if (this.readRateLimited(conn.userId)) {
+					return this.sendTo(
+						conn,
+						this.fail(
+							frame.id,
+							'rate_limited',
+							'You are requesting data too fast.',
+						),
+					)
+				}
 				return this.onThread(conn, frame)
 			case 'read':
+				if (this.readRateLimited(conn.userId)) {
+					return this.sendTo(
+						conn,
+						this.fail(
+							frame.id,
+							'rate_limited',
+							'You are requesting data too fast.',
+						),
+					)
+				}
 				return this.onRead(conn, frame)
 			case 'send':
 			case 'edit':
@@ -233,7 +278,10 @@ export class ChatEngine {
 		if (!(await this.canAccess(conn, frame.channel))) {
 			return this.deny(conn, frame.id)
 		}
-		const thread = this.store.thread(frame.channel, frame.parent)
+		const thread = this.store.thread(frame.channel, frame.parent, {
+			before: frame.before,
+			limit: frame.limit,
+		})
 		if (!thread) {
 			this.sendTo(
 				conn,
@@ -550,21 +598,42 @@ export class ChatEngine {
 	}
 
 	private rateLimited(userId: string) {
+		return this.inWindow(
+			this.mutationWindows,
+			userId,
+			MUTATION_LIMIT.windowMs,
+			MUTATION_LIMIT.max,
+		)
+	}
+
+	private readRateLimited(userId: string) {
+		return this.inWindow(
+			this.readWindows,
+			userId,
+			READ_LIMIT.windowMs,
+			READ_LIMIT.max,
+		)
+	}
+
+	private inWindow(
+		windows: Map<string, { start: number; count: number }>,
+		userId: string,
+		windowMs: number,
+		max: number,
+	) {
 		const now = this.now()
-		const window = this.mutationWindows.get(userId)
-		if (!window || now - window.start > MUTATION_LIMIT.windowMs) {
-			this.mutationWindows.set(userId, { start: now, count: 1 })
-			if (this.mutationWindows.size > 2000) {
-				for (const [key, value] of this.mutationWindows) {
-					if (now - value.start > MUTATION_LIMIT.windowMs) {
-						this.mutationWindows.delete(key)
-					}
+		const window = windows.get(userId)
+		if (!window || now - window.start > windowMs) {
+			windows.set(userId, { start: now, count: 1 })
+			if (windows.size > 2000) {
+				for (const [key, value] of windows) {
+					if (now - value.start > windowMs) windows.delete(key)
 				}
 			}
 			return false
 		}
 		window.count += 1
-		return window.count > MUTATION_LIMIT.max
+		return window.count > max
 	}
 
 	private pruneTyping(now: number) {

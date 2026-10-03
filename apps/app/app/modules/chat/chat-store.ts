@@ -317,23 +317,42 @@ export class ChatStore {
 		}
 	}
 
-	thread(channel: string, parentId: number) {
+	thread(
+		channel: string,
+		parentId: number,
+		options: { before?: number; limit?: number } = {},
+	) {
 		const parent = this.getMessage(parentId)
 		if (!parent || parent.channel !== channel || parent.parent !== null) {
 			return null
 		}
-		const rows = this.all<MessageRow>(
-			`SELECT * FROM (
-				SELECT * FROM messages
-				WHERE parent_id = ? ORDER BY id DESC LIMIT ?
-			) ORDER BY id ASC`,
-			parentId,
-			CHAT_LIMITS.threadRepliesMax,
+		const limit = Math.min(
+			options.limit ?? CHAT_LIMITS.threadPage,
+			CHAT_LIMITS.threadPageMax,
 		)
+		// Newest page first; the client keeps paging upward with `before`.
+		const newestFirst =
+			options.before === undefined
+				? this.all<MessageRow>(
+						`SELECT * FROM messages WHERE parent_id = ?
+							ORDER BY id DESC LIMIT ?`,
+						parentId,
+						limit + 1,
+					)
+				: this.all<MessageRow>(
+						`SELECT * FROM messages WHERE parent_id = ? AND id < ?
+							ORDER BY id DESC LIMIT ?`,
+						parentId,
+						options.before,
+						limit + 1,
+					)
+		const hasMore = newestFirst.length > limit
+		const rows = newestFirst.slice(0, limit).reverse()
 		const replies = this.hydrate(rows)
 		return {
 			parent,
 			replies,
+			hasMore,
 			people: this.getPeople([
 				parent.author,
 				...replies.map((reply) => reply.author),
@@ -435,6 +454,24 @@ export class ChatStore {
 				latestId: row?.latest_id ?? 0,
 			}
 		})
+	}
+
+	/** Deletes messages (and reactions) with `created_at` before `cutoffMs`. */
+	pruneMessagesBefore(cutoffMs: number): number {
+		const ids = this.all<{ id: number }>(
+			`SELECT id FROM messages WHERE created_at < ?`,
+			cutoffMs,
+		).map((row) => row.id)
+		if (ids.length === 0) return 0
+		for (const part of chunk(ids)) {
+			const placeholders = part.map(() => '?').join(', ')
+			this.run(
+				`DELETE FROM reactions WHERE message_id IN (${placeholders})`,
+				...part,
+			)
+			this.run(`DELETE FROM messages WHERE id IN (${placeholders})`, ...part)
+		}
+		return ids.length
 	}
 
 	deleteChannel(channel: string) {

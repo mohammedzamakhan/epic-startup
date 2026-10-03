@@ -34,6 +34,8 @@ export type ChatState = {
 	channels: Record<string, ChannelView>
 	/** Thread replies by parent message id, oldest first. */
 	threads: Record<number, ChatMessage[]>
+	/** Older replies exist on the server for this thread. */
+	threadMore: Record<number, boolean>
 }
 
 export type ChatAction =
@@ -52,7 +54,12 @@ export type ChatAction =
 			/** `replace` for the first/refresh load, `prepend` for older pages. */
 			mode: 'replace' | 'prepend'
 	  }
-	| { type: 'thread'; result: ChatThreadResult }
+	| {
+			type: 'thread'
+			result: ChatThreadResult
+			/** `replace` when opening a thread, `prepend` when paging upward. */
+			mode: 'replace' | 'prepend'
+	  }
 	| { type: 'sync'; unread: ChatUnread[] }
 	| { type: 'read'; channel: string }
 	| { type: 'forget-channel'; channel: string }
@@ -64,6 +71,7 @@ export const initialChatState: ChatState = {
 	people: {},
 	channels: {},
 	threads: {},
+	threadMore: {},
 }
 
 function emptyChannel(): ChannelView {
@@ -146,12 +154,28 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 		}
 
 		case 'thread': {
-			const { parent, replies, people } = action.result
+			const { parent, replies, people, hasMore } = action.result
 			const view = channelOf(state, parent.channel)
 			return {
 				...state,
 				people: mergePeople(state.people, people),
-				threads: { ...state.threads, [parent.id]: replies },
+				threads: {
+					...state.threads,
+					[parent.id]:
+						action.mode === 'prepend'
+							? mergePages(replies, state.threads[parent.id] ?? [])
+							: // Opening refreshes the newest page but keeps anything newer
+								// that arrived over the socket while the request was in flight.
+								mergePages(
+									replies,
+									(state.threads[parent.id] ?? []).filter(
+										(reply) =>
+											reply.id >
+											(replies.at(-1)?.id ?? Number.MAX_SAFE_INTEGER),
+									),
+								),
+				},
+				threadMore: { ...state.threadMore, [parent.id]: hasMore },
 				channels: {
 					...state.channels,
 					[parent.channel]: {

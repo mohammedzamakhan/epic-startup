@@ -36,7 +36,7 @@ msgstr "المساعد الذكي"
 msgid "(${annualPrice} billed annually per user)"
 msgstr "(${annualPrice} يُفوتر سنوياً لكل مستخدم)"
 
-#: app/components/chat/chat-message.tsx:169
+#: app/components/chat/chat-message.tsx:91
 msgid "(edited)"
 msgstr "(تم التعديل)"
 
@@ -116,6 +116,10 @@ msgstr "{choiceCount, plural, zero {لا توجد خيارات} one {خيار و
 msgid "{clientName} is requesting access to your organization data"
 msgstr "{clientName} يطلب الوصول إلى بيانات منظمتك"
 
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:312
+msgid "{days} days"
+msgstr "{days} يومًا"
+
 #: app/components/ui/notification-bell.tsx:61
 msgid "{days}d ago"
 msgstr "منذ {days} يوم"
@@ -140,7 +144,7 @@ msgstr "{field}"
 msgid "{first}, {second}, +{remainingCount} more"
 msgstr "{first}، {second}، +{remainingCount} أخرى"
 
-#: app/components/chat/chat-view.tsx:359
+#: app/components/chat/chat-view.tsx:383
 msgid "{firstTypingName} is typing…"
 msgstr "{firstTypingName} يكتب…"
 
@@ -160,7 +164,7 @@ msgstr "{journeyName} (نسخة)"
 msgid "{mailboxUnreadLabelCount} unread"
 msgstr "عدد غير المقروء: {mailboxUnreadLabelCount}"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:167
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:250
 msgid "{memberCount, plural, one {# person} other {# people}}"
 msgstr "{memberCount, plural, zero {لا يوجد أشخاص} one {شخص واحد} two {شخصان} few {# أشخاص} many {# شخصاً} other {# شخص}}"
 
@@ -209,7 +213,7 @@ msgstr "{remainingMinutes, plural, zero {متبقي # دقيقة} one {متبق�
 #~ msgid "{remainingMinutes, plural, one {expires in # minute} other {expires in # minutes}}"
 #~ msgstr "{remainingMinutes, plural, zero {تنتهي الصلاحية خلال # دقيقة} one {تنتهي الصلاحية خلال دقيقة واحدة} two {تنتهي الصلاحية خلال دقيقتين} few {تنتهي الصلاحية خلال # دقائق} many {تنتهي الصلاحية خلال # دقيقة} other {تنتهي الصلاحية خلال # دقيقة}}"
 
-#: app/components/chat/chat-message.tsx:102
+#: app/components/chat/chat-message.tsx:136
 msgid "{replyCount, plural, one {# reply} other {# replies}}"
 msgstr "{replyCount, plural, zero {لا توجد ردود} one {رد واحد} two {ردان} few {# ردود} many {# رداً} other {# رد}}"
 
@@ -221,7 +225,7 @@ msgstr "{runsCount} تشغيل"
 msgid "{seconds}s ago"
 msgstr "منذ {seconds} ثانية"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:487
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:637
 msgid "{selectedRoleCount} roles and {selectedMemberCount} people selected"
 msgstr "تم تحديد {selectedRoleCount} من الأدوار و{selectedMemberCount} من الأشخاص"
 
@@ -234,8 +238,12 @@ msgid "{stepCount} steps"
 msgstr "{stepCount} خطوات"
 
 #: app/components/chat/chat-view.tsx:410
-msgid "{threadReplyCount, plural, one {# reply} other {# replies}}"
-msgstr "{threadReplyCount, plural, zero {لا توجد ردود} one {رد واحد} two {ردان} few {# ردود} many {# رداً} other {# رد}}"
+#~ msgid "{threadReplyCount, plural, one {# reply} other {# replies}}"
+#~ msgstr "{threadReplyCount, plural, zero {لا توجد ردود} one {رد واحد} two {ردان} few {# ردود} many {# رداً} other {# رد}}"
+
+#: app/components/chat/chat-view.tsx:434
+msgid "{threadTotalReplies, plural, one {# reply} other {# replies}}"
+msgstr "{threadTotalReplies, plural, one {رد واحد} other {# ردود}}"
 
 #: app/routes/_app+/$orgSlug_+/mailbox.tsx:286
 msgid "{total} submissions"
@@ -253,7 +261,7 @@ msgstr "{trend}٪"
 msgid "{unit}"
 msgstr "{unit}"
 
-#: app/components/chat/chat-view.tsx:241
+#: app/components/chat/chat-view.tsx:265
 msgid "{unread} unread"
 msgstr "{unread} غير مقروءة"
 
@@ -612,7 +620,7 @@ msgstr "إضافة صورة أو فيديو"
 msgid "Add question"
 msgstr "إضافة سؤال"
 
-#: app/components/chat/chat-message.tsx:233
+#: app/components/chat/chat-message.tsx:260
 msgid "Add reaction"
 msgstr "إضافة تفاعل"
 
@@ -755,7 +763,7 @@ msgstr "جميع الميزات الأساسية مضمنة"
 msgid "All customer automation workflows orchestrated durably by Cloudflare Workflows and executed by the regional data engine."
 msgstr "جميع سير عمل أتمتة العملاء تُنسَّق بشكل دائم عبر Cloudflare Workflows وتُنفَّذ بواسطة محرك البيانات الإقليمي."
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:547
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:697
 msgid "All messages in this channel are permanently deleted for everyone. This can't be undone."
 msgstr "ستُحذف جميع الرسائل في هذه القناة نهائياً للجميع. لا يمكن التراجع عن هذا الإجراء."
 
@@ -1220,8 +1228,8 @@ msgstr "يمكنه تعديل ملاحظات الزملاء"
 #: ../../packages/marketing/src/components/campaign-form.tsx:165
 #: ../../packages/marketing/src/components/email/add-email-block-dialog.tsx:132
 #: ../../packages/marketing/src/components/email/email-design-overlay.tsx:162
-#: app/components/chat/chat-message.tsx:358
-#: app/components/chat/chat-view.tsx:524
+#: app/components/chat/chat-message.tsx:385
+#: app/components/chat/chat-view.tsx:561
 #: app/components/core/feedback-modal.tsx:109
 #: app/components/form-actions.tsx:28
 #: app/components/media-library/media-library-picker.tsx:342
@@ -1248,8 +1256,8 @@ msgstr "يمكنه تعديل ملاحظات الزملاء"
 #: app/routes/_app+/$orgSlug_+/notes-kanban-board.tsx:864
 #: app/routes/_app+/$orgSlug_+/notes-kanban-board.tsx:920
 #: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1079
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:507
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:560
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:657
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:710
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:499
 #: app/routes/_app+/$orgSlug_+/website+/pages._index.tsx:498
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:1768
@@ -1340,12 +1348,12 @@ msgstr "تغيير هذا الرابط سيؤدي إلى تعطيل الرواب
 msgid "Channel"
 msgstr "القناة"
 
-#: app/components/chat/chat-view.tsx:213
+#: app/components/chat/chat-view.tsx:237
 msgid "Channels"
 msgstr "القنوات"
 
 #: app/components/app-sidebar.tsx:422
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:195
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:345
 msgid "Chat channels"
 msgstr "قنوات الدردشة"
 
@@ -1406,6 +1414,10 @@ msgstr "اختر ملفاً..."
 #: app/components/media-library/media-library-picker.tsx:195
 msgid "Choose from library"
 msgstr "اختر من المكتبة"
+
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:304
+msgid "Choose retention"
+msgstr "اختر مدة الاحتفاظ"
 
 #: app/components/settings/cards/organization/site-locales-card.tsx:162
 msgid "Choose which languages your public website supports, and which one visitors see by default."
@@ -1483,7 +1495,7 @@ msgstr "إغلاق"
 msgid "Close email design"
 msgstr "إغلاق تصميم البريد"
 
-#: app/components/chat/chat-view.tsx:386
+#: app/components/chat/chat-view.tsx:410
 msgid "Close thread"
 msgstr "إغلاق سلسلة الردود"
 
@@ -1695,11 +1707,11 @@ msgstr "النموذج المرتبط"
 msgid "Connected on {createdAtDate}"
 msgstr "متصل في {createdAtDate}"
 
-#: app/components/chat/chat-view.tsx:488
+#: app/components/chat/chat-view.tsx:525
 msgid "Connecting…"
 msgstr "جارٍ الاتصال…"
 
-#: app/components/chat/chat-view.tsx:486
+#: app/components/chat/chat-view.tsx:523
 msgid "Connection lost. Reconnecting…"
 msgstr "انقطع الاتصال. جارٍ إعادة الاتصال…"
 
@@ -1829,12 +1841,16 @@ msgstr "الزوايا"
 msgid "Could not create a draft. Try again."
 msgstr "تعذّر إنشاء المسودة. حاول مرة أخرى."
 
-#: app/components/chat/chat-view.tsx:83
-#: app/components/chat/chat-view.tsx:129
+#: app/components/chat/chat-view.tsx:84
+#: app/components/chat/chat-view.tsx:130
 msgid "Could not load messages."
 msgstr "تعذّر تحميل الرسائل."
 
-#: app/components/chat/chat-message.tsx:318
+#: app/components/chat/chat-view.tsx:226
+msgid "Could not load replies."
+msgstr "تعذّر تحميل الردود."
+
+#: app/components/chat/chat-message.tsx:345
 msgid "Could not send message."
 msgstr "تعذّر إرسال الرسالة."
 
@@ -1855,11 +1871,11 @@ msgstr "تعذر فتح {routeTitle}"
 msgid "Create"
 msgstr "إنشاء"
 
-#: app/components/chat/chat-view.tsx:194
+#: app/components/chat/chat-view.tsx:196
 msgid "Create a channel"
 msgstr "إنشاء قناة"
 
-#: app/components/chat/chat-view.tsx:179
+#: app/components/chat/chat-view.tsx:181
 msgid "Create a channel to start talking with your team. You can limit a channel to certain roles or people."
 msgstr "أنشئ قناة لبدء التواصل مع فريقك. يمكنك قصر القناة على أدوار أو أشخاص معيّنين."
 
@@ -1951,11 +1967,11 @@ msgstr "إنشاء بث"
 msgid "Create bullet points"
 msgstr "إنشاء نقاط تعداد"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:513
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:663
 msgid "Create channel"
 msgstr "إنشاء القناة"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:198
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:348
 msgid "Create channels for your team and choose which roles or people can read and post in them."
 msgstr "أنشئ قنوات لفريقك وحدّد الأدوار أو الأشخاص الذين يمكنهم القراءة والنشر فيها."
 
@@ -2279,7 +2295,7 @@ msgstr "يجب أن تكون مدة التأخير 1 على الأقل."
 msgid "Delay unit is required."
 msgstr "وحدة التأخير مطلوبة."
 
-#: app/components/chat/chat-view.tsx:532
+#: app/components/chat/chat-view.tsx:569
 #: app/components/note/comment-item.tsx:239
 #: app/components/roles/tenant-role-access-manager.tsx:832
 #: app/components/roles/tenant-role-access-manager.tsx:942
@@ -2288,7 +2304,7 @@ msgstr "وحدة التأخير مطلوبة."
 #: app/routes/_app+/$orgSlug_+/media.tsx:1591
 #: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1033
 #: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1091
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:251
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:401
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:476
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:513
 #: app/routes/_app+/$orgSlug_+/website+/pages._index.tsx:473
@@ -2299,7 +2315,7 @@ msgstr "وحدة التأخير مطلوبة."
 msgid "Delete"
 msgstr "حذف"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:544
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:694
 msgid "Delete {channelName}?"
 msgstr "حذف {channelName}؟"
 
@@ -2323,7 +2339,7 @@ msgstr "هل تريد حذف الإعلان؟"
 msgid "Delete card"
 msgstr "حذف البطاقة"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:572
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:722
 msgid "Delete channel"
 msgstr "حذف القناة"
 
@@ -2367,11 +2383,11 @@ msgstr "حذف الرابط"
 msgid "Delete log entry"
 msgstr "حذف إدخال السجل"
 
-#: app/components/chat/chat-message.tsx:266
+#: app/components/chat/chat-message.tsx:293
 msgid "Delete message"
 msgstr "حذف الرسالة"
 
-#: app/components/chat/chat-view.tsx:513
+#: app/components/chat/chat-view.tsx:550
 msgid "Delete message?"
 msgstr "حذف الرسالة؟"
 
@@ -2442,7 +2458,7 @@ msgstr "صِف هذه الصورة لتحسين إمكانية الوصول"
 #: app/components/settings/cards/organization/shop-card.tsx:268
 #: app/components/website/create-form-dialog.tsx:124
 #: app/components/website/form-builder-sidebar.tsx:683
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:376
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:526
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:3730
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:4040
 #: app/routes/organizations+/create.tsx:798
@@ -2699,7 +2715,7 @@ msgstr "مثل: Claude Desktop، Kiro IDE"
 #: app/components/roles/tenant-role-access-manager.tsx:822
 #: app/routes/_app+/$orgSlug_+/notes-table.tsx:92
 #: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:976
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:244
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:394
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:469
 #: app/routes/_app+/$orgSlug_+/website+/pages._index.tsx:430
 #: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:976
@@ -2710,7 +2726,7 @@ msgstr "تعديل"
 msgid "Edit announcement"
 msgstr "تعديل الإعلان"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:326
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:476
 msgid "Edit channel"
 msgstr "تعديل القناة"
 
@@ -2736,7 +2752,7 @@ msgstr "تعديل التصميم"
 msgid "Edit image"
 msgstr "تعديل الصورة"
 
-#: app/components/chat/chat-message.tsx:255
+#: app/components/chat/chat-message.tsx:282
 msgid "Edit message"
 msgstr "تعديل الرسالة"
 
@@ -2935,19 +2951,19 @@ msgstr "سير عمل قائم على الأحداث"
 msgid "Event-driven workflows with triggers, delays, and actions."
 msgstr "سير عمل قائم على الأحداث مع محفّزات وتأخيرات وإجراءات."
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:405
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:555
 msgid "Every active member can read and post."
 msgstr "يمكن لكل عضو نشط القراءة والنشر."
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:225
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:375
 msgid "Everyone"
 msgstr "الجميع"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:416
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:566
 msgid "Everyone else won't see that it exists."
 msgstr "لن يرى الآخرون أن القناة موجودة."
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:402
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:552
 msgid "Everyone on the team"
 msgstr "جميع أعضاء الفريق"
 
@@ -3236,7 +3252,7 @@ msgstr "ردود النماذج"
 msgid "Format:"
 msgstr "التنسيق:"
 
-#: app/components/chat/chat-message.tsx:142
+#: app/components/chat/chat-message.tsx:176
 msgid "Former member"
 msgstr "عضو سابق"
 
@@ -3760,6 +3776,10 @@ msgstr "الإبقاء على المنطقة الحالية"
 msgid "Keep editing"
 msgstr "متابعة التعديل"
 
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:308
+msgid "Keep forever"
+msgstr "الاحتفاظ دائمًا"
+
 #: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1367
 msgid "Keeps original indexing"
 msgstr "يحافظ على الفهرسة الأصلية"
@@ -3923,7 +3943,11 @@ msgstr "عنوان الرابط"
 msgid "Live"
 msgstr "مباشر"
 
-#: app/components/chat/chat-view.tsx:316
+#: app/components/chat/chat-view.tsx:449
+msgid "Load earlier replies"
+msgstr "تحميل ردود أقدم"
+
+#: app/components/chat/chat-view.tsx:340
 msgid "Load older messages"
 msgstr "تحميل الرسائل الأقدم"
 
@@ -3947,7 +3971,7 @@ msgstr "جاري تحميل القنوات..."
 msgid "Loading media…"
 msgstr "جارٍ تحميل الوسائط…"
 
-#: app/components/chat/chat-view.tsx:303
+#: app/components/chat/chat-view.tsx:327
 msgid "Loading messages…"
 msgstr "جارٍ تحميل الرسائل…"
 
@@ -4058,7 +4082,7 @@ msgstr "إدارة الأتمتة"
 msgid "Manage broadcasts"
 msgstr "إدارة البثّات"
 
-#: app/components/chat/chat-view.tsx:253
+#: app/components/chat/chat-view.tsx:277
 msgid "Manage channels"
 msgstr "إدارة القنوات"
 
@@ -4244,12 +4268,12 @@ msgstr "الأعضاء والدعوات"
 
 #: ../../packages/marketing/src/components/campaign-detail.tsx:88
 #: ../../packages/marketing/src/components/campaign-form.tsx:118
-#: app/components/chat/chat-message.tsx:347
+#: app/components/chat/chat-message.tsx:374
 #: app/routes/_app+/$orgSlug_+/mailbox.tsx:534
 msgid "Message"
 msgstr "الرسالة"
 
-#: app/components/chat/chat-view.tsx:363
+#: app/components/chat/chat-view.tsx:387
 msgid "Message #{activeName}"
 msgstr "رسالة في #{activeName}"
 
@@ -4257,7 +4281,11 @@ msgstr "رسالة في #{activeName}"
 msgid "Message content is required"
 msgstr "محتوى الرسالة مطلوب"
 
-#: app/components/chat/chat-view.tsx:280
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:272
+msgid "Message retention"
+msgstr "الاحتفاظ بالرسائل"
+
+#: app/components/chat/chat-view.tsx:304
 msgid "Messages"
 msgstr "الرسائل"
 
@@ -4334,7 +4362,7 @@ msgstr "بدون صوت"
 #: app/components/settings/cards/profile-card.tsx:97
 #: app/components/website/create-form-dialog.tsx:85
 #: app/components/website/form-builder-sidebar.tsx:673
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:356
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:506
 #: app/routes/_app+/$orgSlug_+/website+/forms.tsx:197
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:4338
 #: app/routes/organizations+/create.tsx:715
@@ -4389,8 +4417,8 @@ msgstr "أتمتة جديدة"
 msgid "New broadcast"
 msgstr "بث جديد"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:205
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:326
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:355
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:476
 msgid "New channel"
 msgstr "قناة جديدة"
 
@@ -4509,11 +4537,11 @@ msgstr "لا توجد حملات بعد."
 msgid "No channels available"
 msgstr "لا توجد قنوات متاحة"
 
-#: app/components/chat/chat-view.tsx:175
+#: app/components/chat/chat-view.tsx:177
 msgid "No channels yet"
 msgstr "لا توجد قنوات بعد"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:211
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:361
 msgid "No channels yet. Create the first one."
 msgstr "لا توجد قنوات بعد. أنشئ أول قناة."
 
@@ -4593,7 +4621,7 @@ msgstr "لا توجد وسائط حتى الآن. قم بتحميل صورة ل�
 msgid "No members found."
 msgstr "لم يتم العثور على أعضاء."
 
-#: app/components/chat/chat-view.tsx:322
+#: app/components/chat/chat-view.tsx:346
 msgid "No messages yet. Say hello!"
 msgstr "لا توجد رسائل بعد. ابدأ بالترحيب!"
 
@@ -4619,7 +4647,7 @@ msgstr "لم يتم العثور على ملاحظات."
 msgid "No notes match your search for \"{searchValue}\". Try a different search term or create a new note."
 msgstr "لا توجد ملاحظات تطابق بحثك عن \"{searchValue}\". جرب مصطلح بحث مختلف أو أنشئ ملاحظة جديدة."
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:464
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:614
 msgid "No one matches your search."
 msgstr "لا يوجد أحد يطابق بحثك."
 
@@ -4809,6 +4837,10 @@ msgstr "المسار القديم (المصدر)"
 msgid "Old URL (Source)"
 msgstr "عنوان URL القديم (المصدر)"
 
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:275
+msgid "Older team chat messages are removed automatically from your organization's chat room. Direct messages and groups (when enabled) follow the same policy."
+msgstr "تُزال رسائل الدردشة الجماعية الأقدم تلقائيًا من غرفة الدردشة في مؤسستك. الرسائل المباشرة والمجموعات (عند تفعيلها) تتبع نفس السياسة."
+
 #: app/components/onboarding-checklist.tsx:139
 #: app/components/onboarding-checklist.tsx:199
 msgid "Onboarding progress"
@@ -4842,7 +4874,7 @@ msgstr "رابط كلمة المرور لمرة واحدة"
 msgid "Only selected members can access this note"
 msgstr "يمكن للأعضاء المحددين فقط الوصول إلى هذه الملاحظة"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:413
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:563
 msgid "Only selected roles and people"
 msgstr "الأدوار والأشخاص المحددون فقط"
 
@@ -5144,7 +5176,7 @@ msgstr "قيد الانتظار"
 msgid "Pending Invitations"
 msgstr "الدعوات المعلقة"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:452
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:602
 msgid "People"
 msgstr "الأشخاص"
 
@@ -5531,7 +5563,7 @@ msgstr "اقتباس"
 msgid "Rating"
 msgstr "التقييم"
 
-#: app/components/chat/chat-message.tsx:219
+#: app/components/chat/chat-message.tsx:246
 msgid "React with {emoji}"
 msgstr "التفاعل بـ {emoji}"
 
@@ -5767,11 +5799,11 @@ msgstr "استبدال الصورة"
 msgid "Reply"
 msgstr "رد"
 
-#: app/components/chat/chat-message.tsx:244
+#: app/components/chat/chat-message.tsx:271
 msgid "Reply in thread"
 msgstr "الرد في سلسلة الردود"
 
-#: app/components/chat/chat-view.tsx:442
+#: app/components/chat/chat-view.tsx:479
 msgid "Reply…"
 msgstr "رد…"
 
@@ -5851,17 +5883,21 @@ msgstr "الردود"
 msgid "Responses to your website forms will arrive here."
 msgstr "ستصل ردود نماذج موقعك إلى هنا."
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:226
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:376
 msgid "Restricted"
 msgstr "مقيّدة"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:329
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:479
 msgid "Restricted channels are visible only to the roles and people you choose. Being an admin does not grant access on its own."
 msgstr "القنوات المقيّدة مرئية فقط للأدوار والأشخاص الذين تختارهم. كونك مسؤولاً لا يمنحك الوصول وحده."
 
 #: ../../packages/ai/src/components/ai-elements/tool.tsx:149
 msgid "Result"
 msgstr "النتيجة"
+
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:284
+msgid "Retention period"
+msgstr "مدة الاحتفاظ"
 
 #: ../../packages/ai/src/components/ai-elements/prompt-input.tsx:171
 msgid "Retry"
@@ -5924,7 +5960,7 @@ msgstr "الدور"
 msgid "Role name"
 msgstr "اسم الدور"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:427
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:577
 msgid "Roles"
 msgstr "الأدوار"
 
@@ -6045,7 +6081,7 @@ msgstr "المملكة العربية السعودية (KSA)"
 
 #: ../../packages/marketing/src/components/email/email-design-overlay.tsx:170
 #: ../../packages/marketing/src/components/email/merge-tag-field.tsx:347
-#: app/components/chat/chat-message.tsx:156
+#: app/components/chat/chat-message.tsx:190
 #: app/components/note/comment-input.tsx:192
 #: app/components/organization-members.tsx:129
 #: app/components/settings/cards/organization/s3-storage-card.tsx:441
@@ -6077,7 +6113,7 @@ msgstr "حفظ العلامة التجارية"
 #: app/components/settings/cards/profile-card.tsx:192
 #: app/routes/_app+/$orgSlug_+/media.tsx:1958
 #: app/routes/_app+/$orgSlug_+/notes-cards.tsx:414
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:511
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:661
 #: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1433
 msgid "Save changes"
 msgstr "حفظ التغييرات"
@@ -6213,8 +6249,8 @@ msgstr "البحث في الملاحظات..."
 msgid "Search pages..."
 msgstr "البحث في الصفحات..."
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:457
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:458
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:607
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:608
 msgid "Search people"
 msgstr "البحث عن أشخاص"
 
@@ -6298,7 +6334,7 @@ msgstr "عرض سجل حملات البريد الإلكتروني ورسائل 
 msgid "See teammate names, emails, and assigned roles."
 msgstr "عرض أسماء الزملاء ورسائلهم الإلكترونية والأدوار المعيّنة."
 
-#: app/components/chat/chat-view.tsx:291
+#: app/components/chat/chat-view.tsx:315
 msgid "Select a channel to start."
 msgstr "اختر قناة للبدء."
 
@@ -6421,7 +6457,7 @@ msgid "Send invitations to join the organization workspace."
 msgstr "إرسال دعوات للانضمام إلى مساحة عمل المنظمة."
 
 #: ../../packages/ai/src/components/ai-elements/prompt-input.tsx:161
-#: app/components/chat/chat-message.tsx:365
+#: app/components/chat/chat-message.tsx:392
 msgid "Send message"
 msgstr "إرسال رسالة"
 
@@ -6515,7 +6551,7 @@ msgstr "الإعداد غير مكتمل"
 msgid "Setup key"
 msgstr "مفتاح الإعداد"
 
-#: app/components/chat/chat-view.tsx:360
+#: app/components/chat/chat-view.tsx:384
 msgid "Several people are typing…"
 msgstr "عدة أشخاص يكتبون…"
 
@@ -6568,9 +6604,17 @@ msgstr "قصير"
 msgid "Show form title"
 msgstr "إظهار عنوان النموذج"
 
+#: app/components/chat/chat-message.tsx:86
+msgid "Show less"
+msgstr "عرض أقل"
+
 #: ../../packages/ai/src/components/ai-chat.tsx:87
 #~ msgid "Show me features"
 #~ msgstr "أرني الميزات"
+
+#: app/components/chat/chat-message.tsx:86
+msgid "Show more"
+msgstr "عرض المزيد"
 
 #: app/components/settings/cards/organization/shop-card.tsx:309
 msgid "Show product on your public site"
@@ -6734,11 +6778,11 @@ msgstr "بعض الحقول تختلف بالفعل عن اللغة الافتر
 msgid "Some fields are already translated"
 msgstr "بعض الحقول مترجمة بالفعل"
 
-#: app/components/chat/chat-view.tsx:146
+#: app/components/chat/chat-view.tsx:147
 msgid "Someone"
 msgstr "شخص ما"
 
-#: app/components/chat/chat-view.tsx:157
+#: app/components/chat/chat-view.tsx:159
 msgid "Something went wrong."
 msgstr "حدث خطأ ما."
 
@@ -7228,11 +7272,11 @@ msgstr "هذه هي جلستك الحالية. سجل الخروج لإنهائ�
 msgid "This is your organization's unique MCP server endpoint. Use this URL when configuring your AI client."
 msgstr "هذه هي نقطة نهاية خادم MCP الفريدة لمنظمتك. استخدم هذا الرابط عند تكوين عميل الذكاء الاصطناعي."
 
-#: app/components/chat/chat-message.tsx:108
+#: app/components/chat/chat-message.tsx:142
 msgid "This message was deleted."
 msgstr "تم حذف هذه الرسالة."
 
-#: app/components/chat/chat-view.tsx:516
+#: app/components/chat/chat-view.tsx:553
 msgid "This removes the message for everyone in the channel. This can't be undone."
 msgstr "سيؤدي هذا إلى إزالة الرسالة للجميع في القناة. لا يمكن التراجع عن هذا الإجراء."
 
@@ -7268,8 +7312,8 @@ msgstr "سيؤدي هذا إلى:"
 msgid "Thought for {duration} seconds"
 msgstr "فكّر لمدة {duration} ثانية"
 
-#: app/components/chat/chat-view.tsx:376
-#: app/components/chat/chat-view.tsx:381
+#: app/components/chat/chat-view.tsx:400
+#: app/components/chat/chat-view.tsx:405
 msgid "Thread"
 msgstr "سلسلة الردود"
 
@@ -7417,7 +7461,7 @@ msgid "Try adjusting your search or filter."
 msgstr "جرّب تعديل البحث أو الفلتر."
 
 #: app/components/ai/global-ai-panel.tsx:86
-#: app/components/chat/chat-view.tsx:297
+#: app/components/chat/chat-view.tsx:321
 #: app/routes/_app+/$orgSlug_+/mailbox.tsx:326
 msgid "Try again"
 msgstr "حاول مرة أخرى"
@@ -7483,7 +7527,7 @@ msgstr "خطأ غير معروف"
 msgid "Unknown intent"
 msgstr "نية غير معروفة"
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:165
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:248
 msgid "Unknown role"
 msgstr "دور غير معروف"
 
@@ -8029,7 +8073,7 @@ msgstr "عندما يطلب الزوار أو محركات البحث عنوان
 msgid "When you get notifications, they'll show up here."
 msgstr "عند وصول الإشعارات، ستظهر هنا."
 
-#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:389
+#: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:539
 msgid "Who can access this channel?"
 msgstr "من يمكنه الوصول إلى هذه القناة؟"
 
@@ -8136,7 +8180,7 @@ msgstr "يمكنك إلغاء هذا الوصول في أي وقت من صفحة
 msgid "You do not have permission to view this note"
 msgstr "ليس لديك إذن لعرض هذه الملاحظة"
 
-#: app/components/chat/chat-view.tsx:184
+#: app/components/chat/chat-view.tsx:186
 msgid "You don't have access to any channels yet. Ask an admin to add you to one."
 msgstr "ليس لديك حق الوصول إلى أي قناة بعد. اطلب من أحد المسؤولين إضافتك إلى قناة."
 
@@ -8159,7 +8203,7 @@ msgstr "لم تنضم إلى أي منظمات بعد."
 msgid "You must agree to the terms of service and privacy policy"
 msgstr "يجب أن توافق على شروط الخدمة وسياسة الخصوصية"
 
-#: app/components/chat/chat-view.tsx:481
+#: app/components/chat/chat-view.tsx:518
 msgid "You no longer have access to this chat. Reload the page to check your channels."
 msgstr "لم يعد لديك حق الوصول إلى هذه الدردشة. أعد تحميل الصفحة للتحقق من قنواتك."
 

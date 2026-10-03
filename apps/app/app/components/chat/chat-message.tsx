@@ -61,6 +61,39 @@ export function formatMessageTime(timestamp: number, locale: string) {
 	}).format(date)
 }
 
+function MessageBody({ message }: { message: ChatMessage }) {
+	const { _ } = useLingui()
+	const [expanded, setExpanded] = useState(false)
+	const limit = CHAT_LIMITS.collapseBodyAt
+	const needsCollapse = !message.deleted && message.body.length > limit
+	const body =
+		needsCollapse && !expanded
+			? `${message.body.slice(0, limit)}…`
+			: message.body
+
+	return (
+		<div className="text-sm break-words whitespace-pre-wrap">
+			<p>{body}</p>
+			{needsCollapse ? (
+				<Button
+					type="button"
+					variant="link"
+					size="sm"
+					className="h-auto p-0 text-xs"
+					onClick={() => setExpanded((value) => !value)}
+				>
+					{expanded ? <Trans>Show less</Trans> : <Trans>Show more</Trans>}
+				</Button>
+			) : null}
+			{message.editedAt ? (
+				<span className="text-muted-foreground ms-1 text-xs">
+					{_(msg`(edited)`)}
+				</span>
+			) : null}
+		</div>
+	)
+}
+
 export type MessageItemProps = {
 	message: ChatMessage
 	people: Record<string, ChatPerson>
@@ -162,14 +195,7 @@ export function MessageItem({
 						}}
 					/>
 				) : (
-					<p className="text-sm break-words whitespace-pre-wrap">
-						{message.body}
-						{message.editedAt ? (
-							<span className="text-muted-foreground ms-1 text-xs">
-								{_(msg`(edited)`)}
-							</span>
-						) : null}
-					</p>
+					<MessageBody message={message} />
 				)}
 
 				{message.reactions.length > 0 ? (

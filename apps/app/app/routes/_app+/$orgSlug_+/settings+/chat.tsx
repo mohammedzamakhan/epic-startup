@@ -19,6 +19,13 @@ import {
 import { Input } from '@repo/ui/input'
 import { Label } from '@repo/ui/label'
 import { RadioGroup, RadioGroupItem } from '@repo/ui/radio-group'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@repo/ui/select'
 import { Textarea } from '@repo/ui/textarea'
 import { useEffect, useState } from 'react'
 import {
@@ -28,6 +35,7 @@ import {
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 } from 'react-router'
+import { AuditAction, auditService } from '@repo/audit'
 import { z } from 'zod'
 import {
 	ChatChannelError,
@@ -38,6 +46,12 @@ import {
 	updateChannel,
 } from '#app/utils/chat/channels.server.ts'
 import { notifyChat } from '#app/utils/chat/namespace.server.ts'
+import {
+	CHAT_RETENTION_DAY_OPTIONS,
+	getChatRetentionDays,
+	setChatRetentionDays,
+	type ChatRetentionDays,
+} from '#app/utils/chat/retention.server.ts'
 import { requireUserOrganization } from '#app/utils/organization/loader.server.ts'
 import {
 	ORG_PERMISSIONS,
@@ -64,25 +78,44 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 		organization.id,
 		ORG_PERMISSIONS.UPDATE_CHAT_ANY,
 	)
-	const [channels, roles, members] = await Promise.all([
+	const [channels, roles, members, retentionDays] = await Promise.all([
 		listChannelsForManager(organization.id),
 		listOrganizationRoles(organization.id),
 		listChatAssignableMembers(organization.id),
+		getChatRetentionDays(organization.id),
 	])
 	return data(
 		{
 			channels,
 			roles: roles.map((role) => ({ id: role.id, name: role.name })),
 			members,
+			retentionDays,
 		},
 		{ headers: { 'Cache-Control': 'private, no-store' } },
 	)
 }
 
-const intentSchema = z.object({
-	intent: z.enum(['save', 'delete']),
-	id: z.string().min(1).max(64).optional(),
-})
+const retentionDaysSchema = z.union([
+	z.null(),
+	z.literal(30),
+	z.literal(90),
+	z.literal(365),
+])
+
+const intentSchema = z.discriminatedUnion('intent', [
+	z.object({
+		intent: z.literal('save'),
+		id: z.string().min(1).max(64).optional(),
+	}),
+	z.object({
+		intent: z.literal('delete'),
+		id: z.string().min(1).max(64),
+	}),
+	z.object({
+		intent: z.literal('retention'),
+		days: retentionDaysSchema,
+	}),
+])
 
 export async function action({
 	request,
@@ -104,17 +137,43 @@ export async function action({
 	if (!parsedIntent.success) {
 		return { ok: false, error: 'Invalid request.' }
 	}
-	const { intent, id } = parsedIntent.data
 
 	try {
-		if (intent === 'delete') {
-			if (!id) return { ok: false, error: 'Choose a channel to delete.' }
-			await deleteChannel(organization.id, id)
-			// Wipes the room's copy of the messages and tells open tabs.
-			await notifyChat(organization.id, (room) => room.deleteChannel(id))
+		if (parsedIntent.data.intent === 'retention') {
+			const days = parsedIntent.data.days as ChatRetentionDays
+			await setChatRetentionDays(organization.id, days)
+			await notifyChat(organization.id, async (room) => {
+				await room.runRetentionPrune()
+			})
+			await auditService.log({
+				action: AuditAction.CHAT_RETENTION_UPDATED,
+				userId,
+				organizationId: organization.id,
+				details: days
+					? `Team chat retention set to ${days} days.`
+					: 'Team chat retention set to keep messages forever.',
+				request,
+			})
 			return { ok: true }
 		}
 
+		if (parsedIntent.data.intent === 'delete') {
+			const { id } = parsedIntent.data
+			await deleteChannel(organization.id, id)
+			await notifyChat(organization.id, (room) => room.deleteChannel(id))
+			await auditService.log({
+				action: AuditAction.CHAT_CHANNEL_DELETED,
+				userId,
+				organizationId: organization.id,
+				resourceType: 'chat_channel',
+				resourceId: id,
+				details: 'Chat channel deleted.',
+				request,
+			})
+			return { ok: true }
+		}
+
+		const { id } = parsedIntent.data
 		const parsed = chatChannelInputSchema.safeParse(body)
 		if (!parsed.success) {
 			const fieldErrors: NonNullable<
@@ -132,9 +191,33 @@ export async function action({
 			return { ok: false, fieldErrors }
 		}
 
-		if (id) await updateChannel(organization.id, id, parsed.data)
-		else await createChannel(organization.id, userId, parsed.data)
-		// Apply new rules immediately instead of waiting for the ~30s cache.
+		if (id) {
+			await updateChannel(organization.id, id, parsed.data)
+			await auditService.log({
+				action: AuditAction.CHAT_CHANNEL_UPDATED,
+				userId,
+				organizationId: organization.id,
+				resourceType: 'chat_channel',
+				resourceId: id,
+				details: `Chat channel "${parsed.data.name}" updated.`,
+				request,
+			})
+		} else {
+			const channelId = await createChannel(
+				organization.id,
+				userId,
+				parsed.data,
+			)
+			await auditService.log({
+				action: AuditAction.CHAT_CHANNEL_CREATED,
+				userId,
+				organizationId: organization.id,
+				resourceType: 'chat_channel',
+				resourceId: channelId,
+				details: `Chat channel "${parsed.data.name}" created.`,
+				request,
+			})
+		}
 		await notifyChat(organization.id, (room) => room.channelsChanged())
 		return { ok: true }
 	} catch (error) {
@@ -172,8 +255,70 @@ function AudienceSummary({
 	)
 }
 
+function RetentionSettings({
+	retentionDays,
+}: {
+	retentionDays: number | null
+}) {
+	const fetcher = useFetcher<ActionResult>()
+	const { _ } = useLingui()
+	const value = retentionDays === null ? 'forever' : String(retentionDays)
+	const pending = fetcher.state !== 'idle'
+
+	return (
+		<section className="flex flex-col gap-3 rounded-lg border p-4">
+			<div>
+				<h3 className="font-medium">
+					<Trans>Message retention</Trans>
+				</h3>
+				<p className="text-muted-foreground text-sm">
+					<Trans>
+						Older team chat messages are removed automatically from your
+						organization's chat room. Direct messages and groups (when enabled)
+						follow the same policy.
+					</Trans>
+				</p>
+			</div>
+			<div className="max-w-xs">
+				<Label className="sr-only">
+					<Trans>Retention period</Trans>
+				</Label>
+				<Select
+					value={value}
+					disabled={pending}
+					onValueChange={(next) => {
+						if (!next) return
+						void fetcher.submit(
+							{
+								intent: 'retention',
+								days: next === 'forever' ? null : Number.parseInt(next, 10),
+							},
+							{ method: 'POST', encType: 'application/json' },
+						)
+					}}
+				>
+					<SelectTrigger>
+						<SelectValue placeholder={_(msg`Choose retention`)} />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="forever">
+							<Trans>Keep forever</Trans>
+						</SelectItem>
+						{CHAT_RETENTION_DAY_OPTIONS.map((days) => (
+							<SelectItem key={days} value={String(days)}>
+								<Trans>{days} days</Trans>
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
+		</section>
+	)
+}
+
 export default function ChatChannelsSettings() {
-	const { channels, roles, members } = useLoaderData<typeof loader>()
+	const { channels, roles, members, retentionDays } =
+		useLoaderData<typeof loader>()
 	const { _ } = useLingui()
 	const [editing, setEditing] = useState<ChatChannelDetail | 'new' | null>(null)
 	const [deleting, setDeleting] = useState<ChatChannelDetail | null>(null)
@@ -189,6 +334,8 @@ export default function ChatChannelsSettings() {
 
 	return (
 		<div className="flex flex-col gap-4">
+			<RetentionSettings retentionDays={retentionDays} />
+
 			<div className="flex items-start justify-between gap-4">
 				<div>
 					<h2 className="text-lg font-semibold">

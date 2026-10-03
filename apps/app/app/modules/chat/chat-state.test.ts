@@ -153,10 +153,12 @@ describe('chatReducer', () => {
 
 		state = run(state, {
 			type: 'thread',
+			mode: 'replace',
 			result: {
 				parent: { ...parent, replyCount: 1 },
 				replies: [reply],
 				people: [],
+				hasMore: false,
 			},
 		})
 		const second = message({ id: 3, parent: 1 })
@@ -203,7 +205,11 @@ describe('chatReducer', () => {
 				mode: 'replace',
 				result: { messages: [parent], people: [], hasMore: false },
 			},
-			{ type: 'thread', result: { parent, replies: [reply], people: [] } },
+			{
+				type: 'thread',
+				mode: 'replace',
+				result: { parent, replies: [reply], people: [], hasMore: false },
+			},
 			frame({
 				t: 'message.updated',
 				message: { ...parent, body: 'edited', editedAt: 9 },
