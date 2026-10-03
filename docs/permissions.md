@@ -62,6 +62,7 @@ Product areas are gated with these permissions:
 | Marketing broadcasts     | `read/update:campaign:any`                                                        |
 | Marketing automations    | `read/update:automation:any`                                                      |
 | Team chat channels       | `update:chat:any` (using chat needs only channel access, see `docs/team-chat.md`) |
+| Team chat groups         | `create:chat:group` (DMs need no extra permission; group creation only)           |
 
 Organization admins can create custom roles from `/{orgSlug}/settings/roles`;
 only the permission IDs allow-listed in

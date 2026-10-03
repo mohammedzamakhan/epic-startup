@@ -208,6 +208,11 @@ export function getPermissionGroups(): PermissionGroup[] {
 					description: t`Create, edit, and delete channels, choose which roles and members can access them, and remove messages in channels they can open. Does not grant access to restricted channels.`,
 					warning: t`High impact`,
 				},
+				{
+					id: 'org_perm_create_chat_group',
+					label: t`Create group chats`,
+					description: t`Start group conversations and add teammates.`,
+				},
 			],
 		},
 	]

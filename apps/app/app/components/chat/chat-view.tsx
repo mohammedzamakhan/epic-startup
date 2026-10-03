@@ -28,6 +28,8 @@ import { Link, useRevalidator } from 'react-router'
 import { toast } from 'sonner'
 import { useChat } from '#app/hooks/use-chat.ts'
 import { typingUserIds } from '#app/modules/chat/chat-state.ts'
+import { ChatComposeDialog } from './chat-compose-dialog.tsx'
+import { ChatGroupSettingsDialog } from './chat-group-settings-dialog.tsx'
 import { Composer, MessageItem } from './chat-message.tsx'
 
 const GROUP_GAP_MS = 5 * 60 * 1000
@@ -38,11 +40,17 @@ export function ChatView({
 	channels,
 	activeChannelId,
 	canManage,
+	canCreateGroup,
+	members,
+	groupMemberIds,
 }: {
 	orgSlug: string
 	channels: ChatChannelSummary[]
 	activeChannelId: string | null
 	canManage: boolean
+	canCreateGroup: boolean
+	members: { id: string; label: string }[]
+	groupMemberIds: Record<string, string[]>
 }) {
 	const { _, i18n } = useLingui()
 	const revalidator = useRevalidator()
@@ -69,6 +77,11 @@ export function ChatView({
 		parent: number
 	} | null>(null)
 	const [pendingDelete, setPendingDelete] = useState<ChatMessage | null>(null)
+	const [composing, setComposing] = useState(false)
+	const [groupSettings, setGroupSettings] = useState(false)
+	const teamChannels = channels.filter((channel) => channel.kind === 'channel')
+	const directMessages = channels.filter((channel) => channel.kind === 'dm')
+	const groupChats = channels.filter((channel) => channel.kind === 'group')
 
 	// ── history ────────────────────────────────────────────────────────────
 	const activeId = active?.id
@@ -231,43 +244,75 @@ export function ChatView({
 	}
 	const messages = view?.messages ?? []
 
+	function channelLink(channel: ChatChannelSummary) {
+		const unread = state.channels[channel.id]?.unread ?? 0
+		const isActive = channel.id === activeChannelId
+		const iconName =
+			channel.kind === 'dm'
+				? 'user'
+				: channel.kind === 'group'
+					? 'users'
+					: channel.access === 'restricted'
+						? 'lock'
+						: 'message-square'
+		return (
+			<Link
+				key={channel.id}
+				to={{ search: `?channel=${channel.id}` }}
+				replace
+				aria-current={isActive ? 'page' : undefined}
+				className={cn(
+					'hover:bg-muted flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm',
+					isActive && 'bg-muted font-medium',
+					!isActive && unread > 0 && 'font-semibold',
+				)}
+			>
+				<Icon name={iconName} className="text-muted-foreground" />
+				<span className="min-w-0 flex-1 truncate">{channel.name}</span>
+				{unread > 0 && !isActive ? (
+					<Badge>
+						<span aria-hidden>{unread > 99 ? '99+' : unread}</span>
+						<span className="sr-only">{_(msg`${unread} unread`)}</span>
+					</Badge>
+				) : null}
+			</Link>
+		)
+	}
+
 	return (
 		<div className="flex min-h-0 flex-1 flex-col md:flex-row">
 			<nav
 				aria-label={_(msg`Channels`)}
 				className="flex shrink-0 gap-1 overflow-x-auto border-b p-2 md:w-60 md:flex-col md:overflow-y-auto md:border-e md:border-b-0"
 			>
-				{channels.map((channel) => {
-					const unread = state.channels[channel.id]?.unread ?? 0
-					const isActive = channel.id === activeChannelId
-					return (
-						<Link
-							key={channel.id}
-							to={{ search: `?channel=${channel.id}` }}
-							replace
-							aria-current={isActive ? 'page' : undefined}
-							className={cn(
-								'hover:bg-muted flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm',
-								isActive && 'bg-muted font-medium',
-								!isActive && unread > 0 && 'font-semibold',
-							)}
-						>
-							<Icon
-								name={
-									channel.access === 'restricted' ? 'lock' : 'message-square'
-								}
-								className="text-muted-foreground"
-							/>
-							<span className="min-w-0 flex-1 truncate">{channel.name}</span>
-							{unread > 0 && !isActive ? (
-								<Badge>
-									<span aria-hidden>{unread > 99 ? '99+' : unread}</span>
-									<span className="sr-only">{_(msg`${unread} unread`)}</span>
-								</Badge>
-							) : null}
-						</Link>
-					)
-				})}
+				<Button
+					type="button"
+					size="sm"
+					className="mb-2 w-full justify-start"
+					onClick={() => setComposing(true)}
+				>
+					<Icon name="plus" />
+					<Trans>New message</Trans>
+				</Button>
+				{[
+					{ title: _(msg`Channels`), items: teamChannels },
+					{ title: _(msg`Direct messages`), items: directMessages },
+					{ title: _(msg`Groups`), items: groupChats },
+				]
+					.filter((section) => section.items.length > 0)
+					.map((section) => (
+						<div key={section.title} className="mb-2 w-full">
+							<p className="text-muted-foreground px-3 py-1 text-xs font-medium">
+								{section.title}
+							</p>
+							{section.items.map((channel) => channelLink(channel))}
+						</div>
+					))}
+				{channels.length === 0 ? (
+					<p className="text-muted-foreground px-3 py-2 text-xs">
+						<Trans>Start a conversation with someone on your team.</Trans>
+					</p>
+				) : null}
 				{canManage ? (
 					<Link
 						to={`/${orgSlug}/settings/chat`}
@@ -279,18 +324,62 @@ export function ChatView({
 				) : null}
 			</nav>
 
+			{composing ? (
+				<ChatComposeDialog
+					members={members.filter((member) => member.id !== state.me?.id)}
+					canCreateGroup={canCreateGroup}
+					onClose={() => setComposing(false)}
+					onCreated={() => revalidator.revalidate()}
+				/>
+			) : null}
+			{groupSettings && active?.kind === 'group' ? (
+				<ChatGroupSettingsDialog
+					channelId={active.id}
+					channelName={active.name}
+					createdById={active.createdById}
+					meId={state.me?.id ?? ''}
+					showHistoryToNewMembers={active.showHistoryToNewMembers ?? false}
+					members={members}
+					rosterIds={groupMemberIds[active.id] ?? []}
+					onClose={() => setGroupSettings(false)}
+					onUpdated={() => revalidator.revalidate()}
+				/>
+			) : null}
+
 			<section className="flex min-h-0 min-w-0 flex-1 flex-col">
 				{active ? (
 					<header className="flex items-center gap-2 border-b px-4 py-2">
 						<Icon
-							name={active.access === 'restricted' ? 'lock' : 'message-square'}
-							className="text-muted-foreground"
+							name={
+								active.kind === 'dm'
+									? 'user'
+									: active.kind === 'group'
+										? 'users'
+										: active.access === 'restricted'
+											? 'lock'
+											: 'message-square'
+							}
+							className="text-muted-foreground shrink-0"
 						/>
-						<h2 className="text-sm font-semibold">{active.name}</h2>
+						<h2 className="min-w-0 truncate text-sm font-semibold">
+							{active.name}
+						</h2>
 						{active.description ? (
-							<p className="text-muted-foreground truncate text-sm">
+							<p className="text-muted-foreground min-w-0 truncate text-sm">
 								{active.description}
 							</p>
+						) : null}
+						{active.kind === 'group' ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								className="ms-auto shrink-0"
+								aria-label={_(msg`Group settings`)}
+								onClick={() => setGroupSettings(true)}
+							>
+								<Icon name="settings" />
+							</Button>
 						) : null}
 					</header>
 				) : null}

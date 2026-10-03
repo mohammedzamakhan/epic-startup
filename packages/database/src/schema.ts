@@ -1922,6 +1922,14 @@ export const OrganizationChatChannel = sqliteTable(
 		access: text({ enum: ['everyone', 'restricted'] })
 			.default('everyone')
 			.notNull(),
+		kind: text({ enum: ['channel', 'dm', 'group'] })
+			.default('channel')
+			.notNull(),
+		/** Stable key for a 1:1 DM (`userA:userB`, sorted). */
+		dmPairKey: text(),
+		showHistoryToNewMembers: integer({ mode: 'boolean' })
+			.default(false)
+			.notNull(),
 		createdById: text().references(() => User.id, {
 			onDelete: 'set null',
 			onUpdate: 'cascade',
@@ -1941,6 +1949,10 @@ export const OrganizationChatChannel = sqliteTable(
 		uniqueIndex('OrganizationChatChannel_organizationId_name_key').on(
 			table.organizationId,
 			sql`lower(${table.name})`,
+		),
+		uniqueIndex('OrganizationChatChannel_organizationId_dmPairKey_key').on(
+			table.organizationId,
+			table.dmPairKey,
 		),
 	],
 )
@@ -1984,6 +1996,9 @@ export const OrganizationChatChannelMember = sqliteTable(
 		userId: text()
 			.notNull()
 			.references(() => User.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+		joinedAt: integer({ mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull(),
 	},
 	(table) => [
 		primaryKey({

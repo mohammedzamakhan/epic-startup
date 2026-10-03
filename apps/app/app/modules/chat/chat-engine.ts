@@ -46,6 +46,8 @@ export type ChatEngineDeps = {
 	now?: () => number
 	/** How long a resolved audience is trusted. Bounds revocation latency. */
 	audienceTtlMs?: number
+	/** Hide messages before this timestamp for late joiners (ms since epoch). */
+	historyCutoff?: (userId: string, channelId: string) => Promise<number | null>
 }
 
 const MAX_CONNECTIONS_PER_USER = 8
@@ -261,12 +263,15 @@ export class ChatEngine {
 		if (!(await this.canAccess(conn, frame.channel))) {
 			return this.deny(conn, frame.id)
 		}
+		const since =
+			(await this.deps.historyCutoff?.(conn.userId, frame.channel)) ?? undefined
 		this.ack(
 			conn,
 			frame.id,
 			this.store.history(frame.channel, {
 				before: frame.before,
 				limit: frame.limit,
+				since,
 			}),
 		)
 	}
@@ -278,9 +283,12 @@ export class ChatEngine {
 		if (!(await this.canAccess(conn, frame.channel))) {
 			return this.deny(conn, frame.id)
 		}
+		const since =
+			(await this.deps.historyCutoff?.(conn.userId, frame.channel)) ?? undefined
 		const thread = this.store.thread(frame.channel, frame.parent, {
 			before: frame.before,
 			limit: frame.limit,
+			since,
 		})
 		if (!thread) {
 			this.sendTo(

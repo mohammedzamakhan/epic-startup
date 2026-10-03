@@ -53,6 +53,14 @@ export class ChatOrg extends DurableObject<Env> {
 					auth.ORG_PERMISSIONS.UPDATE_CHAT_ANY,
 				)
 			},
+			historyCutoff: async (userId, channelId) => {
+				const { conversations } = await this.prepare()
+				return conversations.getMessageHistoryCutoff(
+					this.requireOrgId(),
+					userId,
+					channelId,
+				)
+			},
 		})
 	}
 
@@ -63,13 +71,14 @@ export class ChatOrg extends DurableObject<Env> {
 	 */
 	private async load() {
 		applyWorkerEnv(this.env)
-		const [database, auth, audience] = await Promise.all([
+		const [database, auth, audience, conversations] = await Promise.all([
 			import('@repo/database'),
 			import('@repo/auth'),
 			import('../app/utils/chat/audience.server.ts'),
+			import('../app/utils/chat/conversations.server.ts'),
 		])
 		database.bindCloudflareD1(this.env.DB)
-		return { auth, audience }
+		return { auth, audience, conversations }
 	}
 
 	private prepare() {

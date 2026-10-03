@@ -25,7 +25,10 @@ export const CHAT_LIMITS = {
 	collapseBodyAt: 600,
 	/** Distinct explicit members + roles on one channel. */
 	audienceEntriesMax: 500,
+	groupMembersMax: 50,
 } as const
+
+export type ChatChannelKind = 'channel' | 'dm' | 'group'
 
 const requestId = z.string().min(1).max(64)
 const channelId = z.string().min(1).max(64)
@@ -231,6 +234,11 @@ export type ChatChannelSummary = {
 	name: string
 	description: string
 	access: 'everyone' | 'restricted'
+	kind: ChatChannelKind
+	/** Other participant in a DM (for avatars and labels). */
+	peerUserId?: string | null
+	createdById?: string | null
+	showHistoryToNewMembers?: boolean
 }
 
 /** A channel with its audience, for the manage page. */

@@ -4,6 +4,7 @@ import {
 	type ChatChannelInput,
 	type ChatChannelSummary,
 } from '@repo/common/chat'
+import { decorateChannelSummaries } from './conversations.server.ts'
 import {
 	and,
 	asc,
@@ -71,6 +72,10 @@ export async function listChannelsForUser(
 				name: OrganizationChatChannel.name,
 				description: OrganizationChatChannel.description,
 				access: OrganizationChatChannel.access,
+				kind: OrganizationChatChannel.kind,
+				createdById: OrganizationChatChannel.createdById,
+				showHistoryToNewMembers:
+					OrganizationChatChannel.showHistoryToNewMembers,
 			})
 			.from(OrganizationChatChannel)
 			.where(eq(OrganizationChatChannel.organizationId, organizationId))
@@ -91,9 +96,13 @@ export async function listChannelsForUser(
 		...viaRole.map((row) => row.channelId),
 		...viaMember.map((row) => row.channelId),
 	])
-	return channels.filter(
-		(channel) => channel.access === 'everyone' || allowed.has(channel.id),
-	)
+	const visible = channels.filter((channel) => {
+		if (channel.kind === 'dm' || channel.kind === 'group') {
+			return allowed.has(channel.id)
+		}
+		return channel.access === 'everyone' || allowed.has(channel.id)
+	})
+	return decorateChannelSummaries(organizationId, userId, visible)
 }
 
 /** Every channel in the org with its roles and members, for the manage page. */
@@ -106,9 +115,17 @@ export async function listChannelsForManager(
 			name: OrganizationChatChannel.name,
 			description: OrganizationChatChannel.description,
 			access: OrganizationChatChannel.access,
+			kind: OrganizationChatChannel.kind,
+			createdById: OrganizationChatChannel.createdById,
+			showHistoryToNewMembers: OrganizationChatChannel.showHistoryToNewMembers,
 		})
 		.from(OrganizationChatChannel)
-		.where(eq(OrganizationChatChannel.organizationId, organizationId))
+		.where(
+			and(
+				eq(OrganizationChatChannel.organizationId, organizationId),
+				eq(OrganizationChatChannel.kind, 'channel'),
+			),
+		)
 		.orderBy(asc(OrganizationChatChannel.name))
 		.limit(CHAT_LIMITS.syncChannelsMax)
 	if (channels.length === 0) return []
@@ -320,6 +337,7 @@ export async function createChannel(
 				name: input.name,
 				description: input.description,
 				access: input.access,
+				kind: 'channel',
 				createdById: creatorId,
 			})
 			.returning({ id: OrganizationChatChannel.id })

@@ -120,6 +120,13 @@
 			"when": 1791069593925,
 			"tag": "0016_chat_retention",
 			"breakpoints": true
+		},
+		{
+			"idx": 17,
+			"version": "6",
+			"when": 1791069722456,
+			"tag": "0017_chat_dm_groups",
+			"breakpoints": true
 		}
 	]
 }

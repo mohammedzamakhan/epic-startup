@@ -284,27 +284,31 @@ export class ChatStore {
 
 	history(
 		channel: string,
-		options: { before?: number; limit?: number } = {},
+		options: { before?: number; limit?: number; since?: number } = {},
 	): ChatHistoryResult {
 		const limit = Math.min(
 			options.limit ?? CHAT_LIMITS.historyPage,
 			CHAT_LIMITS.historyPageMax,
 		)
+		const sinceClause = options.since ? ' AND created_at >= ?' : ''
+		const sinceArgs = options.since ? [options.since] : []
 		const rows =
 			options.before === undefined
 				? this.all<MessageRow>(
 						`SELECT * FROM messages
-							WHERE channel_id = ? AND parent_id IS NULL
+							WHERE channel_id = ? AND parent_id IS NULL${sinceClause}
 							ORDER BY id DESC LIMIT ?`,
 						channel,
+						...sinceArgs,
 						limit + 1,
 					)
 				: this.all<MessageRow>(
 						`SELECT * FROM messages
-							WHERE channel_id = ? AND parent_id IS NULL AND id < ?
+							WHERE channel_id = ? AND parent_id IS NULL AND id < ?${sinceClause}
 							ORDER BY id DESC LIMIT ?`,
 						channel,
 						options.before,
+						...sinceArgs,
 						limit + 1,
 					)
 		const hasMore = rows.length > limit
@@ -320,30 +324,42 @@ export class ChatStore {
 	thread(
 		channel: string,
 		parentId: number,
-		options: { before?: number; limit?: number } = {},
+		options: { before?: number; limit?: number; since?: number } = {},
 	) {
 		const parent = this.getMessage(parentId)
 		if (!parent || parent.channel !== channel || parent.parent !== null) {
 			return null
 		}
+		if (options.since && parent.createdAt < options.since) {
+			return {
+				parent,
+				replies: [],
+				hasMore: false,
+				people: this.getPeople([parent.author]),
+			}
+		}
 		const limit = Math.min(
 			options.limit ?? CHAT_LIMITS.threadPage,
 			CHAT_LIMITS.threadPageMax,
 		)
+		const sinceClause = options.since ? ' AND created_at >= ?' : ''
+		const sinceArgs = options.since ? [options.since] : []
 		// Newest page first; the client keeps paging upward with `before`.
 		const newestFirst =
 			options.before === undefined
 				? this.all<MessageRow>(
-						`SELECT * FROM messages WHERE parent_id = ?
+						`SELECT * FROM messages WHERE parent_id = ?${sinceClause}
 							ORDER BY id DESC LIMIT ?`,
 						parentId,
+						...sinceArgs,
 						limit + 1,
 					)
 				: this.all<MessageRow>(
-						`SELECT * FROM messages WHERE parent_id = ? AND id < ?
+						`SELECT * FROM messages WHERE parent_id = ? AND id < ?${sinceClause}
 							ORDER BY id DESC LIMIT ?`,
 						parentId,
 						options.before,
+						...sinceArgs,
 						limit + 1,
 					)
 		const hasMore = newestFirst.length > limit
