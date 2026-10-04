@@ -136,9 +136,17 @@ export async function listChannelsForUser(
 		for (const row of memberChannels) byId.set(row.id, row)
 	}
 
-	const visible = [...byId.values()]
+	const all = [...byId.values()]
+	const conversations = all.filter(
+		(channel) => channel.kind === 'dm' || channel.kind === 'group',
+	)
+	const teamChannels = all
+		.filter((channel) => channel.kind === 'channel')
 		.sort((a, b) => a.name.localeCompare(b.name))
 		.slice(0, CHAT_LIMITS.syncChannelsMax)
+	const visible = [...conversations, ...teamChannels].sort((a, b) =>
+		a.name.localeCompare(b.name),
+	)
 	return decorateChannelSummaries(organizationId, userId, visible)
 }
 

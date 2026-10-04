@@ -354,7 +354,6 @@ export class ChatStore {
 			author_id: string
 		}[] = []
 		for (const part of chunk(channels)) {
-			if (rows.length >= limit) break
 			const channelClause = ` AND m.channel_id IN (${placeholders(part.length)})`
 			rows.push(
 				...this.all<{
@@ -372,11 +371,12 @@ export class ChatStore {
 						LIMIT ?`,
 					term,
 					...part,
-					limit - rows.length,
+					limit,
 				),
 			)
 		}
-		return rows.map((row) => ({
+		rows.sort((a, b) => b.id - a.id)
+		return rows.slice(0, limit).map((row) => ({
 			id: row.id,
 			channel: row.channel_id,
 			body: row.body,
