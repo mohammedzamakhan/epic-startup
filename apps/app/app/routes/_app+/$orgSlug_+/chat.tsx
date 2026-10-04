@@ -1,12 +1,7 @@
 import { Trans } from '@lingui/macro'
 import { CHAT_LIMITS } from '@repo/common/chat'
 import { requireUserId, userHasOrganizationPermission } from '@repo/auth'
-import {
-	Empty,
-	EmptyDescription,
-	EmptyHeader,
-	EmptyTitle,
-} from '@repo/ui/empty'
+import { ChatUnavailable } from '#app/components/chat/chat-unavailable.tsx'
 import {
 	data,
 	useLoaderData,
@@ -194,13 +189,12 @@ export default function ChatRoute() {
 	} = useLoaderData<typeof loader>()
 	const [searchParams] = useSearchParams()
 	const requested = searchParams.get('channel')
-	const activeChannelId =
-		channels.find((channel) => channel.id === requested)?.id ??
-		channels[0]?.id ??
-		null
+	const activeChannelId = requested
+		? (channels.find((channel) => channel.id === requested)?.id ?? null)
+		: null
 
 	return (
-		<div className="-mx-4 flex min-h-0 flex-1 flex-col md:-mx-2">
+		<div className="-mx-4 flex min-h-0 flex-1 flex-col max-md:min-h-[calc(100dvh-3.5rem)] md:-mx-2">
 			{available ? (
 				<ChatView
 					// A fresh socket and state per organization.
@@ -214,19 +208,7 @@ export default function ChatRoute() {
 					groupMemberIds={groupMemberIds}
 				/>
 			) : (
-				<Empty className="flex-1">
-					<EmptyHeader>
-						<EmptyTitle>
-							<Trans>Team chat isn't available here</Trans>
-						</EmptyTitle>
-						<EmptyDescription>
-							<Trans>
-								Chat runs on Cloudflare Durable Objects. Start the app with `npm
-								run dev:cf -w app` to use it locally.
-							</Trans>
-						</EmptyDescription>
-					</EmptyHeader>
-				</Empty>
+				<ChatUnavailable orgSlug={orgSlug} canManageChannels={canManage} />
 			)}
 		</div>
 	)

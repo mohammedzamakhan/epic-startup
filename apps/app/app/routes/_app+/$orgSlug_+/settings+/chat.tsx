@@ -2,7 +2,7 @@ import { Trans, msg, plural } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
 import {
 	CHAT_LIMITS,
-	chatChannelInputSchema,
+	CHAT_RETENTION_DAY_OPTIONS,
 	type ChatChannelDetail,
 } from '@repo/common/chat'
 import { Badge } from '@repo/ui/badge'
@@ -26,212 +26,21 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@repo/ui/select'
+import {
+	Empty,
+	EmptyContent,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyTitle,
+} from '@repo/ui/empty'
+import { Icon } from '@repo/ui/icon'
 import { Textarea } from '@repo/ui/textarea'
 import { useEffect, useState } from 'react'
-import {
-	data,
-	useFetcher,
-	useLoaderData,
-	type ActionFunctionArgs,
-	type LoaderFunctionArgs,
-} from 'react-router'
-import { AuditAction, auditService } from '@repo/audit'
-import { z } from 'zod'
-import {
-	ChatChannelError,
-	createChannel,
-	deleteChannel,
-	listChannelsForManager,
-	listChatAssignableMembers,
-	updateChannel,
-} from '#app/utils/chat/channels.server.ts'
-import { notifyChat } from '#app/utils/chat/namespace.server.ts'
-import {
-	CHAT_RETENTION_DAY_OPTIONS,
-	getChatRetentionDays,
-	setChatRetentionDays,
-	type ChatRetentionDays,
-} from '#app/utils/chat/retention.server.ts'
-import { requireUserOrganization } from '#app/utils/organization/loader.server.ts'
-import {
-	ORG_PERMISSIONS,
-	requireUserWithOrganizationPermission,
-} from '#app/utils/organization/permissions.server.ts'
-import { listOrganizationRoles } from './roles.server.ts'
+import { Link, useFetcher, useLoaderData, useParams } from 'react-router'
+import { type ChatSettingsActionResult } from '#app/utils/chat/chat-settings.ts'
+import { type Route } from './+types/chat.ts'
 
-type ActionResult =
-	| { ok: true }
-	| {
-			ok: false
-			error?: string
-			fieldErrors?: Partial<Record<'name' | 'roleIds' | 'memberIds', string>>
-	  }
-
-export async function loader({ request, params }: LoaderFunctionArgs) {
-	const organization = await requireUserOrganization(
-		request,
-		params.orgSlug || '',
-		{ id: true },
-	)
-	await requireUserWithOrganizationPermission(
-		request,
-		organization.id,
-		ORG_PERMISSIONS.UPDATE_CHAT_ANY,
-	)
-	const [channels, roles, members, retentionDays] = await Promise.all([
-		listChannelsForManager(organization.id),
-		listOrganizationRoles(organization.id),
-		listChatAssignableMembers(organization.id),
-		getChatRetentionDays(organization.id),
-	])
-	return data(
-		{
-			channels,
-			roles: roles.map((role) => ({ id: role.id, name: role.name })),
-			members,
-			retentionDays,
-		},
-		{ headers: { 'Cache-Control': 'private, no-store' } },
-	)
-}
-
-const retentionDaysSchema = z.union([
-	z.null(),
-	z.literal(30),
-	z.literal(90),
-	z.literal(365),
-])
-
-const intentSchema = z.discriminatedUnion('intent', [
-	z.object({
-		intent: z.literal('save'),
-		id: z.string().min(1).max(64).optional(),
-	}),
-	z.object({
-		intent: z.literal('delete'),
-		id: z.string().min(1).max(64),
-	}),
-	z.object({
-		intent: z.literal('retention'),
-		days: retentionDaysSchema,
-	}),
-])
-
-export async function action({
-	request,
-	params,
-}: ActionFunctionArgs): Promise<ActionResult> {
-	const organization = await requireUserOrganization(
-		request,
-		params.orgSlug || '',
-		{ id: true },
-	)
-	const userId = await requireUserWithOrganizationPermission(
-		request,
-		organization.id,
-		ORG_PERMISSIONS.UPDATE_CHAT_ANY,
-	)
-
-	const body: unknown = await request.json().catch(() => null)
-	const parsedIntent = intentSchema.safeParse(body)
-	if (!parsedIntent.success) {
-		return { ok: false, error: 'Invalid request.' }
-	}
-
-	try {
-		if (parsedIntent.data.intent === 'retention') {
-			const days = parsedIntent.data.days as ChatRetentionDays
-			await setChatRetentionDays(organization.id, days)
-			await notifyChat(organization.id, async (room) => {
-				await room.runRetentionPrune()
-			})
-			await auditService.log({
-				action: AuditAction.CHAT_RETENTION_UPDATED,
-				userId,
-				organizationId: organization.id,
-				details: days
-					? `Team chat retention set to ${days} days.`
-					: 'Team chat retention set to keep messages forever.',
-				request,
-			})
-			return { ok: true }
-		}
-
-		if (parsedIntent.data.intent === 'delete') {
-			const { id } = parsedIntent.data
-			await deleteChannel(organization.id, id)
-			await notifyChat(organization.id, (room) => room.deleteChannel(id))
-			await auditService.log({
-				action: AuditAction.CHAT_CHANNEL_DELETED,
-				userId,
-				organizationId: organization.id,
-				resourceType: 'chat_channel',
-				resourceId: id,
-				details: 'Chat channel deleted.',
-				request,
-			})
-			return { ok: true }
-		}
-
-		const { id } = parsedIntent.data
-		const parsed = chatChannelInputSchema.safeParse(body)
-		if (!parsed.success) {
-			const fieldErrors: NonNullable<
-				Extract<ActionResult, { ok: false }>['fieldErrors']
-			> = {}
-			for (const issue of parsed.error.issues) {
-				const field = issue.path[0]
-				if (
-					(field === 'name' || field === 'roleIds' || field === 'memberIds') &&
-					!fieldErrors[field]
-				) {
-					fieldErrors[field] = issue.message
-				}
-			}
-			return { ok: false, fieldErrors }
-		}
-
-		if (id) {
-			await updateChannel(organization.id, id, parsed.data)
-			await auditService.log({
-				action: AuditAction.CHAT_CHANNEL_UPDATED,
-				userId,
-				organizationId: organization.id,
-				resourceType: 'chat_channel',
-				resourceId: id,
-				details: `Chat channel "${parsed.data.name}" updated.`,
-				request,
-			})
-		} else {
-			const channelId = await createChannel(
-				organization.id,
-				userId,
-				parsed.data,
-			)
-			await auditService.log({
-				action: AuditAction.CHAT_CHANNEL_CREATED,
-				userId,
-				organizationId: organization.id,
-				resourceType: 'chat_channel',
-				resourceId: channelId,
-				details: `Chat channel "${parsed.data.name}" created.`,
-				request,
-			})
-		}
-		await notifyChat(organization.id, (room) => room.channelsChanged())
-		return { ok: true }
-	} catch (error) {
-		if (error instanceof ChatChannelError) {
-			return {
-				ok: false,
-				...(error.field === 'form'
-					? { error: error.message }
-					: { fieldErrors: { [error.field]: error.message } }),
-			}
-		}
-		throw error
-	}
-}
+export { action, loader } from './chat.server.ts'
 
 type Option = { id: string; label: string }
 
@@ -260,7 +69,7 @@ function RetentionSettings({
 }: {
 	retentionDays: number | null
 }) {
-	const fetcher = useFetcher<ActionResult>()
+	const fetcher = useFetcher<ChatSettingsActionResult>()
 	const { _ } = useLingui()
 	const value = retentionDays === null ? 'forever' : String(retentionDays)
 	const pending = fetcher.state !== 'idle'
@@ -317,8 +126,9 @@ function RetentionSettings({
 }
 
 export default function ChatChannelsSettings() {
+	const { orgSlug = '' } = useParams()
 	const { channels, roles, members, retentionDays } =
-		useLoaderData<typeof loader>()
+		useLoaderData<Route.ComponentProps['loaderData']>()
 	const { _ } = useLingui()
 	const [editing, setEditing] = useState<ChatChannelDetail | 'new' | null>(null)
 	const [deleting, setDeleting] = useState<ChatChannelDetail | null>(null)
@@ -333,79 +143,110 @@ export default function ChatChannelsSettings() {
 	const roleName = new Map(roleOptions.map((role) => [role.id, role.label]))
 
 	return (
-		<div className="flex flex-col gap-4">
+		<div className="flex flex-col gap-6">
 			<RetentionSettings retentionDays={retentionDays} />
 
-			<div className="flex items-start justify-between gap-4">
-				<div>
-					<h2 className="text-lg font-semibold">
-						<Trans>Chat channels</Trans>
-					</h2>
-					<p className="text-muted-foreground text-sm">
-						<Trans>
-							Create channels for your team and choose which roles or people can
-							read and post in them.
-						</Trans>
-					</p>
+			<section className="flex flex-col gap-4">
+				<div className="flex flex-wrap items-start justify-between gap-4">
+					<div className="min-w-0 flex-1">
+						<h2 className="text-lg font-semibold">
+							<Trans>Chat channels</Trans>
+						</h2>
+						<p className="text-muted-foreground text-sm text-pretty">
+							<Trans>
+								Create channels for your team and choose which roles or people
+								can read and post in them.
+							</Trans>
+						</p>
+					</div>
+					<div className="flex shrink-0 flex-wrap gap-2">
+						{channels.length > 0 ? (
+							<Button
+								variant="outline"
+								render={
+									<Link to={`/${orgSlug}/chat`}>
+										<Icon name="message-square" />
+										<Trans>Open team chat</Trans>
+									</Link>
+								}
+							/>
+						) : null}
+						<Button type="button" onClick={() => setEditing('new')}>
+							<Trans>New channel</Trans>
+						</Button>
+					</div>
 				</div>
-				<Button onClick={() => setEditing('new')}>
-					<Trans>New channel</Trans>
-				</Button>
-			</div>
 
-			{channels.length === 0 ? (
-				<p className="text-muted-foreground rounded-lg border border-dashed p-6 text-sm">
-					<Trans>No channels yet. Create the first one.</Trans>
-				</p>
-			) : (
-				<ul className="divide-y rounded-lg border">
-					{channels.map((channel) => (
-						<li
-							key={channel.id}
-							className="flex flex-wrap items-center gap-3 p-4"
-						>
-							<div className="min-w-0 flex-1">
-								<div className="flex items-center gap-2">
-									<span className="font-medium">{channel.name}</span>
-									<Badge variant="secondary">
-										{channel.access === 'everyone'
-											? _(msg`Everyone`)
-											: _(msg`Restricted`)}
-									</Badge>
+				{channels.length === 0 ? (
+					<Empty className="rounded-lg border border-dashed py-10">
+						<EmptyHeader>
+							<EmptyTitle>
+								<Trans>No channels yet</Trans>
+							</EmptyTitle>
+							<EmptyDescription>
+								<Trans>
+									Your team will see channels here once you create one. Members
+									open chat from the sidebar next to the logo.
+								</Trans>
+							</EmptyDescription>
+						</EmptyHeader>
+						<EmptyContent>
+							<Button type="button" onClick={() => setEditing('new')}>
+								<Trans>Create your first channel</Trans>
+							</Button>
+						</EmptyContent>
+					</Empty>
+				) : (
+					<ul className="divide-y rounded-lg border">
+						{channels.map((channel) => (
+							<li
+								key={channel.id}
+								className="flex flex-wrap items-center gap-3 p-4"
+							>
+								<div className="min-w-0 flex-1">
+									<div className="flex items-center gap-2">
+										<span className="font-medium">{channel.name}</span>
+										<Badge variant="secondary">
+											{channel.access === 'everyone'
+												? _(msg`Everyone`)
+												: _(msg`Restricted`)}
+										</Badge>
+									</div>
+									{channel.description ? (
+										<p className="text-muted-foreground truncate text-sm">
+											{channel.description}
+										</p>
+									) : null}
+									{channel.access === 'restricted' ? (
+										<AudienceSummary channel={channel} roleName={roleName} />
+									) : null}
 								</div>
-								{channel.description ? (
-									<p className="text-muted-foreground truncate text-sm">
-										{channel.description}
-									</p>
-								) : null}
-								{channel.access === 'restricted' ? (
-									<AudienceSummary channel={channel} roleName={roleName} />
-								) : null}
-							</div>
-							<div className="flex gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setEditing(channel)}
-								>
-									<Trans>Edit</Trans>
-								</Button>
-								<Button
-									variant="destructive"
-									size="sm"
-									onClick={() => setDeleting(channel)}
-								>
-									<Trans>Delete</Trans>
-								</Button>
-							</div>
-						</li>
-					))}
-				</ul>
-			)}
+								<div className="flex gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() => setEditing(channel)}
+									>
+										<Trans>Edit</Trans>
+									</Button>
+									<Button
+										type="button"
+										variant="destructive"
+										size="sm"
+										onClick={() => setDeleting(channel)}
+									>
+										<Trans>Delete</Trans>
+									</Button>
+								</div>
+							</li>
+						))}
+					</ul>
+				)}
+			</section>
 
 			{editing ? (
 				<ChannelDialog
-					// Remount per channel so the form never shows another channel's draft.
 					key={editing === 'new' ? 'new' : editing.id}
 					channel={editing === 'new' ? null : editing}
 					roles={roleOptions}
@@ -435,7 +276,7 @@ function ChannelDialog({
 	onClose(): void
 }) {
 	const { _ } = useLingui()
-	const fetcher = useFetcher<ActionResult>()
+	const fetcher = useFetcher<ChatSettingsActionResult>()
 	const [name, setName] = useState(channel?.name ?? '')
 	const [description, setDescription] = useState(channel?.description ?? '')
 	const [access, setAccess] = useState<'everyone' | 'restricted'>(
@@ -466,7 +307,12 @@ function ChannelDialog({
 	}
 
 	return (
-		<Dialog open onOpenChange={(open) => !open && onClose()}>
+		<Dialog
+			defaultOpen
+			onOpenChange={(open) => {
+				if (!open) onClose()
+			}}
+		>
 			<DialogContent className="max-h-dvh overflow-y-auto sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>
@@ -674,7 +520,7 @@ function DeleteChannelDialog({
 	channel: ChatChannelDetail
 	onClose(): void
 }) {
-	const fetcher = useFetcher<ActionResult>()
+	const fetcher = useFetcher<ChatSettingsActionResult>()
 	const pending = fetcher.state !== 'idle'
 	const result = fetcher.data
 	const channelName = channel.name
@@ -684,7 +530,12 @@ function DeleteChannelDialog({
 	}, [fetcher.state, result, onClose])
 
 	return (
-		<Dialog open onOpenChange={(open) => !open && onClose()}>
+		<Dialog
+			defaultOpen
+			onOpenChange={(open) => {
+				if (!open) onClose()
+			}}
+		>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>
@@ -703,10 +554,11 @@ function DeleteChannelDialog({
 					</p>
 				) : null}
 				<DialogFooter>
-					<Button variant="ghost" onClick={onClose}>
+					<Button type="button" variant="ghost" onClick={onClose}>
 						<Trans>Cancel</Trans>
 					</Button>
 					<Button
+						type="button"
 						variant="destructive"
 						disabled={pending}
 						onClick={() =>

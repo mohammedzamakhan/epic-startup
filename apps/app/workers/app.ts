@@ -7,6 +7,8 @@ import {
 	createRequestHandler,
 	RouterContextProvider,
 } from 'react-router'
+import { startDevMocksIfEnabled } from './dev-mocks.ts'
+import { installDevS3Mock } from './dev-s3-mock.ts'
 import { applyWorkerEnv } from './worker-env.ts'
 
 // Durable Object classes must be exported from the Worker entry.
@@ -25,6 +27,8 @@ let requestHandlerPromise: Promise<RequestHandler> | undefined
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
 		applyWorkerEnv(env)
+		installDevS3Mock(env)
+		await startDevMocksIfEnabled()
 		const [
 			cacheModule,
 			databaseModule,

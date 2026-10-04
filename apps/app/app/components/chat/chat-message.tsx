@@ -163,7 +163,7 @@ export function MessageItem({
 	return (
 		<div
 			className={cn(
-				'group hover:bg-muted/50 relative flex gap-3 px-4 py-1',
+				'group hover:bg-muted/50 relative flex gap-2 px-3 py-1 sm:gap-3 sm:px-4',
 				showHeader && 'pt-3',
 			)}
 		>
@@ -241,7 +241,7 @@ export function MessageItem({
 			</div>
 
 			{!editing ? (
-				<div className="bg-background absolute end-4 -top-3 hidden items-center rounded-md border p-0.5 shadow-xs group-focus-within:flex group-hover:flex">
+				<div className="bg-background relative end-auto top-auto mt-1 flex w-fit max-w-full flex-wrap items-center rounded-md border p-0.5 shadow-xs md:absolute md:end-4 md:-top-3 md:mt-0 md:hidden md:group-focus-within:flex md:group-hover:flex">
 					{pickerOpen ? (
 						QUICK_REACTIONS.map((emoji) => (
 							<Button

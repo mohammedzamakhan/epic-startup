@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { type ChatMessageAttachment } from '@repo/common/chat'
+import { normalizeChatMessageBody } from '@repo/common/chat-markdown'
 
 function ChatAttachments({
 	attachments,
@@ -44,10 +45,11 @@ export function ChatMessageMarkdown({
 	className?: string
 }) {
 	const plugins = useMemo(() => [remarkGfm], [])
-	if (!body.trim() && attachments.length === 0) return null
+	const markdown = useMemo(() => normalizeChatMessageBody(body), [body])
+	if (!markdown.trim() && attachments.length === 0) return null
 	return (
 		<div className={cn('text-sm break-words', className)}>
-			{body.trim() ? (
+			{markdown.trim() ? (
 				<Markdown
 					remarkPlugins={plugins}
 					components={{
@@ -78,7 +80,7 @@ export function ChatMessageMarkdown({
 						),
 					}}
 				>
-					{body}
+					{markdown}
 				</Markdown>
 			) : null}
 			<ChatAttachments attachments={attachments} />

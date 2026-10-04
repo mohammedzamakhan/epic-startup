@@ -10,15 +10,14 @@ import { initVarlockEnv } from 'varlock/env'
  */
 export function applyWorkerEnv(env: Env) {
 	const existingConfig = (globalThis as any).__varlockLoadedEnv?.config ?? {}
-	const newConfig: Record<string, { value: unknown }> = {}
+	// Keep Varlock defaults (local dev) and overlay Cloudflare bindings on top.
+	const newConfig: Record<string, { value: unknown }> = { ...existingConfig }
 	for (const [key, value] of Object.entries(env)) {
 		if (
 			typeof value === 'string' ||
 			typeof value === 'number' ||
 			typeof value === 'boolean'
 		) {
-			// Preserve Varlock's sensitivity metadata when a legacy bootstrap blob is
-			// present, but never retain a value that is absent from Cloudflare `env`.
 			newConfig[key] = { ...existingConfig[key], value: String(value) }
 			if (typeof process !== 'undefined' && process.env) {
 				process.env[key] = String(value)

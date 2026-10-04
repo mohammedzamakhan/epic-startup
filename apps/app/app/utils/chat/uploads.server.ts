@@ -1,6 +1,9 @@
-import { uploadOrganizationMediaFileOnly } from '#app/utils/storage.server.ts'
+import { uploadChatImage as uploadChatImageToStorage } from '#app/utils/storage.server.ts'
 
-export async function uploadChatImage(organizationId: string, file: File) {
-	const result = await uploadOrganizationMediaFileOnly(organizationId, file)
-	return result.key
+export async function uploadChatImage(
+	organizationId: string,
+	userId: string,
+	file: File,
+) {
+	return uploadChatImageToStorage(userId, organizationId, file)
 }

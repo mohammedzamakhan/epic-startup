@@ -126,24 +126,31 @@ tested under Node with `node:sqlite` and fake connections.
 
 ## Local development
 
-The plain Node dev server (`npm run dev:app`) has no Durable Objects, so
-`/:orgSlug/chat` shows an "unavailable" message there. To use chat locally run
-the Cloudflare runtime:
+`npm run dev` starts the operator app on the **Cloudflare Workers** runtime
+(same as production), including the `CHAT_ORG` binding. Open chat at
+`https://app.{brand}.test:2999/{orgSlug}/chat`.
+
+One-time (or after new control-plane migrations):
 
 ```bash
-# once: apply control-plane migrations (incl. the chat tables) to local D1
 cd apps/app && npx wrangler d1 migrations apply DB --local && cd ../..
-
-npm run dev:cf -w app
 ```
 
-The Worker reads its secrets from gitignored `apps/app/.dev.vars` (or `.env`).
-Every `@required` variable in `apps/app/.env.schema` must be present or requests
-fail with `... environment variable is not set`.
+`npm run dev` (app) runs `scripts/sync-dev-vars.mjs`, which writes gitignored
+`apps/app/.dev.vars` from Varlock before Wrangler starts. Every `@required`
+variable in `apps/app/.env.schema` must resolve or sync fails and requests error
+with `... environment variable is not set`.
 
-`dev:cf` runs the repo-root Vite on purpose: `apps/app` pins its own Vite 6, but
-`@cloudflare/vite-plugin` is installed against the root Vite 8, and mixing the
-two crashes the dev server at startup with `require_react is not a function`.
+**Node-only app dev** (`npm run dev:node -w app`) has no Durable Objects — use
+only when debugging something that does not run on Workers.
+
+If the browser shows **504 Outdated Request** on a `*.tsx` module URL during the
+first load after startup, hard-refresh once (`Cmd+Shift+R`) while Vite finishes
+optimizing dependencies.
+
+The app `dev` script runs repo-root Vite on purpose: `apps/app` pins its own
+Vite 6, but `@cloudflare/vite-plugin` is installed against the root Vite 8, and
+mixing the two crashes at startup with `require_react is not a function`.
 
 ## Deployment
 

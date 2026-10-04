@@ -1,9 +1,9 @@
 /**
  * Access to the per-organization chat Durable Objects.
  *
- * The namespace only exists on Cloudflare Workers. In the plain Node dev server
- * (`npm run dev:app`) there is none, `isChatAvailable()` is false, and the chat
- * UI shows an "unavailable" state. Use `npm run dev:cf -w app` to try chat locally.
+ * The namespace only exists on Cloudflare Workers. The Node-only dev server
+ * (`npm run dev:node -w app`) has no binding; `isChatAvailable()` is false and
+ * the chat UI shows an "unavailable" state. Default `npm run dev` uses Workers.
  */
 
 /** Headers the Worker sets for the Durable Object after authenticating. */

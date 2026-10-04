@@ -76,6 +76,7 @@ function createUploadOptions(): UploadOptions {
 }
 
 type MediaSource =
+	| 'chat'
 	| 'comment'
 	| 'library'
 	| 'note'
@@ -310,6 +311,28 @@ export async function uploadNoteImage(
 				createUploadOptions(),
 				organizationId,
 			),
+	})
+}
+
+export async function uploadChatImage(
+	userId: string,
+	organizationId: string,
+	file: File | FileUpload,
+) {
+	return uploadAndRegisterOrganizationMedia({
+		organizationId,
+		file,
+		storageScope: 'organization',
+		source: 'chat',
+		createdById: userId,
+		uploadFn: async () => {
+			const { key } = await _uploadOrganizationMediaImage(
+				organizationId,
+				file,
+				createUploadOptions(),
+			)
+			return key
+		},
 	})
 }
 

@@ -137,6 +137,22 @@ describe('ChatStore', () => {
 		expect(store.history('b').messages).toEqual([])
 	})
 
+	it('persists image attachment keys on messages', () => {
+		const store = createStore()
+		const key = `orgs/x/media/images/${'a'.repeat(40)}.png`
+		const message = store.addMessage({
+			channel: 'c',
+			author: 'u',
+			body: '',
+			attachmentKeys: [key],
+			now: 1,
+		})
+		expect(message.attachments).toEqual([{ objectKey: key }])
+		expect(store.history('c').messages[0]?.attachments).toEqual([
+			{ objectKey: key },
+		])
+	})
+
 	it('supports one level of replies and counts them', () => {
 		const store = createStore()
 		const parent = store.addMessage({

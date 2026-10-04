@@ -1,10 +1,10 @@
+import {
+	CHAT_RETENTION_DAY_OPTIONS,
+	type ChatRetentionDays,
+} from '@repo/common/chat'
 import { db, eq, Organization } from '@repo/database'
 
-/** Allowed retention windows; `null` means keep messages forever. */
-export const CHAT_RETENTION_DAY_OPTIONS = [30, 90, 365] as const
-
-export type ChatRetentionDays =
-	(typeof CHAT_RETENTION_DAY_OPTIONS)[number] | null
+export { CHAT_RETENTION_DAY_OPTIONS, type ChatRetentionDays }
 
 export async function getChatRetentionDays(
 	organizationId: string,

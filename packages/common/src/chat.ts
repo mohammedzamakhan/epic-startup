@@ -31,12 +31,18 @@ export const CHAT_LIMITS = {
 	searchResultsMax: 50,
 } as const
 
+/** Allowed retention windows; `null` means keep messages forever. */
+export const CHAT_RETENTION_DAY_OPTIONS = [30, 90, 365] as const
+
+export type ChatRetentionDays =
+	(typeof CHAT_RETENTION_DAY_OPTIONS)[number] | null
+
 export type ChatChannelKind = 'channel' | 'dm' | 'group'
 
 const requestId = z.string().min(1).max(64)
 const channelId = z.string().min(1).max(64)
 const messageId = z.number().int().positive()
-const body = z.string().min(1).max(CHAT_LIMITS.bodyMax)
+const messageBody = z.string().max(CHAT_LIMITS.bodyMax)
 
 /** Reactions are Unicode emoji only; free text would turn into a chat channel. */
 export function isValidReactionEmoji(value: string) {
@@ -71,7 +77,8 @@ export const chatClientFrameSchema = z.discriminatedUnion('t', [
 		t: z.literal('send'),
 		id: requestId,
 		channel: channelId,
-		body,
+		/** Empty when the message is attachment-only; validated in the chat engine. */
+		body: messageBody.default(''),
 		parent: messageId.optional(),
 		attachmentKeys: z
 			.array(z.string().min(1).max(512))
@@ -85,7 +92,12 @@ export const chatClientFrameSchema = z.discriminatedUnion('t', [
 		channels: z.array(channelId).min(1).max(CHAT_LIMITS.syncChannelsMax),
 		limit: z.number().int().min(1).max(CHAT_LIMITS.searchResultsMax).optional(),
 	}),
-	z.object({ t: z.literal('edit'), id: requestId, message: messageId, body }),
+	z.object({
+		t: z.literal('edit'),
+		id: requestId,
+		message: messageId,
+		body: z.string().min(1).max(CHAT_LIMITS.bodyMax),
+	}),
 	z.object({ t: z.literal('delete'), id: requestId, message: messageId }),
 	z.object({
 		t: z.literal('react'),

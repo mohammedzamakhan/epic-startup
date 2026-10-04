@@ -1,6 +1,10 @@
 import { Trans, msg, plural } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
-import { type ChatChannelSummary, type ChatMessage } from '@repo/common/chat'
+import {
+	type ChatChannelSummary,
+	type ChatMessage,
+	type ChatSearchHit,
+} from '@repo/common/chat'
 import { cn } from '@repo/ui'
 import {
 	AlertDialog,
@@ -19,21 +23,31 @@ import {
 	EmptyContent,
 	EmptyDescription,
 	EmptyHeader,
+	EmptyMedia,
 	EmptyTitle,
 } from '@repo/ui/empty'
 import { Icon } from '@repo/ui/icon'
+import {
+	InputGroup,
+	InputGroupAddon,
+	InputGroupButton,
+	InputGroupInput,
+} from '@repo/ui/input-group'
 import { Spinner } from '@repo/ui/spinner'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useRevalidator } from 'react-router'
+import {
+	Link,
+	useNavigate,
+	useRevalidator,
+	useSearchParams,
+} from 'react-router'
 import { toast } from 'sonner'
 import { useChat } from '#app/hooks/use-chat.ts'
 import { typingUserIds } from '#app/modules/chat/chat-state.ts'
 import { ChatComposeDialog } from './chat-compose-dialog.tsx'
-import { ChatGroupSettingsDialog } from './chat-group-settings-dialog.tsx'
 import { ChatComposer } from './chat-composer.tsx'
+import { ChatGroupSettingsDialog } from './chat-group-settings-dialog.tsx'
 import { Composer, MessageItem } from './chat-message.tsx'
-import { Input } from '@repo/ui/input'
-import { type ChatSearchHit } from '@repo/common/chat'
 
 const GROUP_GAP_MS = 5 * 60 * 1000
 const STICK_THRESHOLD_PX = 80
@@ -57,6 +71,8 @@ export function ChatView({
 }) {
 	const { _, i18n } = useLingui()
 	const revalidator = useRevalidator()
+	const navigate = useNavigate()
+	const [searchParams] = useSearchParams()
 	const active = channels.find((channel) => channel.id === activeChannelId)
 	const channelIds = channels.map((channel) => channel.id)
 	const chat = useChat({
@@ -90,6 +106,18 @@ export function ChatView({
 	const teamChannels = channels.filter((channel) => channel.kind === 'channel')
 	const directMessages = channels.filter((channel) => channel.kind === 'dm')
 	const groupChats = channels.filter((channel) => channel.kind === 'group')
+
+	// Desktop: default to the first channel when the URL has no ?channel=.
+	useEffect(() => {
+		if (searchParams.get('channel')) return
+		const first = channels[0]
+		if (!first) return
+		if (window.matchMedia('(max-width: 767px)').matches) return
+		void navigate(
+			{ search: `?channel=${encodeURIComponent(first.id)}` },
+			{ replace: true },
+		)
+	}, [channels, navigate, searchParams])
 
 	// ── history ────────────────────────────────────────────────────────────
 	const activeId = active?.id
@@ -269,9 +297,10 @@ export function ChatView({
 				to={{ search: `?channel=${channel.id}` }}
 				replace
 				aria-current={isActive ? 'page' : undefined}
+				onClick={() => setThread(null)}
 				className={cn(
-					'hover:bg-muted flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm',
-					isActive && 'bg-muted font-medium',
+					'hover:bg-muted focus-visible:ring-ring flex min-h-11 shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-2',
+					isActive && 'bg-accent text-accent-foreground font-medium',
 					!isActive && unread > 0 && 'font-semibold',
 				)}
 			>
@@ -291,10 +320,14 @@ export function ChatView({
 		<div className="flex min-h-0 flex-1 flex-col md:flex-row">
 			<nav
 				aria-label={_(msg`Channels`)}
-				className="flex shrink-0 gap-1 overflow-x-auto border-b p-2 md:w-60 md:flex-col md:overflow-y-auto md:border-e md:border-b-0"
+				className={cn(
+					'bg-muted/20 flex min-h-0 flex-col gap-0.5 overflow-y-auto border-b p-2',
+					active ? 'max-md:hidden' : 'max-md:min-h-0 max-md:flex-1',
+					'md:w-64 md:shrink-0 md:border-e md:border-b-0',
+				)}
 			>
 				<form
-					className="mb-2 w-full space-y-2"
+					className="mb-3 w-full"
 					onSubmit={(event) => {
 						event.preventDefault()
 						const query = searchQuery.trim()
@@ -310,44 +343,79 @@ export function ChatView({
 							.finally(() => setSearching(false))
 					}}
 				>
-					<Input
-						value={searchQuery}
-						onChange={(event) => setSearchQuery(event.target.value)}
-						placeholder={_(msg`Search messages`)}
-						aria-label={_(msg`Search messages`)}
-						disabled={searching}
-					/>
+					<InputGroup>
+						<InputGroupAddon align="inline-start">
+							{searching ? (
+								<Spinner className="size-4" />
+							) : (
+								<Icon name="search" aria-hidden />
+							)}
+						</InputGroupAddon>
+						<InputGroupInput
+							value={searchQuery}
+							onChange={(event) => {
+								const next = event.target.value
+								setSearchQuery(next)
+								if (!next.trim()) setSearchResults(null)
+							}}
+							placeholder={_(msg`Search messages`)}
+							aria-label={_(msg`Search messages`)}
+							disabled={searching}
+						/>
+						{searchQuery.trim() ? (
+							<InputGroupAddon align="inline-end">
+								<InputGroupButton
+									type="button"
+									size="icon-xs"
+									aria-label={_(msg`Clear search`)}
+									onClick={() => {
+										setSearchQuery('')
+										setSearchResults(null)
+									}}
+								>
+									<Icon name="x" />
+								</InputGroupButton>
+							</InputGroupAddon>
+						) : null}
+					</InputGroup>
 				</form>
-				{searchResults && searchResults.length > 0 ? (
-					<div className="mb-2 w-full">
+				{searchResults !== null ? (
+					<div className="mb-3 w-full">
 						<p className="text-muted-foreground px-3 py-1 text-xs font-medium">
 							<Trans>Search results</Trans>
 						</p>
-						{searchResults.map((hit) => {
-							const channel = channels.find((c) => c.id === hit.channel)
-							return (
-								<Link
-									key={hit.id}
-									to={{ search: `?channel=${hit.channel}` }}
-									replace
-									className="hover:bg-muted block rounded-md px-3 py-1.5 text-xs"
-									onClick={() => setSearchResults(null)}
-								>
-									<span className="font-medium">
-										{channel?.name ?? hit.channel}
-									</span>
-									<span className="text-muted-foreground block truncate">
-										{hit.body}
-									</span>
-								</Link>
-							)
-						})}
+						{searchResults.length === 0 ? (
+							<p className="text-muted-foreground px-3 py-2 text-xs">
+								<Trans>No messages matched your search.</Trans>
+							</p>
+						) : (
+							searchResults.map((hit) => {
+								const channel = channels.find((c) => c.id === hit.channel)
+								return (
+									<Link
+										key={hit.id}
+										to={{ search: `?channel=${hit.channel}` }}
+										replace
+										className="hover:bg-muted focus-visible:ring-ring block rounded-md px-3 py-2 text-xs outline-none focus-visible:ring-2"
+										onClick={() => setSearchResults(null)}
+									>
+										<span className="font-medium">
+											{channel?.name ?? hit.channel}
+										</span>
+										<span className="text-muted-foreground block truncate">
+											{hit.body}
+										</span>
+									</Link>
+								)
+							})
+						)}
 					</div>
 				) : null}
 				<Button
 					type="button"
+					variant="outline"
 					size="sm"
-					className="mb-2 w-full justify-start"
+					className="mb-3 w-full justify-start"
 					onClick={() => setComposing(true)}
 				>
 					<Icon name="plus" />
@@ -360,22 +428,19 @@ export function ChatView({
 				]
 					.filter((section) => section.items.length > 0)
 					.map((section) => (
-						<div key={section.title} className="mb-2 w-full">
-							<p className="text-muted-foreground px-3 py-1 text-xs font-medium">
+						<div key={section.title} className="mb-3 w-full">
+							<p className="text-muted-foreground px-3 py-1.5 text-xs font-medium">
 								{section.title}
 							</p>
-							{section.items.map((channel) => channelLink(channel))}
+							<div className="flex flex-col gap-0.5">
+								{section.items.map((channel) => channelLink(channel))}
+							</div>
 						</div>
 					))}
-				{channels.length === 0 ? (
-					<p className="text-muted-foreground px-3 py-2 text-xs">
-						<Trans>Start a conversation with someone on your team.</Trans>
-					</p>
-				) : null}
 				{canManage ? (
 					<Link
 						to={`/${orgSlug}/settings/chat`}
-						className="text-muted-foreground hover:text-foreground mt-2 flex shrink-0 items-center gap-2 px-3 py-1.5 text-sm"
+						className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-auto flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-2"
 					>
 						<Icon name="settings" />
 						<Trans>Manage channels</Trans>
@@ -405,9 +470,29 @@ export function ChatView({
 				/>
 			) : null}
 
-			<section className="flex min-h-0 min-w-0 flex-1 flex-col">
+			<section
+				className={cn(
+					'flex min-h-0 min-w-0 flex-1 flex-col',
+					active ? 'max-md:min-h-0 max-md:flex-1' : 'max-md:hidden',
+				)}
+			>
 				{active ? (
-					<header className="flex items-center gap-2 border-b px-4 py-2">
+					<header className="flex items-start gap-2 border-b px-3 py-2.5 sm:px-4 sm:py-3">
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							className="mt-0.5 shrink-0 md:hidden"
+							aria-label={_(msg`Back to channels`)}
+							render={
+								<Link
+									to={{ search: '' }}
+									replace
+									onClick={() => setThread(null)}
+								/>
+							}
+						>
+							<Icon name="arrow-left" />
+						</Button>
 						<Icon
 							name={
 								active.kind === 'dm'
@@ -418,22 +503,22 @@ export function ChatView({
 											? 'lock'
 											: 'message-square'
 							}
-							className="text-muted-foreground shrink-0"
+							className="text-muted-foreground mt-0.5 hidden shrink-0 md:inline-flex"
 						/>
-						<h2 className="min-w-0 truncate text-sm font-semibold">
-							{active.name}
-						</h2>
-						{active.description ? (
-							<p className="text-muted-foreground min-w-0 truncate text-sm">
-								{active.description}
-							</p>
-						) : null}
+						<div className="min-w-0 flex-1">
+							<h2 className="truncate text-sm font-semibold">{active.name}</h2>
+							{active.description ? (
+								<p className="text-muted-foreground line-clamp-2 text-xs">
+									{active.description}
+								</p>
+							) : null}
+						</div>
 						{active.kind === 'group' ? (
 							<Button
 								type="button"
 								variant="ghost"
 								size="icon-sm"
-								className="ms-auto shrink-0"
+								className="shrink-0"
 								aria-label={_(msg`Group settings`)}
 								onClick={() => setGroupSettings(true)}
 							>
@@ -459,9 +544,21 @@ export function ChatView({
 					}}
 				>
 					{!active ? (
-						<p className="text-muted-foreground p-6 text-sm">
-							<Trans>Select a channel to start.</Trans>
-						</p>
+						<div className="flex min-h-48 flex-1 flex-col items-center justify-center p-6 text-center">
+							<EmptyHeader>
+								<EmptyMedia variant="icon">
+									<Icon name="message-square" />
+								</EmptyMedia>
+								<EmptyTitle>
+									<Trans>Pick a conversation</Trans>
+								</EmptyTitle>
+								<EmptyDescription>
+									<Trans>
+										Choose a channel, group, or direct message from the list.
+									</Trans>
+								</EmptyDescription>
+							</EmptyHeader>
+						</div>
 					) : historyError ? (
 						<div className="flex flex-col items-start gap-2 p-6">
 							<p className="text-destructive text-sm">{historyError}</p>
@@ -490,9 +587,18 @@ export function ChatView({
 								</div>
 							) : null}
 							{messages.length === 0 ? (
-								<p className="text-muted-foreground p-6 text-sm">
-									<Trans>No messages yet. Say hello!</Trans>
-								</p>
+								<div className="flex flex-col items-center justify-center py-12 text-center">
+									<EmptyHeader>
+										<EmptyTitle>
+											<Trans>No messages yet</Trans>
+										</EmptyTitle>
+										<EmptyDescription>
+											<Trans>
+												Send the first message — your team will see it here.
+											</Trans>
+										</EmptyDescription>
+									</EmptyHeader>
+								</div>
 							) : null}
 							{messages.map((message, index) => {
 								const previous = messages[index - 1]
@@ -523,8 +629,11 @@ export function ChatView({
 				</div>
 
 				{active ? (
-					<div className="border-t p-3">
-						<p className="text-muted-foreground h-4 text-xs" aria-live="polite">
+					<div className="border-t p-2 sm:p-3">
+						<p
+							className="text-muted-foreground mb-2 h-4 text-xs"
+							aria-live="polite"
+						>
 							{typingNames.length === 0
 								? null
 								: typingNames.length === 1
@@ -548,9 +657,9 @@ export function ChatView({
 			{thread ? (
 				<aside
 					aria-label={_(msg`Thread`)}
-					className="flex min-h-0 shrink-0 flex-col border-t md:w-96 md:border-s md:border-t-0"
+					className="bg-background md:bg-muted/10 fixed inset-0 z-50 flex min-h-0 flex-col md:static md:z-auto md:w-96 md:shrink-0 md:border-s md:border-t-0"
 				>
-					<header className="flex items-center justify-between border-b px-4 py-2">
+					<header className="flex items-center justify-between border-b px-3 py-2.5 sm:px-4">
 						<h2 className="text-sm font-semibold">
 							<Trans>Thread</Trans>
 						</h2>
@@ -624,7 +733,7 @@ export function ChatView({
 							)
 						})}
 					</div>
-					<div className="border-t p-3">
+					<div className="border-t p-2 sm:p-3">
 						<Composer
 							placeholder={_(msg`Reply…`)}
 							disabled={!connected || !threadParent || threadParent.deleted}
@@ -657,13 +766,17 @@ function ConnectionBanner({
 	return (
 		<div
 			role="status"
+			aria-live="polite"
 			className={cn(
-				'border-b px-4 py-1.5 text-xs',
+				'flex items-center gap-2 border-b px-4 py-2 text-xs',
 				status === 'forbidden'
 					? 'bg-destructive/10 text-destructive'
 					: 'bg-muted text-muted-foreground',
 			)}
 		>
+			{status !== 'forbidden' ? (
+				<Spinner className="size-3.5 shrink-0" />
+			) : null}
 			{status === 'forbidden' ? (
 				<Trans>
 					You no longer have access to this chat. Reload the page to check your
@@ -672,7 +785,7 @@ function ConnectionBanner({
 			) : status === 'reconnecting' ? (
 				<Trans>Connection lost. Reconnecting…</Trans>
 			) : (
-				<Trans>Connecting…</Trans>
+				<Trans>Connecting to team chat…</Trans>
 			)}
 		</div>
 	)

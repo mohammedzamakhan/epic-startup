@@ -43,7 +43,11 @@ export async function handleChatUpgrade(
 	// automatically, so without this a malicious page could open a socket as the
 	// signed-in user (cross-site WebSocket hijacking).
 	const origin = request.headers.get('Origin')
-	if (!origin || safeHost(origin) !== url.host) {
+	// `dev-proxy.js` sets `changeOrigin` so the upstream Host is localhost while
+	// the browser Origin stays on app.{brand}.test:2999.
+	const requestHost =
+		request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ?? url.host
+	if (!origin || safeHost(origin) !== requestHost) {
 		return new Response('Forbidden', { status: 403 })
 	}
 
