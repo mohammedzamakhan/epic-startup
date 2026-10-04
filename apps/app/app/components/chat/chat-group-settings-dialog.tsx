@@ -11,7 +11,7 @@ import {
 } from '@repo/ui/dialog'
 import { Input } from '@repo/ui/input'
 import { Label } from '@repo/ui/label'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFetcher } from 'react-router'
 
 type Member = { id: string; label: string }
@@ -51,9 +51,11 @@ export function ChatGroupSettingsDialog({
 		setHistory(showHistoryToNewMembers)
 	}, [showHistoryToNewMembers])
 
+	const onUpdatedRef = useRef(onUpdated)
+	onUpdatedRef.current = onUpdated
 	useEffect(() => {
-		if (fetcher.data?.ok) onUpdated()
-	}, [fetcher.data, onUpdated])
+		if (fetcher.data?.ok) onUpdatedRef.current()
+	}, [fetcher.data])
 
 	const addable = members.filter(
 		(member) =>

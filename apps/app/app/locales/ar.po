@@ -255,7 +255,7 @@ msgstr "{stepCount} خطوات"
 
 #: app/components/chat/chat-view.tsx:693
 msgid "{threadTotalReplies, plural, one {# reply} other {# replies}}"
-msgstr "{threadTotalReplies, plural, one {رد واحد} other {# ردود}}"
+msgstr "{threadTotalReplies, plural, zero {لا توجد ردود} one {رد واحد} two {ردان} few {# ردود} many {# رداً} other {# رد}}"
 
 #: app/routes/_app+/$orgSlug_+/mailbox.tsx:286
 msgid "{total} submissions"

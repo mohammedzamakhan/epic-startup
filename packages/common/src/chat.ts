@@ -96,7 +96,7 @@ export const chatClientFrameSchema = z.discriminatedUnion('t', [
 		t: z.literal('edit'),
 		id: requestId,
 		message: messageId,
-		body: z.string().min(1).max(CHAT_LIMITS.bodyMax),
+		body: z.string().trim().min(1).max(CHAT_LIMITS.bodyMax),
 	}),
 	z.object({ t: z.literal('delete'), id: requestId, message: messageId }),
 	z.object({

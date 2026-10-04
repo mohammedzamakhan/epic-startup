@@ -319,21 +319,42 @@ export async function uploadChatImage(
 	organizationId: string,
 	file: File | FileUpload,
 ) {
-	return uploadAndRegisterOrganizationMedia({
+	const {
+		key: objectKey,
+		file: validatedFile,
+		width,
+		height,
+	} = await _uploadOrganizationMediaImage(
 		organizationId,
 		file,
-		storageScope: 'organization',
-		source: 'chat',
-		createdById: userId,
-		uploadFn: async () => {
-			const { key } = await _uploadOrganizationMediaImage(
-				organizationId,
-				file,
-				createUploadOptions(),
+		createUploadOptions(),
+	)
+
+	try {
+		await registerOrganizationMediaAsset({
+			organizationId,
+			objectKey,
+			file: validatedFile,
+			storageScope: 'organization',
+			source: 'chat',
+			createdById: userId,
+			width,
+			height,
+		})
+		return objectKey
+	} catch (error) {
+		try {
+			const options = createUploadOptions()
+			const config = await options.getConfig(organizationId)
+			await deleteFromStorage(objectKey, config)
+		} catch (cleanupError) {
+			console.error(
+				`Failed to clean up uploaded chat image ${objectKey} after registration failure:`,
+				cleanupError,
 			)
-			return key
-		},
-	})
+		}
+		throw error
+	}
 }
 
 export async function uploadCommentImage(
