@@ -1,6 +1,6 @@
 import {
 	getUserId,
-	isMockOAuthProvider,
+	isWorkersDevMockOAuthCallback,
 	normalizeEmail,
 	normalizeUsername,
 	tryAuthenticateMockProvider,
@@ -37,7 +37,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
 	let profile: Awaited<ReturnType<typeof authenticator.authenticate>>
 
-	if (isMockOAuthProvider(providerName)) {
+	if (isWorkersDevMockOAuthCallback(providerName)) {
 		const mockProfile = tryAuthenticateMockProvider(providerName, request)
 		if (!mockProfile) {
 			throw await redirectWithToast(

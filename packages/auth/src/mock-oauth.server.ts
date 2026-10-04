@@ -9,17 +9,13 @@ import { type ProviderUser } from './provider.js'
 
 function githubMockEnabled() {
 	return (
-		process.env.MOCKS === 'true' ||
-		ENV.GITHUB_CLIENT_ID?.startsWith('MOCK_') ||
-		ENV.NODE_ENV === 'test'
+		process.env.MOCKS === 'true' || ENV.GITHUB_CLIENT_ID?.startsWith('MOCK_')
 	)
 }
 
 function googleMockEnabled() {
 	return (
-		process.env.MOCKS === 'true' ||
-		ENV.GOOGLE_CLIENT_ID?.startsWith('MOCK_') ||
-		ENV.NODE_ENV === 'test'
+		process.env.MOCKS === 'true' || ENV.GOOGLE_CLIENT_ID?.startsWith('MOCK_')
 	)
 }
 
@@ -27,6 +23,12 @@ export function isMockOAuthProvider(providerName: ProviderName) {
 	if (providerName === GITHUB_PROVIDER_NAME) return githubMockEnabled()
 	if (providerName === GOOGLE_PROVIDER_NAME) return googleMockEnabled()
 	return false
+}
+
+/** Callback bypass for Workers dev only; Vitest uses MSW + MOCK_* client ids. */
+export function isWorkersDevMockOAuthCallback(providerName: ProviderName) {
+	if (process.env.MOCKS !== 'true') return false
+	return isMockOAuthProvider(providerName)
 }
 
 /**

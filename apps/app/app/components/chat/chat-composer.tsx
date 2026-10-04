@@ -143,7 +143,7 @@ export function ChatComposer({
 			Markdown.configure({ html: false }),
 			Placeholder.configure({ placeholder: resolvedPlaceholder }),
 			Mention.configure({
-				suggestion: getSuggestions(mentionUsers(members)),
+				suggestion: getSuggestions(() => mentionUsers(mentionList.current)),
 				renderText({ node }) {
 					const label =
 						(node.attrs.label as string) || (node.attrs.id as string) || ''
