@@ -154,9 +154,8 @@ migration `0015_team_chat_channels` adds the channel tables and the permission.
 
 ## Not included (yet)
 
-- Rich composer (mentions, emoji, image upload) wired like notes
-- File attachments (R2), full-text search in the Durable Object
-- A global unread badge in the app sidebar (unread shows inside the chat page)
+- Email templates dedicated to chat (mentions reuse in-app notifications today)
+- Jump-to-message from search results (search opens the channel only)
 
 **Retention:** per-organization setting under **Settings → Chat** (30 / 90 / 365
 days or forever). The `ChatOrg` alarm prunes old rows in the DO SQLite store.

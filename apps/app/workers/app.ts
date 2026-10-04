@@ -61,7 +61,7 @@ export default {
 
 		// Chat WebSockets bypass the React Router handler: they are authenticated
 		// here and forwarded to the organization's Durable Object.
-		const chatResponse = await chatUpgradeModule.handleChatUpgrade(request)
+		const chatResponse = await chatUpgradeModule.handleChatRequest(request)
 		if (chatResponse) return chatResponse
 
 		await linguiModule.ensureLinguiRequestLocale(request)

@@ -61,7 +61,35 @@ export class ChatOrg extends DurableObject<Env> {
 					channelId,
 				)
 			},
+			onMessageSent: async ({ message, authorId }) => {
+				await this.notifyAppMessage(authorId, message)
+			},
 		})
+	}
+
+	private async notifyAppMessage(
+		authorId: string,
+		message: import('@repo/common/chat').ChatMessage,
+	) {
+		const base = this.env.BASE_URL
+		const token = this.env.INTERNAL_COMMAND_TOKEN
+		if (!base || !token || !this.orgId) return
+		try {
+			await fetch(`${base}/resources/chat/notify`, {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${token}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					organizationId: this.orgId,
+					authorId,
+					message,
+				}),
+			})
+		} catch (error) {
+			console.warn('Chat notify failed', error)
+		}
 	}
 
 	/**
@@ -123,6 +151,25 @@ export class ChatOrg extends DurableObject<Env> {
 	}
 
 	async fetch(request: Request): Promise<Response> {
+		const url = new URL(request.url)
+		if (url.pathname === '/rpc/unread') {
+			const userId = request.headers.get(CHAT_HEADERS.user)
+			const channelsRaw = request.headers.get('x-chat-channels')
+			if (!userId || !channelsRaw) {
+				return new Response('Bad request', { status: 400 })
+			}
+			let channelIds: string[] = []
+			try {
+				channelIds = JSON.parse(channelsRaw) as string[]
+			} catch {
+				return new Response('Bad request', { status: 400 })
+			}
+			const total = this.store
+				.unread(channelIds, userId)
+				.reduce((sum, row) => sum + row.unread, 0)
+			return Response.json({ total })
+		}
+
 		if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
 			return new Response('Expected a WebSocket upgrade', { status: 426 })
 		}

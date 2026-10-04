@@ -6,9 +6,11 @@ import {
 import { getUserImgSrc } from '@repo/common'
 import { and, db, eq, Organization, User, UserImage } from '@repo/database'
 import { isActiveOrganizationMember } from './audience.server.ts'
+import { listChannelsForUser } from './channels.server.ts'
 import { CHAT_HEADERS, chatOrgStub } from './namespace.server.ts'
 
 const CHAT_PATH = /^\/([^/]+)\/chat\/ws$/
+const CHAT_UNREAD_PATH = /^\/([^/]+)\/chat\/unread$/
 
 /**
  * Authenticates a chat WebSocket upgrade and hands it to the organization's
@@ -19,6 +21,14 @@ const CHAT_PATH = /^\/([^/]+)\/chat\/ws$/
  * them is overwritten (never forwarded) and the DO is reachable only through
  * this Worker's binding.
  */
+export async function handleChatRequest(
+	request: Request,
+): Promise<Response | null> {
+	const unread = await handleChatUnread(request)
+	if (unread) return unread
+	return handleChatUpgrade(request)
+}
+
 export async function handleChatUpgrade(
 	request: Request,
 ): Promise<Response | null> {
@@ -100,4 +110,43 @@ function safeHost(origin: string) {
 	} catch {
 		return null
 	}
+}
+
+async function handleChatUnread(request: Request): Promise<Response | null> {
+	if (request.method !== 'GET') return null
+	const url = new URL(request.url)
+	const match = CHAT_UNREAD_PATH.exec(url.pathname)
+	if (!match) return null
+
+	const userId = await getUserId(request)
+	if (!userId) return new Response('Unauthorized', { status: 401 })
+
+	const orgSlug = decodeURIComponent(match[1]!)
+	const [organization] = await db
+		.select({ id: Organization.id })
+		.from(Organization)
+		.where(and(eq(Organization.slug, orgSlug), eq(Organization.active, true)))
+		.limit(1)
+	if (
+		!organization ||
+		!(await isActiveOrganizationMember(organization.id, userId))
+	) {
+		return new Response('Forbidden', { status: 403 })
+	}
+
+	const stub = chatOrgStub(organization.id)
+	if (!stub) return new Response('Chat is unavailable', { status: 503 })
+
+	const channels = await listChannelsForUser(organization.id, userId)
+	const channelIds = channels.map((channel) => channel.id)
+	const response = await stub.fetch(
+		new Request('https://chat.internal/rpc/unread', {
+			method: 'GET',
+			headers: {
+				[CHAT_HEADERS.user]: userId,
+				'x-chat-channels': JSON.stringify(channelIds),
+			},
+		}),
+	)
+	return response
 }

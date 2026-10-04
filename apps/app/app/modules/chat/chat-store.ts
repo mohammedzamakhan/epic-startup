@@ -115,6 +115,46 @@ export class ChatStore {
 				PRIMARY KEY (channel_id, user_id)
 			)`,
 		)
+		this.run(
+			`CREATE TABLE IF NOT EXISTS message_attachments (
+				message_id INTEGER NOT NULL,
+				sort_order INTEGER NOT NULL,
+				object_key TEXT NOT NULL,
+				PRIMARY KEY (message_id, sort_order)
+			)`,
+		)
+		this.run(
+			`CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+				body,
+				content='messages',
+				content_rowid='id'
+			)`,
+		)
+		this.run(
+			`CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
+				INSERT INTO messages_fts(rowid, body) VALUES (new.id, new.body);
+			END`,
+		)
+		this.run(
+			`CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
+				INSERT INTO messages_fts(messages_fts, rowid, body) VALUES('delete', old.id, old.body);
+			END`,
+		)
+		this.run(
+			`CREATE TRIGGER IF NOT EXISTS messages_au AFTER UPDATE OF body ON messages BEGIN
+				INSERT INTO messages_fts(messages_fts, rowid, body) VALUES('delete', old.id, old.body);
+				INSERT INTO messages_fts(rowid, body) VALUES (new.id, new.body);
+			END`,
+		)
+		const ftsCount = this.all<{ c: number }>(
+			`SELECT COUNT(*) AS c FROM messages_fts`,
+		)[0]?.c
+		if (ftsCount === 0) {
+			this.run(
+				`INSERT INTO messages_fts(rowid, body)
+					SELECT id, body FROM messages WHERE deleted_at IS NULL`,
+			)
+		}
 	}
 
 	getMeta(key: string) {
@@ -164,6 +204,7 @@ export class ChatStore {
 		const ids = rows.map((row) => row.id)
 		const replies = new Map<number, { count: number; last: number | null }>()
 		const reactions = new Map<number, Map<string, string[]>>()
+		const attachments = new Map<number, { objectKey: string }[]>()
 
 		for (const part of chunk(ids)) {
 			for (const row of this.all<{
@@ -194,6 +235,19 @@ export class ChatStore {
 				byEmoji.set(row.emoji, [...(byEmoji.get(row.emoji) ?? []), row.user_id])
 				reactions.set(row.message_id, byEmoji)
 			}
+			for (const row of this.all<{
+				message_id: number
+				object_key: string
+			}>(
+				`SELECT message_id, object_key FROM message_attachments
+					WHERE message_id IN (${placeholders(part.length)})
+					ORDER BY sort_order`,
+				...part,
+			)) {
+				const list = attachments.get(row.message_id) ?? []
+				list.push({ objectKey: row.object_key })
+				attachments.set(row.message_id, list)
+			}
 		}
 
 		return rows.map((row) => {
@@ -205,6 +259,8 @@ export class ChatStore {
 				parent: row.parent_id,
 				author: row.author_id,
 				body: row.deleted_at === null ? row.body : '',
+				attachments:
+					row.deleted_at === null ? (attachments.get(row.id) ?? []) : [],
 				createdAt: row.created_at,
 				editedAt: row.edited_at,
 				deleted: row.deleted_at !== null,
@@ -229,6 +285,7 @@ export class ChatStore {
 		channel: string
 		author: string
 		body: string
+		attachmentKeys?: string[]
 		parent?: number
 		now: number
 	}): ChatMessage {
@@ -250,6 +307,10 @@ export class ChatStore {
 				)
 			}
 		}
+		const keys = (input.attachmentKeys ?? []).slice(
+			0,
+			CHAT_LIMITS.attachmentsMax,
+		)
 		const [{ id }] = this.all<{ id: number }>(
 			`INSERT INTO messages (channel_id, parent_id, author_id, body, created_at)
 				VALUES (?, ?, ?, ?, ?) RETURNING id`,
@@ -259,7 +320,57 @@ export class ChatStore {
 			input.body,
 			input.now,
 		) as [{ id: number }]
+		for (const [index, objectKey] of keys.entries()) {
+			this.run(
+				`INSERT INTO message_attachments (message_id, sort_order, object_key)
+					VALUES (?, ?, ?)`,
+				id,
+				index,
+				objectKey,
+			)
+		}
 		return this.getMessage(id)!
+	}
+
+	search(
+		query: string,
+		options: { limit?: number; channelIds?: string[] } = {},
+	) {
+		const limit = Math.min(options.limit ?? 25, CHAT_LIMITS.searchResultsMax)
+		const term = query
+			.trim()
+			.split(/\s+/)
+			.filter(Boolean)
+			.map((word) => `"${word.replace(/"/g, '')}"`)
+			.join(' ')
+		if (!term) return []
+		const channels = options.channelIds ?? []
+		if (channels.length === 0) return []
+		const channelClause = ` AND m.channel_id IN (${placeholders(channels.length)})`
+		const rows = this.all<{
+			id: number
+			channel_id: string
+			body: string
+			created_at: number
+			author_id: string
+		}>(
+			`SELECT m.id, m.channel_id, m.body, m.created_at, m.author_id
+				FROM messages_fts fts
+				INNER JOIN messages m ON m.id = fts.rowid
+				WHERE messages_fts MATCH ? AND m.deleted_at IS NULL${channelClause}
+				ORDER BY m.id DESC
+				LIMIT ?`,
+			term,
+			...channels,
+			limit,
+		)
+		return rows.map((row) => ({
+			id: row.id,
+			channel: row.channel_id,
+			body: row.body,
+			createdAt: row.created_at,
+			author: row.author_id,
+		}))
 	}
 
 	updateBody(id: number, body: string, now: number) {

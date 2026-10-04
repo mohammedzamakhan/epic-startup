@@ -3,6 +3,7 @@ import {
 	type ChatClientFrame,
 	type ChatHistoryResult,
 	type ChatMessage,
+	type ChatSearchHit,
 	type ChatServerFrame,
 	type ChatThreadResult,
 	type ChatUnread,
@@ -13,6 +14,7 @@ import {
 	initialChatState,
 	type ChatState,
 } from '#app/modules/chat/chat-state.ts'
+import { notifyChatActivity } from '#app/hooks/use-chat-unread.ts'
 
 const REQUEST_TIMEOUT_MS = 10_000
 const PING_INTERVAL_MS = 25_000
@@ -56,7 +58,16 @@ export type ChatApi = {
 	state: ChatState
 	loadHistory(channel: string, before?: number): Promise<void>
 	openThread(channel: string, parent: number, before?: number): Promise<void>
-	send(channel: string, body: string, parent?: number): Promise<ChatMessage>
+	send(
+		channel: string,
+		body: string,
+		parent?: number,
+		attachmentKeys?: string[],
+	): Promise<ChatMessage>
+	search(query: string): Promise<{
+		results: ChatSearchHit[]
+		people: ChatState['people']
+	}>
 	edit(message: number, body: string): Promise<void>
 	remove(message: number): Promise<void>
 	react(message: number, emoji: string): Promise<void>
@@ -183,6 +194,9 @@ export function useChat({
 					viewing:
 						document.visibilityState === 'visible' ? activeChannel : null,
 				})
+				if (frame.t === 'message') {
+					notifyChatActivity(orgSlug)
+				}
 				if (frame.t === 'ready') {
 					backoff = BACKOFF_MIN_MS
 					void syncAndRefresh()
@@ -292,16 +306,38 @@ export function useChat({
 	)
 
 	const send = useCallback(
-		async (channel: string, body: string, parent?: number) => {
+		async (
+			channel: string,
+			body: string,
+			parent?: number,
+			attachmentKeys?: string[],
+		) => {
 			const { message } = await request<{ message: ChatMessage }>({
 				t: 'send',
 				channel,
 				body,
 				parent,
+				attachmentKeys,
 			})
+			notifyChatActivity(orgSlug)
 			return message
 		},
-		[request],
+		[request, orgSlug],
+	)
+
+	const search = useCallback(
+		async (query: string) => {
+			const data = await request<{
+				results: ChatSearchHit[]
+				people: ChatState['people']
+			}>({
+				t: 'search',
+				query,
+				channels: channelIds,
+			})
+			return data
+		},
+		[request, channelIds],
 	)
 
 	const edit = useCallback(
@@ -339,5 +375,15 @@ export function useChat({
 		socket.send(JSON.stringify({ t: 'typing', channel }))
 	}, [])
 
-	return { state, loadHistory, openThread, send, edit, remove, react, typing }
+	return {
+		state,
+		loadHistory,
+		openThread,
+		send,
+		search,
+		edit,
+		remove,
+		react,
+		typing,
+	}
 }

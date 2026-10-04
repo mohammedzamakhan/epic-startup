@@ -34,6 +34,7 @@ import { NavUser } from '#app/components/nav-user.tsx'
 import { OnboardingChecklist } from '#app/components/onboarding-checklist.tsx'
 import { TeamSwitcher } from '#app/components/team-switcher.tsx'
 import { useGlobalHotkeys } from '#app/hooks/use-hotkeys.ts'
+import { useChatUnreadCount } from '#app/hooks/use-chat-unread.ts'
 import { useMailboxUnreadCount } from '#app/hooks/use-mailbox.ts'
 
 import { type loader as rootLoader } from '#app/root.tsx'
@@ -234,6 +235,8 @@ function OrganizationSidebar({
 	const mailboxUnreadCount = useMailboxUnreadCount(orgSlug, canReadWebsite)
 	const mailboxUnreadLabelCount = mailboxUnreadCount ?? 0
 	const canManageChat = hasOrgPermission('update', 'chat')
+	const chatUnreadCount = useChatUnreadCount(orgSlug, true)
+	const chatUnreadLabelCount = chatUnreadCount ?? 0
 	const canReadAnnouncements = hasOrgPermission('read', 'announcement')
 	const canReadCampaigns = hasOrgPermission('read', 'campaign')
 	const canReadAutomations = hasOrgPermission('read', 'automation')
@@ -308,6 +311,9 @@ function OrganizationSidebar({
 			url: `/${orgSlug}/chat`,
 			isActive: location.pathname === `/${orgSlug}/chat`,
 			icon: MessageSquareMoreIcon,
+			badge:
+				chatUnreadCount && chatUnreadCount > 0 ? chatUnreadCount : undefined,
+			badgeLabel: _(msg`${chatUnreadLabelCount} unread`),
 		},
 		{
 			title: _(msg`Marketing`),

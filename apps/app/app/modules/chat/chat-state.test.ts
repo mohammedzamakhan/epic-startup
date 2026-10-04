@@ -24,6 +24,7 @@ function message(
 		replyCount: 0,
 		lastReplyAt: null,
 		reactions: [],
+		attachments: [],
 		...overrides,
 	}
 }

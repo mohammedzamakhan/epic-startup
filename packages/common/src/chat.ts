@@ -26,6 +26,9 @@ export const CHAT_LIMITS = {
 	/** Distinct explicit members + roles on one channel. */
 	audienceEntriesMax: 500,
 	groupMembersMax: 50,
+	attachmentsMax: 3,
+	searchQueryMax: 200,
+	searchResultsMax: 50,
 } as const
 
 export type ChatChannelKind = 'channel' | 'dm' | 'group'
@@ -70,6 +73,17 @@ export const chatClientFrameSchema = z.discriminatedUnion('t', [
 		channel: channelId,
 		body,
 		parent: messageId.optional(),
+		attachmentKeys: z
+			.array(z.string().min(1).max(512))
+			.max(CHAT_LIMITS.attachmentsMax)
+			.optional(),
+	}),
+	z.object({
+		t: z.literal('search'),
+		id: requestId,
+		query: z.string().trim().min(1).max(CHAT_LIMITS.searchQueryMax),
+		channels: z.array(channelId).min(1).max(CHAT_LIMITS.syncChannelsMax),
+		limit: z.number().int().min(1).max(CHAT_LIMITS.searchResultsMax).optional(),
 	}),
 	z.object({ t: z.literal('edit'), id: requestId, message: messageId, body }),
 	z.object({ t: z.literal('delete'), id: requestId, message: messageId }),
@@ -100,6 +114,8 @@ export type ChatPerson = { id: string; name: string; image: string | null }
 
 export type ChatReaction = { emoji: string; userIds: string[] }
 
+export type ChatMessageAttachment = { objectKey: string }
+
 export type ChatMessage = {
 	id: number
 	channel: string
@@ -108,12 +124,21 @@ export type ChatMessage = {
 	author: string
 	/** Empty when `deleted`. */
 	body: string
+	attachments: ChatMessageAttachment[]
 	createdAt: number
 	editedAt: number | null
 	deleted: boolean
 	replyCount: number
 	lastReplyAt: number | null
 	reactions: ChatReaction[]
+}
+
+export type ChatSearchHit = {
+	id: number
+	channel: string
+	body: string
+	createdAt: number
+	author: string
 }
 
 export type ChatUnread = {

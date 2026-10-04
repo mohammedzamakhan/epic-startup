@@ -30,7 +30,10 @@ import { useChat } from '#app/hooks/use-chat.ts'
 import { typingUserIds } from '#app/modules/chat/chat-state.ts'
 import { ChatComposeDialog } from './chat-compose-dialog.tsx'
 import { ChatGroupSettingsDialog } from './chat-group-settings-dialog.tsx'
+import { ChatComposer } from './chat-composer.tsx'
 import { Composer, MessageItem } from './chat-message.tsx'
+import { Input } from '@repo/ui/input'
+import { type ChatSearchHit } from '@repo/common/chat'
 
 const GROUP_GAP_MS = 5 * 60 * 1000
 const STICK_THRESHOLD_PX = 80
@@ -79,6 +82,11 @@ export function ChatView({
 	const [pendingDelete, setPendingDelete] = useState<ChatMessage | null>(null)
 	const [composing, setComposing] = useState(false)
 	const [groupSettings, setGroupSettings] = useState(false)
+	const [searchQuery, setSearchQuery] = useState('')
+	const [searchResults, setSearchResults] = useState<ChatSearchHit[] | null>(
+		null,
+	)
+	const [searching, setSearching] = useState(false)
 	const teamChannels = channels.filter((channel) => channel.kind === 'channel')
 	const directMessages = channels.filter((channel) => channel.kind === 'dm')
 	const groupChats = channels.filter((channel) => channel.kind === 'group')
@@ -285,6 +293,57 @@ export function ChatView({
 				aria-label={_(msg`Channels`)}
 				className="flex shrink-0 gap-1 overflow-x-auto border-b p-2 md:w-60 md:flex-col md:overflow-y-auto md:border-e md:border-b-0"
 			>
+				<form
+					className="mb-2 w-full space-y-2"
+					onSubmit={(event) => {
+						event.preventDefault()
+						const query = searchQuery.trim()
+						if (!query) {
+							setSearchResults(null)
+							return
+						}
+						setSearching(true)
+						void chat
+							.search(query)
+							.then((data) => setSearchResults(data.results))
+							.catch(fail)
+							.finally(() => setSearching(false))
+					}}
+				>
+					<Input
+						value={searchQuery}
+						onChange={(event) => setSearchQuery(event.target.value)}
+						placeholder={_(msg`Search messages`)}
+						aria-label={_(msg`Search messages`)}
+						disabled={searching}
+					/>
+				</form>
+				{searchResults && searchResults.length > 0 ? (
+					<div className="mb-2 w-full">
+						<p className="text-muted-foreground px-3 py-1 text-xs font-medium">
+							<Trans>Search results</Trans>
+						</p>
+						{searchResults.map((hit) => {
+							const channel = channels.find((c) => c.id === hit.channel)
+							return (
+								<Link
+									key={hit.id}
+									to={{ search: `?channel=${hit.channel}` }}
+									replace
+									className="hover:bg-muted block rounded-md px-3 py-1.5 text-xs"
+									onClick={() => setSearchResults(null)}
+								>
+									<span className="font-medium">
+										{channel?.name ?? hit.channel}
+									</span>
+									<span className="text-muted-foreground block truncate">
+										{hit.body}
+									</span>
+								</Link>
+							)
+						})}
+					</div>
+				) : null}
 				<Button
 					type="button"
 					size="sm"
@@ -472,12 +531,14 @@ export function ChatView({
 									? _(msg`${firstTypingName} is typing…`)
 									: _(msg`Several people are typing…`)}
 						</p>
-						<Composer
+						<ChatComposer
+							orgSlug={orgSlug}
+							members={members}
 							placeholder={_(msg`Message #${activeName}`)}
 							disabled={!connected}
 							onTyping={() => chat.typing(active.id)}
-							onSend={async (body) => {
-								await chat.send(active.id, body)
+							onSend={async (body, attachmentKeys) => {
+								await chat.send(active.id, body, undefined, attachmentKeys)
 							}}
 						/>
 					</div>

@@ -3,6 +3,7 @@ import {
 	chatClientFrameSchema,
 	type ChatClientFrame,
 	type ChatErrorCode,
+	type ChatMessage,
 	type ChatPerson,
 	type ChatServerFrame,
 } from '@repo/common/chat'
@@ -48,6 +49,11 @@ export type ChatEngineDeps = {
 	audienceTtlMs?: number
 	/** Hide messages before this timestamp for late joiners (ms since epoch). */
 	historyCutoff?: (userId: string, channelId: string) => Promise<number | null>
+	/** Fire-and-forget hook after a message is persisted (notifications, etc.). */
+	onMessageSent?: (input: {
+		message: ChatMessage
+		authorId: string
+	}) => void | Promise<void>
 }
 
 const MAX_CONNECTIONS_PER_USER = 8
@@ -203,6 +209,18 @@ export class ChatEngine {
 					)
 				}
 				return this.onHistory(conn, frame)
+			case 'search':
+				if (this.readRateLimited(conn.userId)) {
+					return this.sendTo(
+						conn,
+						this.fail(
+							frame.id,
+							'rate_limited',
+							'You are requesting data too fast.',
+						),
+					)
+				}
+				return this.onSearch(conn, frame)
 			case 'thread':
 				if (this.readRateLimited(conn.userId)) {
 					return this.sendTo(
@@ -319,10 +337,18 @@ export class ChatEngine {
 			return this.deny(conn, frame.id)
 		}
 		const body = frame.body.trim()
-		if (!body) {
+		const attachmentKeys = frame.attachmentKeys ?? []
+		if (!body && attachmentKeys.length === 0) {
 			this.sendTo(
 				conn,
 				this.fail(frame.id, 'bad_request', 'Write a message first.'),
+			)
+			return
+		}
+		if (attachmentKeys.length > CHAT_LIMITS.attachmentsMax) {
+			this.sendTo(
+				conn,
+				this.fail(frame.id, 'bad_request', 'Too many attachments.'),
 			)
 			return
 		}
@@ -330,6 +356,7 @@ export class ChatEngine {
 			channel: frame.channel,
 			author: conn.userId,
 			body,
+			attachmentKeys,
 			parent: frame.parent,
 			now: this.now(),
 		})
@@ -347,6 +374,24 @@ export class ChatEngine {
 				})
 			}
 		}
+		void this.deps.onMessageSent?.({ message, authorId: conn.userId })
+	}
+
+	private async onSearch(
+		conn: ChatConnection,
+		frame: Extract<ChatClientFrame, { t: 'search' }>,
+	) {
+		const allowed = await this.allowedChannels(conn.userId, frame.channels)
+		const hits = this.store.search(frame.query, {
+			limit: frame.limit,
+			channelIds: allowed,
+		})
+		const allowedSet = new Set(allowed)
+		const visible = hits.filter((hit) => allowedSet.has(hit.channel))
+		const people = this.store.getPeople([
+			...new Set(visible.map((hit) => hit.author)),
+		])
+		this.ack(conn, frame.id, { results: visible, people })
 	}
 
 	private async onEdit(

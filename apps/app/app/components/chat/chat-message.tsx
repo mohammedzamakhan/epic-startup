@@ -11,6 +11,7 @@ import { Button } from '@repo/ui/button'
 import { Icon } from '@repo/ui/icon'
 import { Textarea } from '@repo/ui/textarea'
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { ChatMessageMarkdown } from './chat-message-markdown.tsx'
 
 export const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '👀', '🙏'] as const
 
@@ -65,15 +66,21 @@ function MessageBody({ message }: { message: ChatMessage }) {
 	const { _ } = useLingui()
 	const [expanded, setExpanded] = useState(false)
 	const limit = CHAT_LIMITS.collapseBodyAt
-	const needsCollapse = !message.deleted && message.body.length > limit
+	const plainLength = message.body.length
+	const needsCollapse = !message.deleted && plainLength > limit
 	const body =
 		needsCollapse && !expanded
 			? `${message.body.slice(0, limit)}…`
 			: message.body
 
 	return (
-		<div className="text-sm break-words whitespace-pre-wrap">
-			<p>{body}</p>
+		<div className="text-sm break-words">
+			<ChatMessageMarkdown
+				body={body}
+				attachments={
+					needsCollapse && !expanded ? [] : (message.attachments ?? [])
+				}
+			/>
 			{needsCollapse ? (
 				<Button
 					type="button"
