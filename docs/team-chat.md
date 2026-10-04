@@ -157,7 +157,8 @@ mixing the two crashes at startup with `require_react is not a function`.
 `apps/app/wrangler.jsonc` declares the `CHAT_ORG` binding and a SQLite migration
 (`new_sqlite_classes: ["ChatOrg"]`) for production and `env.staging`. Deploying
 the Worker applies it; there is nothing else to provision. The control plane
-migration `0015_team_chat_channels` adds the channel tables and the permission.
+migration `0015_team_chat` adds channel/DM/group tables, retention, and
+permissions.
 
 ## Not included (yet)
 

@@ -1,7 +1,7 @@
 {
 	"version": "6",
 	"dialect": "sqlite",
-	"id": "da0cdfe6-a6d8-4059-8d4a-f7b1b166d30a",
+	"id": "92b43a5a-61a7-4420-8e9a-f9a34a159be7",
 	"prevId": "1d3d722c-4e53-4b16-9a2a-d64d1cbbc6ce",
 	"tables": {
 		"ApiKey": {
@@ -3306,6 +3306,13 @@
 					"primaryKey": false,
 					"notNull": false,
 					"autoincrement": false
+				},
+				"chatRetentionDays": {
+					"name": "chatRetentionDays",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
 				}
 			},
 			"indexes": {
@@ -3476,6 +3483,29 @@
 					"autoincrement": false,
 					"default": "'everyone'"
 				},
+				"kind": {
+					"name": "kind",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": "'channel'"
+				},
+				"dmPairKey": {
+					"name": "dmPairKey",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"showHistoryToNewMembers": {
+					"name": "showHistoryToNewMembers",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": false
+				},
 				"createdById": {
 					"name": "createdById",
 					"type": "text",
@@ -3507,6 +3537,11 @@
 				"OrganizationChatChannel_organizationId_name_key": {
 					"name": "OrganizationChatChannel_organizationId_name_key",
 					"columns": ["organizationId", "lower(\"name\")"],
+					"isUnique": true
+				},
+				"OrganizationChatChannel_organizationId_dmPairKey_key": {
+					"name": "OrganizationChatChannel_organizationId_dmPairKey_key",
+					"columns": ["organizationId", "dmPairKey"],
 					"isUnique": true
 				}
 			},
@@ -3547,6 +3582,13 @@
 				"userId": {
 					"name": "userId",
 					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"joinedAt": {
+					"name": "joinedAt",
+					"type": "integer",
 					"primaryKey": false,
 					"notNull": true,
 					"autoincrement": false
