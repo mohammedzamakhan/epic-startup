@@ -24,8 +24,10 @@ marketing journeys (delays up to weeks, retries, cycle detection).
 
 ## Positioning
 
-Zero-PII by test: the worker only ever calls internal-token-authenticated routes
-and never touches customer data; a test enforces it.
+Zero-PII by test: the worker only ever calls internal-token-authenticated
+routes, and the marketing-journey workflow carries only customer identifiers and
+unrendered journey templates to the regional tenant API; a test enforces that
+injected customer PII is dropped from payloads and never logged.
 
 ## Operating Context
 

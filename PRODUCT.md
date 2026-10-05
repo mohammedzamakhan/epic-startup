@@ -61,9 +61,11 @@ region destroys the old tenant database instead of migrating it across borders.
   Keychain/Keystore service names, so a fresh clone carries no trace of the
   template brand.
 - Deploy targets: Cloudflare Workers with D1, KV, R2, and Durable Objects
-  (operator app, admin, marketing site, storefronts, jobs worker, and the US
-  regional data node); an OCI VM for each additional data region, with
-  per-organization SQLite on a block volume; Mintlify for the docs site.
+  (operator app, admin, marketing site, storefronts, and jobs worker). The US
+  tenant API runs on a Worker with one SQLite-backed Durable Object per
+  organization by default, or on an OCI VM with per-organization SQLite on a
+  block volume; each additional data region uses an OCI VM. Mintlify hosts the
+  docs site.
 - Launch lifecycle: a launch-status phase (closed beta, public beta, launched)
   gates the waitlist and upgrade UI.
 - Guides and architecture decision records live in `docs/`; the tenant data
@@ -92,10 +94,10 @@ Confirmed capability surface:
 - Platform admin: tenant oversight, user management, per-organization SSO,
   HMAC-integrity audit logs, GDPR request queue, feature flags, waitlist,
   platform-wide marketing.
-- Scheduled jobs: a cron worker drives audit archival, token cleanup, GDPR
-  erasure, and retention, plus hourly engagement sync on both regional nodes;
-  Cloudflare Workflows run storage migrations and long-running marketing
-  journeys.
+- Scheduled jobs: a cron worker drives audit archival, token cleanup, and GDPR
+  erasure, plus hourly engagement sync on both regional nodes; form-submission
+  retention is planned but is not yet registered as a cron trigger. Cloudflare
+  Workflows run storage migrations and long-running marketing journeys.
 
 Hard constraints (durable):
 
