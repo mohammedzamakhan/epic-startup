@@ -11,18 +11,17 @@ web
 
 ## Users
 
-End customers of each organization: they browse the published site, view the
-ordering menu, place orders, buy from the shop, sign in with phone-number OTP,
-and manage their profile and order history. First-time visitors read the
-organization's marketing pages. Organization editors use `?preview=true` for
-live preview from the operator app's website editor.
+End customers of each organization: they browse the published site, buy from the
+shop, sign in with phone-number OTP, and manage their profile and order history.
+First-time visitors read the organization's marketing pages. Organization
+editors use `?preview=true` for live preview from the operator app's website
+editor.
 
 ## Product Purpose
 
 The customer-facing storefront, served per organization on its subdomain (and
-custom domains). It renders the organization's published website, its ordering
-menu with cart and checkout, its scheduled drops, and its shop, plus a phone-OTP
-customer account.
+custom domains). It renders the organization's published website and its
+shop, plus a phone-OTP customer account.
 
 ## Positioning
 
@@ -48,17 +47,6 @@ customer session cookies).
 - Published CMS pages from typed blocks (header, footer, hero, features,
   content, cards, CTA, FAQ, gallery, testimonials, video, form) with 404 logging
   and redirect hit tracking.
-- Ordering menu: locations (default, address, tax rate, delivery zones),
-  three-level categories, items with variations, sold-out states, "From"
-  pricing, dietary labels, a customize modal, a per-organization cart in
-  localStorage, live ordering availability per location, and pickup or delivery
-  fulfillment.
-- Checkout: fulfillment mode, contact and delivery address, tip, and
-  location-derived tax and fees. Open item: order placement is currently
-  client-side only (the order is held in localStorage and the success page is
-  shown; no backend order POST is wired yet).
-- Scheduled drops (`/drop/[slug]`): upcoming, live, or closed states from the
-  order window, with pickup windows and inventory overrides.
 - Shop: single-product purchase with hosted or inline card checkout; order
   status and receipts.
 - Customer account: `/login` → `/verify` → `/complete-name` (phone only, name
