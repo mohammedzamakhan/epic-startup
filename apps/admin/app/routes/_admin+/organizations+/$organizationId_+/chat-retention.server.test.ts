@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
+import { i18n } from '@lingui/core'
 import { AuditAction, auditService } from '@repo/audit'
 import {
 	authSessionStorage,
 	getSessionExpirationDate,
 	sessionKey,
 } from '@repo/auth'
+import { getToast } from '@repo/common/toast'
 import {
 	db,
 	eq,
@@ -132,6 +134,39 @@ describe('platform admin chat retention', () => {
 		})
 		expect(unchanged?.chatRetentionDays).toBe(90)
 	})
+
+	it.each([
+		[
+			'en',
+			'Message retention updated',
+			'The policy will apply on the next daily chat cleanup.',
+		],
+		[
+			'ar',
+			'تم تحديث سياسة الاحتفاظ بالرسائل',
+			'ستُطبّق السياسة في عملية التنظيف اليومية التالية للمحادثات.',
+		],
+	] as const)(
+		'translates the confirmation for an %s request',
+		async (locale, title, description) => {
+			const { args } = await setup()
+			vi.spyOn(auditService, 'log').mockResolvedValue(undefined)
+			const requestArgs = args('30')
+			requestArgs.request.headers.set('Accept-Language', locale)
+			const previousLocale = i18n.locale
+			const response = await action(requestArgs)
+			const toastCookie = (response as Response).headers.get('set-cookie')
+			expect(toastCookie).not.toBeNull()
+			const { toast } = await getToast(
+				new Request('http://localhost:3004/', {
+					headers: { Cookie: toastCookie! },
+				}),
+			)
+
+			expect(toast).toMatchObject({ title, description, type: 'success' })
+			expect(i18n.locale).toBe(previousLocale)
+		},
+	)
 
 	it.each(['0', '15', '-30', '30.5', '', 'null'])(
 		'rejects invalid retention value %s without updating or auditing',

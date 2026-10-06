@@ -415,7 +415,14 @@ export async function createOrganization({
 				'Failed to clean up tenant database after organization creation',
 			)
 		}
-		await db.delete(Organization).where(eq(Organization.id, organization.id))
+		try {
+			await db.delete(Organization).where(eq(Organization.id, organization.id))
+		} catch (deleteError) {
+			logger.warn(
+				{ err: deleteError, organizationId: organization.id },
+				'Failed to delete organization after creation failure',
+			)
+		}
 		throw error
 	}
 

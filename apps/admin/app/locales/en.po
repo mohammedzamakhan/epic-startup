@@ -2049,6 +2049,10 @@ msgstr "Message content is required"
 msgid "Message retention"
 msgstr "Message retention"
 
+#: app/routes/_admin+/organizations+/$organizationId_+/chat-retention.server.ts:92
+msgid "Message retention updated"
+msgstr "Message retention updated"
+
 #: ../../packages/marketing-workflow/src/workflow-labels.ts:290
 msgid "minutes"
 msgstr ""
@@ -3454,6 +3458,10 @@ msgstr ""
 #: ../../packages/marketing/src/components/email/block-meta.ts:24
 msgid "The main paragraph copy of your email."
 msgstr "The main paragraph copy of your email."
+
+#: app/routes/_admin+/organizations+/$organizationId_+/chat-retention.server.ts:94
+msgid "The policy will apply on the next daily chat cleanup."
+msgstr "The policy will apply on the next daily chat cleanup."
 
 #: app/components/nav-user.tsx:121
 msgid "Theme"

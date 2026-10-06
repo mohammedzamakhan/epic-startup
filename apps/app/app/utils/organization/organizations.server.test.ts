@@ -1,5 +1,6 @@
 import { auditService, AuditAction } from '@repo/audit'
 import type * as DatabaseModule from '@repo/database'
+import { logger } from '@repo/observability'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -249,6 +250,41 @@ describe('createOrganization', () => {
 		expect(mockDb.delete).toHaveBeenCalledOnce()
 		expect(auditService.log).not.toHaveBeenCalled()
 	})
+
+	it.each(['provisioning', 'readiness'] as const)(
+		'preserves the %s error when organization deletion also fails',
+		async (failure) => {
+			captureInserts(
+				[{ id: 'org-1', name: 'Acme', slug: 'acme' }],
+				[],
+				[{ id: 'page-1' }],
+				[],
+			)
+			const originalError = new Error(`Could not complete ${failure}`)
+			const deleteError = new Error('Could not delete the organization')
+			if (failure === 'provisioning') {
+				vi.mocked(provisionTenantDatabase).mockRejectedValueOnce(originalError)
+			} else {
+				mockDb.update.mockImplementationOnce(() => {
+					throw originalError
+				})
+			}
+			mockDb.delete.mockImplementationOnce(() => {
+				throw deleteError
+			})
+			const warning = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+
+			await expect(
+				createOrganization({ name: 'Acme', slug: 'acme', userId: 'user-1' }),
+			).rejects.toBe(originalError)
+			expect(deprovisionTenantDatabase).toHaveBeenCalledOnce()
+			expect(warning).toHaveBeenCalledWith(
+				{ err: deleteError, organizationId: 'org-1' },
+				'Failed to delete organization after creation failure',
+			)
+			expect(auditService.log).not.toHaveBeenCalled()
+		},
+	)
 
 	it('does not create an organization without the admin role', async () => {
 		resetMockDb()

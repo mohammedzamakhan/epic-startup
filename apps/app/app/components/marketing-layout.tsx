@@ -46,7 +46,7 @@ export function MarketingLayout({
 	extensionId = null,
 }: MarketingLayoutProps) {
 	const { pathname } = useLocation()
-	const isConversation = /\/(?:mailbox|chat)\/?$/.test(pathname)
+	const isConversation = /^\/[^/]+\/(?:mailbox|chat)\/?$/.test(pathname)
 	return (
 		<>
 			<SidebarProvider

@@ -147,8 +147,9 @@ migrated.
 
 1. If `hasProvisionedDb`, the UI requires an explicit confirm
    (`confirmWipe=true`).
-2. App deprovisions the **old** region (the control-plane database still has the
-   old `dataRegion`, so the old node accepts the wipe).
+2. App sets `hasProvisionedDb = false` before deprovisioning the **old** region.
+   The control-plane database keeps the old `dataRegion` until the wipe
+   succeeds, so retries still target the correct node.
 3. App updates the control-plane database: new `dataRegion`,
    `hasProvisionedDb = false`.
 4. App immediately provisions an empty DB in the new region and sets
@@ -263,9 +264,9 @@ OCI uses `linux/arm64`; Cloudflare Containers use `linux/amd64`. SQLite files
 live at `TENANT_DB_DIR=/data/tenants` (OCI block volume or container disk). Run
 a **single writer** per region. Leave LiteFS unset.
 
-App stays in the US and only sends `{ orgId, slug, dataRegion }` to the matching
-regional URL. Set `APP_URL` on each tenant-api so it can resolve org flags
-without the control-plane SQLite volume.
+App stays in the US and only sends `{ orgId, slug, customDomain, dataRegion }`
+to the matching regional URL. Set `APP_URL` on each tenant-api so it can resolve
+org flags without the control-plane SQLite volume.
 
 GitHub Actions builds both architectures and pushes to GHCR. CI always deploys
 US to Cloudflare (`deploy-tenant-api-us-cf`) and KSA to OCI when

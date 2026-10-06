@@ -2049,6 +2049,10 @@ msgstr "محتوى الرسالة مطلوب"
 msgid "Message retention"
 msgstr "الاحتفاظ بالرسائل"
 
+#: app/routes/_admin+/organizations+/$organizationId_+/chat-retention.server.ts:92
+msgid "Message retention updated"
+msgstr "تم تحديث سياسة الاحتفاظ بالرسائل"
+
 #: ../../packages/marketing-workflow/src/workflow-labels.ts:290
 msgid "minutes"
 msgstr "دقائق"
@@ -3454,6 +3458,10 @@ msgstr "سينتظر محرك التنفيذ لمدة {0} {1} قبل الانت�
 #: ../../packages/marketing/src/components/email/block-meta.ts:24
 msgid "The main paragraph copy of your email."
 msgstr "الفقرة الرئيسية في بريدك الإلكتروني."
+
+#: app/routes/_admin+/organizations+/$organizationId_+/chat-retention.server.ts:94
+msgid "The policy will apply on the next daily chat cleanup."
+msgstr "ستُطبّق السياسة في عملية التنظيف اليومية التالية للمحادثات."
 
 #: app/components/nav-user.tsx:121
 msgid "Theme"

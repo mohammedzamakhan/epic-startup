@@ -365,6 +365,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 		try {
 			if (organization.hasProvisionedDb) {
+				// Record the database as unavailable before any irreversible deletion.
+				// Keep the old region until its wipe succeeds so retries target it.
+				await db
+					.update(Organization)
+					.set({ hasProvisionedDb: false })
+					.where(eq(Organization.id, organization.id))
+			}
+
+			if (organization.hasProvisionedDb || dataRegion !== currentRegion) {
 				await deprovisionTenantDatabase({
 					orgId: organization.id,
 					dataRegion: currentRegion,

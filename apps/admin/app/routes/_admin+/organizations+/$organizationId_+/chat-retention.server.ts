@@ -1,3 +1,4 @@
+import { msg } from '@lingui/macro'
 import { AuditAction, auditService } from '@repo/audit'
 import { requireUserWithRole } from '@repo/auth'
 import {
@@ -12,6 +13,7 @@ import {
 	type LoaderFunctionArgs,
 } from 'react-router'
 import { z } from 'zod'
+import { getRequestI18n } from '#app/modules/lingui/lingui.server.ts'
 
 const retentionSchema = z.object({
 	intent: z.literal('retention'),
@@ -85,9 +87,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		request,
 	})
 
+	const i18n = await getRequestI18n(request)
 	return redirectWithToast(`/organizations/${updated.id}/chat-retention`, {
-		title: 'Message retention updated',
-		description: 'The policy will apply on the next daily chat cleanup.',
+		title: i18n._(msg`Message retention updated`),
+		description: i18n._(
+			msg`The policy will apply on the next daily chat cleanup.`,
+		),
 		type: 'success',
 	})
 }
