@@ -1,0 +1,195 @@
+import { msg, Trans } from '@lingui/macro'
+import { useLingui } from '@lingui/react'
+import { cn } from '@repo/ui'
+import { Icon } from '@repo/ui/icon'
+import { type ReactNode } from 'react'
+import { Link, useLocation, useMatches } from 'react-router'
+import { breadcrumbFromHandle } from '#app/utils/breadcrumb.ts'
+
+const SEGMENT_LABELS: Record<string, ReactNode> = {
+	notes: <Trans>Notes</Trans>,
+	customers: <Trans>Customers</Trans>,
+	settings: <Trans>Settings</Trans>,
+	website: <Trans>Website</Trans>,
+	marketing: <Trans>Marketing</Trans>,
+	'phone-agent': <Trans>Phone agent</Trans>,
+	staff: <Trans>Staff</Trans>,
+	reports: <Trans>Reports</Trans>,
+	mailbox: <Trans>Mailbox</Trans>,
+	chat: <Trans>Chat</Trans>,
+	media: <Trans>Media library</Trans>,
+	dashboards: <Trans>Dashboards</Trans>,
+	new: <Trans>New</Trans>,
+	edit: <Trans>Edit</Trans>,
+	// Staff
+	team: <Trans>Team</Trans>,
+	positions: <Trans>Positions</Trans>,
+	import: <Trans>Import</Trans>,
+	bulk: <Trans>Bulk add</Trans>,
+	timeclock: <Trans>Time clock</Trans>,
+	timesheets: <Trans>Timesheets</Trans>,
+	tablets: <Trans>Tablets</Trans>,
+	rules: <Trans>Labor rules</Trans>,
+	schedule: <Trans>Schedule</Trans>,
+	'time-off': <Trans>Time off</Trans>,
+	availability: <Trans>Availability</Trans>,
+	labor: <Trans>Labor</Trans>,
+	hiring: <Trans>Hiring</Trans>,
+	applicants: <Trans>Applicants</Trans>,
+	onboarding: <Trans>Onboarding</Trans>,
+	terminate: <Trans>Terminate</Trans>,
+	rehire: <Trans>Rehire</Trans>,
+	// Marketing
+	campaigns: <Trans>Broadcasts</Trans>,
+	automations: <Trans>Automations</Trans>,
+	// Phone agent
+	calls: <Trans>Calls</Trans>,
+	knowledge: <Trans>Knowledge</Trans>,
+	training: <Trans>Training rules</Trans>,
+	flow: <Trans>Call flow</Trans>,
+	transfers: <Trans>Transfers</Trans>,
+	'follow-up': <Trans>Follow-up</Trans>,
+	phrases: <Trans>Phrases</Trans>,
+	advanced: <Trans>Advanced</Trans>,
+	test: <Trans>Test call</Trans>,
+	// Website
+	pages: <Trans>Pages</Trans>,
+	forms: <Trans>Forms</Trans>,
+	analytics: <Trans>Analytics</Trans>,
+	announcements: <Trans>Announcements</Trans>,
+	redirects: <Trans>Redirects</Trans>,
+	// Settings
+	general: <Trans>General</Trans>,
+	members: <Trans>Members</Trans>,
+	roles: <Trans>Roles & access</Trans>,
+	integrations: <Trans>Integrations</Trans>,
+	notifications: <Trans>Notifications</Trans>,
+	billing: <Trans>Billing</Trans>,
+	shop: <Trans>Shop</Trans>,
+	mcp: <Trans>MCP server</Trans>,
+	runs: <Trans>Runs</Trans>,
+	status: <Trans>Status</Trans>,
+}
+
+// What a record id under each collection is called when its route gives no name.
+const RECORD_LABELS: Record<string, ReactNode> = {
+	dashboards: <Trans>Dashboard</Trans>,
+	reports: <Trans>Report</Trans>,
+	notes: <Trans>Note</Trans>,
+	status: <Trans>Status</Trans>,
+	campaigns: <Trans>Broadcast</Trans>,
+	automations: <Trans>Automation</Trans>,
+	roles: <Trans>Role</Trans>,
+	pages: <Trans>Page</Trans>,
+	forms: <Trans>Form</Trans>,
+	team: <Trans>Staff member</Trans>,
+	hiring: <Trans>Job post</Trans>,
+	applicants: <Trans>Applicant</Trans>,
+	timesheets: <Trans>Time card</Trans>,
+}
+
+// Path prefixes with no page of their own. `notes/status` would be read as a
+// note id and show "note not found", so its crumb is text, not a link.
+const UNLINKED_PREFIXES = new Set(['notes/status'])
+
+function isWordSegment(segment: string) {
+	return /^[a-z]+(?:-[a-z]+)*$/.test(segment)
+}
+
+function labelForSegment(segment: string, isOrgRoot: boolean) {
+	if (isOrgRoot) return <Trans>Home</Trans>
+	const known = SEGMENT_LABELS[segment]
+	if (known) return known
+	// Unknown word-like segments read as sentence case.
+	const words = segment.replace(/-/g, ' ')
+	return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+export function WorkspaceBreadcrumb({ className }: { className?: string }) {
+	const { _ } = useLingui()
+	const { pathname } = useLocation()
+	const matches = useMatches()
+	const navLabel = _(msg`Breadcrumb`)
+	const parts = pathname.split('/').filter(Boolean)
+
+	// Record ids show the route's own name for the record (handle.breadcrumb),
+	// else what the collection calls one ("Dashboard"), never the raw id.
+	function labelForRecord(href: string, parentSegment: string | undefined) {
+		for (let i = matches.length - 1; i >= 0; i--) {
+			const match = matches[i]
+			if (!match) continue
+			const path = match.pathname.replace(/\/$/, '')
+			if (path !== href && !path.startsWith(`${href}/`)) continue
+			const label = breadcrumbFromHandle(match.handle, match.loaderData)
+			if (label) return label
+		}
+		return (
+			(parentSegment && RECORD_LABELS[parentSegment]) ?? <Trans>Details</Trans>
+		)
+	}
+
+	if (parts.length === 0) {
+		return (
+			<nav aria-label={navLabel} className={cn('text-sm', className)}>
+				<span className="font-medium">
+					<Trans>Home</Trans>
+				</span>
+			</nav>
+		)
+	}
+
+	const orgSlug = parts[0]
+	const crumbs: { href: string; label: ReactNode; linked: boolean }[] = []
+
+	crumbs.push({ href: `/${orgSlug}`, label: <Trans>Home</Trans>, linked: true })
+	if (parts.length > 1) {
+		for (let i = 1; i < parts.length; i++) {
+			const segment = parts[i]
+			if (!segment || segment.startsWith('_')) continue
+			const href = `/${parts.slice(0, i + 1).join('/')}`
+			const isKnownWord = segment in SEGMENT_LABELS || isWordSegment(segment)
+			crumbs.push({
+				href,
+				linked: !UNLINKED_PREFIXES.has(parts.slice(1, i + 1).join('/')),
+				label: isKnownWord
+					? labelForSegment(segment, false)
+					: labelForRecord(href, parts[i - 1]),
+			})
+		}
+	}
+
+	const last = crumbs[crumbs.length - 1]
+
+	return (
+		<nav
+			aria-label={navLabel}
+			className={cn('flex min-w-0 items-center gap-1.5 text-[13px]', className)}
+		>
+			{crumbs.length > 1 ? (
+				<>
+					{crumbs.slice(0, -1).map((crumb) => (
+						<span key={crumb.href} className="flex items-center gap-1.5">
+							{crumb.linked ? (
+								<Link
+									to={crumb.href}
+									className="text-muted-foreground hover:text-foreground truncate transition-colors"
+								>
+									{crumb.label}
+								</Link>
+							) : (
+								<span className="text-muted-foreground truncate">
+									{crumb.label}
+								</span>
+							)}
+							<Icon
+								name="chevron-right"
+								className="text-muted-foreground size-3.5 shrink-0 opacity-60"
+							/>
+						</span>
+					))}
+				</>
+			) : null}
+			<span className="truncate font-medium">{last?.label}</span>
+		</nav>
+	)
+}
