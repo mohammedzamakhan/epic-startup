@@ -64,7 +64,10 @@ export function MarketingLayout({
 				{/* Main column: the inset (sidebar + header + page content). */}
 				<SidebarInset
 					role="main"
-					className={cn('min-w-0', isConversation && 'min-h-0 overflow-hidden')}
+					className={cn(
+						'min-w-0 overflow-x-clip',
+						isConversation && 'min-h-0 overflow-hidden',
+					)}
 				>
 					<SiteHeader isCollapsed={isCollapsed} />
 					<div

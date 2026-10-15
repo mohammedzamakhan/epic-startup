@@ -139,8 +139,10 @@ test.describe('Mobile Responsiveness', () => {
 
 		await submitButton.click()
 
-		// Verify form submission works - use first() to avoid strict mode
-		await expect(page.getByText('Mobile Test Note').first()).toBeVisible()
+		// Verify form submission works in main page content
+		await expect(
+			page.getByRole('main').getByText('Mobile Test Note'),
+		).toBeVisible()
 	})
 
 	test('Tables are responsive on mobile', async ({ page, login, navigate }) => {

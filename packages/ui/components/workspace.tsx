@@ -269,7 +269,7 @@ export function WorkspaceTabDivider({
 	return (
 		<div
 			className={cn(
-				'before:bg-border relative before:absolute before:bottom-0 before:left-1/2 before:h-px before:w-[calc(100cqw+1rem)] before:-translate-x-1/2 md:before:w-[calc(100cqw+1.5rem)]',
+				'before:bg-border relative before:absolute before:inset-x-0 before:bottom-0 before:h-px md:before:inset-x-auto md:before:left-1/2 md:before:w-[calc(100cqw+1.5rem)] md:before:-translate-x-1/2',
 				className,
 			)}
 		>
