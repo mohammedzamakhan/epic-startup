@@ -11,6 +11,7 @@ export function ColorSwatch({
 	swatch,
 	selected,
 	disabled,
+	radio,
 	onSelect,
 }: {
 	label: string
@@ -18,6 +19,11 @@ export function ColorSwatch({
 	swatch: string
 	selected: boolean
 	disabled?: boolean
+	/**
+	 * Expose the swatch as a radio inside a `role="radiogroup"` (exclusive
+	 * choice, roving tab stop) instead of an independent toggle button.
+	 */
+	radio?: boolean
 	onSelect: () => void
 }) {
 	return (
@@ -29,7 +35,13 @@ export function ColorSwatch({
 						disabled={disabled}
 						onClick={onSelect}
 						aria-label={label}
-						aria-pressed={selected}
+						{...(radio
+							? {
+									role: 'radio',
+									'aria-checked': selected,
+									tabIndex: selected ? 0 : -1,
+								}
+							: { 'aria-pressed': selected })}
 						className={cn(
 							'size-6 rounded-full transition-[box-shadow,transform] duration-150 ease-out',
 							'focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',

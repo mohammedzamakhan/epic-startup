@@ -57,7 +57,7 @@ function OrganizationAvatar({
 					className="rounded-md object-cover"
 				/>
 			) : null}
-			<AvatarFallback className="rounded-md bg-zinc-800 text-[10px] font-semibold text-white dark:bg-zinc-600">
+			<AvatarFallback className="bg-primary text-primary-foreground rounded-md text-xs font-semibold">
 				{organization.name.slice(0, 2).toUpperCase()}
 			</AvatarFallback>
 		</Avatar>

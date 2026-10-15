@@ -21,6 +21,7 @@ import { handleHomeAction } from '#app/utils/dashboards/actions.server.ts'
 import {
 	loadBlockPicker,
 	loadBuiltInBlockData,
+	loadContributorCount,
 	loadReportBlockData,
 } from '#app/utils/dashboards/block-data.server.ts'
 import {
@@ -41,7 +42,7 @@ const CELEBRATION_MS = 3000
 /** The KPI row above the grid stands in for the stats block. */
 const HOME_HIDDEN_BLOCK_TYPES: readonly BlockType[] = ['stats']
 /** What the KPI row reads, loaded whatever blocks the home has. */
-const KPI_BLOCK_TYPES: readonly BlockType[] = ['stats', 'leaderboard']
+const KPI_BLOCK_TYPES: readonly BlockType[] = ['stats']
 
 export async function loader({ request, params }: Route.LoaderArgs) {
 	const userId = await requireUserId(request)
@@ -58,7 +59,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 		setUserDefaultOrganization(userId, organization.id),
 	])
 	const blocks = home.config.blocks
-	const [blockData, reports, switcher] = await Promise.all([
+	const [blockData, reports, switcher, contributorCount] = await Promise.all([
 		loadBuiltInBlockData({
 			userId,
 			organization: { id: organization.id, createdAt },
@@ -70,6 +71,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 			blocks,
 		}),
 		listDashboardsForSwitcher(userId, organization.id),
+		loadContributorCount(organization.id),
 	])
 	const picker = await loadBlockPicker({
 		userId,
@@ -86,6 +88,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 			config: home.config,
 		},
 		blockData,
+		contributorCount,
 		reports,
 		picker,
 		switcher,
@@ -139,8 +142,15 @@ function useCelebration() {
 
 export default function HomeDashboard({ loaderData }: Route.ComponentProps) {
 	const { _ } = useLingui()
-	const { organization, dashboard, blockData, reports, picker, switcher } =
-		loaderData
+	const {
+		organization,
+		dashboard,
+		blockData,
+		contributorCount,
+		reports,
+		picker,
+		switcher,
+	} = loaderData
 	const rootData = useRouteLoaderData<typeof rootLoader>('root')
 	const userName = rootData?.user?.name || _(msg`User`)
 	const notes = blockData.notes
@@ -187,8 +197,6 @@ export default function HomeDashboard({ loaderData }: Route.ComponentProps) {
 		[organization.slug, picker.savedReports, reports],
 	)
 
-	const contributorCount = blockData.leaderboard?.length ?? 0
-
 	return (
 		<WorkspacePage>
 			<WorkspaceHero title={greeting} meta={todayLine} />
@@ -222,7 +230,7 @@ export default function HomeDashboard({ loaderData }: Route.ComponentProps) {
 				<WorkspaceMetric
 					label={_(msg`Contributors`)}
 					value={contributorCount}
-					hint={_(msg`On the leaderboard`)}
+					hint={_(msg`Across your organization`)}
 				/>
 			</WorkspaceMetricGrid>
 			<DashboardEditor

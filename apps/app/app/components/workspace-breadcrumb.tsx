@@ -3,7 +3,7 @@ import { useLingui } from '@lingui/react'
 import { cn } from '@repo/ui'
 import { Icon } from '@repo/ui/icon'
 import { type ReactNode } from 'react'
-import { Link, useLocation, useMatches } from 'react-router'
+import { Link, useLocation, useMatches, useParams } from 'react-router'
 import { breadcrumbFromHandle } from '#app/utils/breadcrumb.ts'
 
 const SEGMENT_LABELS: Record<string, ReactNode> = {
@@ -98,7 +98,11 @@ function isWordSegment(segment: string) {
 
 function labelForSegment(segment: string, isOrgRoot: boolean) {
 	if (isOrgRoot) return <Trans>Home</Trans>
-	const known = SEGMENT_LABELS[segment]
+	// Own keys only: `constructor` or `toString` in a URL must not resolve to
+	// an inherited function.
+	const known = Object.hasOwn(SEGMENT_LABELS, segment)
+		? SEGMENT_LABELS[segment]
+		: undefined
 	if (known) return known
 	// Unknown word-like segments read as sentence case.
 	const words = segment.replace(/-/g, ' ')
@@ -109,6 +113,7 @@ export function WorkspaceBreadcrumb({ className }: { className?: string }) {
 	const { _ } = useLingui()
 	const { pathname } = useLocation()
 	const matches = useMatches()
+	const { orgSlug } = useParams()
 	const navLabel = _(msg`Breadcrumb`)
 	const parts = pathname.split('/').filter(Boolean)
 
@@ -124,7 +129,9 @@ export function WorkspaceBreadcrumb({ className }: { className?: string }) {
 			if (label) return label
 		}
 		return (
-			(parentSegment && RECORD_LABELS[parentSegment]) ?? <Trans>Details</Trans>
+			(parentSegment && Object.hasOwn(RECORD_LABELS, parentSegment)
+				? RECORD_LABELS[parentSegment]
+				: undefined) ?? <Trans>Details</Trans>
 		)
 	}
 
@@ -138,58 +145,76 @@ export function WorkspaceBreadcrumb({ className }: { className?: string }) {
 		)
 	}
 
-	const orgSlug = parts[0]
 	const crumbs: { href: string; label: ReactNode; linked: boolean }[] = []
 
-	crumbs.push({ href: `/${orgSlug}`, label: <Trans>Home</Trans>, linked: true })
-	if (parts.length > 1) {
-		for (let i = 1; i < parts.length; i++) {
-			const segment = parts[i]
-			if (!segment || segment.startsWith('_')) continue
-			const href = `/${parts.slice(0, i + 1).join('/')}`
-			const isKnownWord = segment in SEGMENT_LABELS || isWordSegment(segment)
-			crumbs.push({
-				href,
-				linked: !UNLINKED_PREFIXES.has(parts.slice(1, i + 1).join('/')),
-				label: isKnownWord
-					? labelForSegment(segment, false)
-					: labelForRecord(href, parts[i - 1]),
-			})
-		}
+	// `/profile` and `/security` share this chrome but are not organizations,
+	// so only a matched `$orgSlug` route gets the Home crumb and its offset.
+	const start = orgSlug ? 1 : 0
+	if (orgSlug) {
+		crumbs.push({
+			href: `/${parts[0]}`,
+			label: <Trans>Home</Trans>,
+			linked: true,
+		})
+	}
+	for (let i = start; i < parts.length; i++) {
+		const segment = parts[i]
+		if (!segment || segment.startsWith('_')) continue
+		const href = `/${parts.slice(0, i + 1).join('/')}`
+		const isKnownWord =
+			Object.hasOwn(SEGMENT_LABELS, segment) || isWordSegment(segment)
+		crumbs.push({
+			href,
+			linked: !UNLINKED_PREFIXES.has(parts.slice(start, i + 1).join('/')),
+			label: isKnownWord
+				? labelForSegment(segment, false)
+				: labelForRecord(href, parts[i - 1]),
+		})
 	}
 
-	const last = crumbs[crumbs.length - 1]
-
 	return (
-		<nav
-			aria-label={navLabel}
-			className={cn('flex min-w-0 items-center gap-1.5 text-[13px]', className)}
-		>
-			{crumbs.length > 1 ? (
-				<>
-					{crumbs.slice(0, -1).map((crumb) => (
-						<span key={crumb.href} className="flex items-center gap-1.5">
-							{crumb.linked ? (
+		<nav aria-label={navLabel} className={cn('min-w-0 text-[13px]', className)}>
+			<ol className="flex min-w-0 items-center gap-1.5">
+				{crumbs.map((crumb, index) => {
+					const isLast = index === crumbs.length - 1
+					const title =
+						typeof crumb.label === 'string' ? crumb.label : undefined
+					return (
+						<li
+							key={crumb.href}
+							className={cn(
+								'flex min-w-0 items-center gap-1.5',
+								isLast && 'font-medium',
+							)}
+						>
+							{isLast ? (
+								<span aria-current="page" title={title} className="truncate">
+									{crumb.label}
+								</span>
+							) : crumb.linked ? (
 								<Link
 									to={crumb.href}
+									title={title}
 									className="text-muted-foreground hover:text-foreground truncate transition-colors"
 								>
 									{crumb.label}
 								</Link>
 							) : (
-								<span className="text-muted-foreground truncate">
+								<span title={title} className="text-muted-foreground truncate">
 									{crumb.label}
 								</span>
 							)}
-							<Icon
-								name="chevron-right"
-								className="text-muted-foreground size-3.5 shrink-0 opacity-60"
-							/>
-						</span>
-					))}
-				</>
-			) : null}
-			<span className="truncate font-medium">{last?.label}</span>
+							{isLast ? null : (
+								<Icon
+									name="chevron-right"
+									aria-hidden="true"
+									className="text-muted-foreground size-3.5 shrink-0 opacity-60"
+								/>
+							)}
+						</li>
+					)
+				})}
+			</ol>
 		</nav>
 	)
 }

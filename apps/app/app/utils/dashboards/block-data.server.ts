@@ -14,6 +14,7 @@ import {
 	inArray,
 	OrganizationNote,
 	SavedReport,
+	sql,
 	User,
 	UserImage,
 } from '@repo/database'
@@ -206,6 +207,19 @@ async function loadLeaderboard(
 			image: user?.objectKey ? getUserImgSrc(user.objectKey) : null,
 		}
 	})
+}
+
+/** How many members have written at least one note in the organization. */
+export async function loadContributorCount(
+	organizationId: string,
+): Promise<number> {
+	const [row] = await db
+		.select({
+			contributors: sql<number>`count(distinct ${OrganizationNote.createdById})`,
+		})
+		.from(OrganizationNote)
+		.where(eq(OrganizationNote.organizationId, organizationId))
+	return Number(row?.contributors ?? 0)
 }
 
 /**
