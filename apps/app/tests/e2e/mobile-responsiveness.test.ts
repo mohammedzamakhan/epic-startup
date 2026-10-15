@@ -139,9 +139,9 @@ test.describe('Mobile Responsiveness', () => {
 
 		await submitButton.click()
 
-		// Verify form submission works in main page content
+		// Verify form submission works and note is displayed in Sheet dialog
 		await expect(
-			page.getByRole('main').getByText('Mobile Test Note'),
+			page.getByRole('dialog').getByText('Mobile Test Note'),
 		).toBeVisible()
 	})
 
