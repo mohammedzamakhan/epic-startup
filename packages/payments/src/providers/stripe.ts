@@ -61,8 +61,12 @@ export class StripeProvider implements PaymentProvider {
 				defaultPriceId: product.default_price as string | undefined,
 			}))
 		} catch (error: unknown) {
-			console.error('StripeProvider: Failed to fetch products:', error)
-			throw toPublicStripeError(error, 'Failed to fetch Stripe products')
+			const publicError = toPublicStripeError(
+				error,
+				'Failed to fetch Stripe products',
+			)
+			console.error('StripeProvider: Failed to fetch products:', publicError)
+			throw publicError
 		}
 	}
 
@@ -90,8 +94,12 @@ export class StripeProvider implements PaymentProvider {
 				})),
 			}))
 		} catch (error: unknown) {
-			console.error('StripeProvider: Failed to fetch prices:', error)
-			throw toPublicStripeError(error, 'Failed to fetch Stripe prices')
+			const publicError = toPublicStripeError(
+				error,
+				'Failed to fetch Stripe prices',
+			)
+			console.error('StripeProvider: Failed to fetch prices:', publicError)
+			throw publicError
 		}
 	}
 
@@ -414,8 +422,12 @@ export class StripeProvider implements PaymentProvider {
 				periodStart: invoice.period_start,
 				periodEnd: invoice.period_end,
 			}))
-		} catch (error) {
-			console.error('StripeProvider: Error fetching invoices:', error)
+		} catch (error: unknown) {
+			const publicError = toPublicStripeError(
+				error,
+				'Failed to fetch Stripe invoices',
+			)
+			console.error('StripeProvider: Error fetching invoices:', publicError)
 			return []
 		}
 	}

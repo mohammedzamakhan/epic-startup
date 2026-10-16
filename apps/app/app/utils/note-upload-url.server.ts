@@ -23,6 +23,8 @@ type MediaAssetRow = {
 	updatedAt: Date
 }
 
+const MAX_OBJECT_KEYS_PER_QUERY = 99
+
 async function loadMediaAssetsByObjectKeys(
 	organizationId: string,
 	objectKeys: string[],
@@ -31,19 +33,32 @@ async function loadMediaAssetsByObjectKeys(
 		return new Map()
 	}
 
-	const assets = await db
-		.select({
-			id: OrganizationMediaAsset.id,
-			objectKey: OrganizationMediaAsset.objectKey,
-			updatedAt: OrganizationMediaAsset.updatedAt,
-		})
-		.from(OrganizationMediaAsset)
-		.where(
-			and(
-				eq(OrganizationMediaAsset.organizationId, organizationId),
-				inArray(OrganizationMediaAsset.objectKey, objectKeys),
-			),
-		)
+	const assets: MediaAssetRow[] = []
+	try {
+		for (
+			let offset = 0;
+			offset < objectKeys.length;
+			offset += MAX_OBJECT_KEYS_PER_QUERY
+		) {
+			const keys = objectKeys.slice(offset, offset + MAX_OBJECT_KEYS_PER_QUERY)
+			const batch = await db
+				.select({
+					id: OrganizationMediaAsset.id,
+					objectKey: OrganizationMediaAsset.objectKey,
+					updatedAt: OrganizationMediaAsset.updatedAt,
+				})
+				.from(OrganizationMediaAsset)
+				.where(
+					and(
+						eq(OrganizationMediaAsset.organizationId, organizationId),
+						inArray(OrganizationMediaAsset.objectKey, keys),
+					),
+				)
+			assets.push(...batch)
+		}
+	} catch {
+		return new Map()
+	}
 
 	return new Map(assets.map((asset) => [asset.objectKey, asset] as const))
 }

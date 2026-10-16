@@ -42,7 +42,7 @@ msgstr "\"Press 1 for…\" options. Callers can also say their choice."
 msgid "({formerCount} former)"
 msgstr "({formerCount} former)"
 
-#: app/components/settings/cards/organization/billing-card.tsx:445
+#: app/components/settings/cards/organization/billing-card.tsx:448
 msgid "(${annualPrice} billed annually per user)"
 msgstr ""
 
@@ -61,7 +61,7 @@ msgid "(you)"
 msgstr "(you)"
 
 #. placeholder {0}: organization._count.users
-#: app/components/settings/cards/organization/billing-card.tsx:166
+#: app/components/settings/cards/organization/billing-card.tsx:169
 msgid "{0, plural, one {# active member} other {# active members}}"
 msgstr ""
 
@@ -1119,7 +1119,7 @@ msgstr ""
 msgid "✓ Discord points claimed"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:430
+#: app/components/settings/cards/organization/billing-card.tsx:433
 msgid "${basePriceValue} billed annually"
 msgstr ""
 
@@ -1539,7 +1539,7 @@ msgstr ""
 msgid "Active"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:683
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:684
 msgid "Activity"
 msgstr ""
 
@@ -1882,7 +1882,7 @@ msgstr ""
 msgid "Add note"
 msgstr "Add note"
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:849
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:847
 msgid "Add notes, links, or media to capture what matters."
 msgstr "Add notes, links, or media to capture what matters."
 
@@ -2135,7 +2135,7 @@ msgstr ""
 msgid "Additional users: {monthlyPriceLabel}/user/month<0>({annualPriceLabel} billed annually per user)</0>"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:442
+#: app/components/settings/cards/organization/billing-card.tsx:445
 msgid "Additional users: ${monthlyPrice}/user/month"
 msgstr ""
 
@@ -2247,7 +2247,7 @@ msgid "AI assistant"
 msgstr "AI assistant"
 
 #: app/components/ai/global-ai-panel.tsx:341
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:684
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:685
 msgid "AI Assistant"
 msgstr ""
 
@@ -3119,7 +3119,7 @@ msgstr "Before you can publish"
 msgid "Beta Access"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:155
+#: app/components/settings/cards/organization/billing-card.tsx:158
 msgid "Billed monthly"
 msgstr ""
 
@@ -3656,7 +3656,7 @@ msgstr "Can't text that number"
 #: app/routes/_app+/$orgSlug_+/media.tsx:1603
 #: app/routes/_app+/$orgSlug_+/notes-kanban-board.tsx:864
 #: app/routes/_app+/$orgSlug_+/notes-kanban-board.tsx:920
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1095
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1093
 #: app/routes/_app+/$orgSlug_+/phone-agent+/training.tsx:624
 #: app/routes/_app+/$orgSlug_+/phone-agent+/training.tsx:675
 #: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:428
@@ -3746,7 +3746,7 @@ msgid "Card position"
 msgstr ""
 
 #: app/components/staff/timesheets/payroll-summary.tsx:168
-#: app/routes/_app+/$orgSlug_+/notes.tsx:327
+#: app/routes/_app+/$orgSlug_+/notes.tsx:326
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:4010
 msgid "Cards"
 msgstr ""
@@ -3755,7 +3755,7 @@ msgstr ""
 msgid "Cards appear here when people clock in on a tablet. You can also add one for a shift nobody punched."
 msgstr "Cards appear here when people clock in on a tablet. You can also add one for a shift nobody punched."
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:317
+#: app/routes/_app+/$orgSlug_+/notes.tsx:316
 msgid "Cards view"
 msgstr ""
 
@@ -4596,7 +4596,7 @@ msgstr ""
 msgid "Comment actions"
 msgstr "Comment actions"
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:682
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:683
 msgid "Comments"
 msgstr ""
 
@@ -4835,7 +4835,7 @@ msgstr "Contact form"
 msgid "Contact support"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:399
+#: app/components/settings/cards/organization/billing-card.tsx:402
 msgid "Contact support for pricing"
 msgstr ""
 
@@ -5334,8 +5334,8 @@ msgstr ""
 msgid "Create New Note"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:404
-#: app/routes/_app+/$orgSlug_+/notes.tsx:416
+#: app/routes/_app+/$orgSlug_+/notes.tsx:403
+#: app/routes/_app+/$orgSlug_+/notes.tsx:415
 msgid "Create Note"
 msgstr ""
 
@@ -5501,7 +5501,7 @@ msgstr ""
 msgid "Current Password"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:464
+#: app/components/settings/cards/organization/billing-card.tsx:467
 msgid "Current Plan"
 msgstr ""
 
@@ -5509,7 +5509,7 @@ msgstr ""
 msgid "Current rates and the full history. Each time you view these, it is recorded."
 msgstr "Current rates and the full history. Each time you view these, it is recorded."
 
-#: app/components/settings/cards/organization/billing-card.tsx:124
+#: app/components/settings/cards/organization/billing-card.tsx:127
 msgid "Current Subscription"
 msgstr ""
 
@@ -5896,8 +5896,8 @@ msgstr ""
 #: app/components/staff/schedule/templates-dialog.tsx:250
 #: app/routes/_app+/$orgSlug_+/marketing+/automations._index.tsx:469
 #: app/routes/_app+/$orgSlug_+/media.tsx:1591
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1049
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1107
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1047
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1105
 #: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:167
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:476
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:513
@@ -6034,7 +6034,7 @@ msgstr "Delete message?"
 msgid "Delete node"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1084
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1082
 msgid "Delete note?"
 msgstr "Delete note?"
 
@@ -6684,7 +6684,7 @@ msgstr "Early out"
 #: app/components/staff/timesheets/review-queue.tsx:439
 #: app/components/workspace-breadcrumb.tsx:23
 #: app/routes/_app+/$orgSlug_+/notes-table.tsx:92
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:992
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:990
 #: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:159
 #: app/routes/_app+/$orgSlug_+/staff+/positions.tsx:235
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:469
@@ -6748,7 +6748,7 @@ msgstr "Edit layout"
 msgid "Edit message"
 msgstr "Edit message"
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:863
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:861
 msgid "Edit note"
 msgstr "Edit note"
 
@@ -7225,7 +7225,7 @@ msgstr "Entered sales"
 msgid "Entered sales are only used when this workplace's sales source is \"Sales I enter\"."
 msgstr "Entered sales are only used when this workplace's sales source is \"Sales I enter\"."
 
-#: app/components/settings/cards/organization/billing-card.tsx:276
+#: app/components/settings/cards/organization/billing-card.tsx:279
 msgid "Enterprise Plan"
 msgstr ""
 
@@ -7528,7 +7528,7 @@ msgstr ""
 msgid "Failed to format graph for validation"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:901
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:899
 msgid "Failed to load AI Assistant"
 msgstr ""
 
@@ -8026,7 +8026,7 @@ msgid "Get help"
 msgstr ""
 
 #: app/components/app-sidebar.tsx:105
-#: app/components/settings/cards/organization/billing-card.tsx:310
+#: app/components/settings/cards/organization/billing-card.tsx:313
 msgid "Get in touch"
 msgstr ""
 
@@ -8792,7 +8792,7 @@ msgstr "Include the country code, like +14155550123."
 msgid "Included when tips are divided."
 msgstr "Included when tips are divided."
 
-#: app/components/settings/cards/organization/billing-card.tsx:438
+#: app/components/settings/cards/organization/billing-card.tsx:441
 msgid "Includes {includesSeatsValue} user seats"
 msgstr ""
 
@@ -8832,7 +8832,7 @@ msgstr "Inspect"
 #: app/components/app-sidebar.tsx:544
 #: app/components/settings/cards/organization/integrations-card.tsx:101
 #: app/components/workspace-breadcrumb.tsx:65
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1031
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1029
 msgid "Integrations"
 msgstr ""
 
@@ -8969,11 +8969,15 @@ msgstr ""
 msgid "Invited by {inviterName}"
 msgstr ""
 
-#: app/components/settings/cards/organization/invoices-card.tsx:80
+#: app/components/settings/cards/organization/invoices-card.tsx:92
+msgid "Invoice history is temporarily unavailable."
+msgstr "Invoice history is temporarily unavailable."
+
+#: app/components/settings/cards/organization/invoices-card.tsx:83
 msgid "Invoices"
 msgstr ""
 
-#: app/components/settings/cards/organization/invoices-card.tsx:95
+#: app/components/settings/cards/organization/invoices-card.tsx:98
 msgid "Invoices will appear here once you have an active subscription."
 msgstr ""
 
@@ -9104,11 +9108,11 @@ msgstr ""
 msgid "Jump into an existing organization, accept pending invitations, or add a new one."
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:341
+#: app/routes/_app+/$orgSlug_+/notes.tsx:340
 msgid "Kanban"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:331
+#: app/routes/_app+/$orgSlug_+/notes.tsx:330
 msgid "Kanban board"
 msgstr ""
 
@@ -9641,7 +9645,7 @@ msgstr "Load older messages"
 msgid "Loading"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:925
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:923
 msgid "Loading AI Assistant..."
 msgstr ""
 
@@ -10022,7 +10026,7 @@ msgstr "Manage schedule"
 msgid "Manage staff"
 msgstr "Manage staff"
 
-#: app/components/settings/cards/organization/billing-card.tsx:179
+#: app/components/settings/cards/organization/billing-card.tsx:182
 msgid "Manage Subscription"
 msgstr ""
 
@@ -10420,7 +10424,7 @@ msgstr "month"
 msgid "Month"
 msgstr "Month"
 
-#: app/components/settings/cards/organization/billing-card.tsx:207
+#: app/components/settings/cards/organization/billing-card.tsx:210
 #: app/routes/organizations+/create.tsx:905
 msgid "Monthly"
 msgstr ""
@@ -10759,7 +10763,7 @@ msgstr "New message"
 msgid "New note"
 msgstr "New note"
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:349
+#: app/routes/_app+/$orgSlug_+/notes.tsx:348
 msgid "New Note"
 msgstr ""
 
@@ -10872,7 +10876,7 @@ msgstr ""
 msgid "No active sessions"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:161
+#: app/components/settings/cards/organization/billing-card.tsx:164
 msgid "No active subscription"
 msgstr ""
 
@@ -11011,7 +11015,7 @@ msgstr ""
 msgid "No contacts yet."
 msgstr "No contacts yet."
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:846
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:844
 msgid "No content yet"
 msgstr "No content yet"
 
@@ -11095,7 +11099,7 @@ msgstr "No invitation sent: email is turned off"
 msgid "No invitation sent: no email on file"
 msgstr "No invitation sent: no email on file"
 
-#: app/components/settings/cards/organization/invoices-card.tsx:94
+#: app/components/settings/cards/organization/invoices-card.tsx:97
 msgid "No invoices found"
 msgstr ""
 
@@ -11202,7 +11206,7 @@ msgstr "No names to show. Ask a manager to set up your PIN."
 
 #: app/routes/_app+/$orgSlug_+/__org-note-editor.tsx:383
 #: app/routes/_app+/$orgSlug_+/notes.$noteId_.edit.tsx:134
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1193
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1191
 msgid "No note with the id \"{noteId}\" exists"
 msgstr ""
 
@@ -11210,7 +11214,7 @@ msgstr ""
 msgid "No notes created yet"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:398
+#: app/routes/_app+/$orgSlug_+/notes.tsx:397
 msgid "No notes found"
 msgstr ""
 
@@ -11218,7 +11222,7 @@ msgstr ""
 msgid "No notes found."
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:400
+#: app/routes/_app+/$orgSlug_+/notes.tsx:399
 msgid "No notes match your search for \"{searchValue}\". Try a different search term or create a new note."
 msgstr ""
 
@@ -11284,7 +11288,7 @@ msgstr "No orders usually expected"
 msgid "No organization found"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:452
+#: app/routes/_app+/$orgSlug_+/notes.tsx:451
 msgid "No organization with the slug \"{orgSlug}\" exists"
 msgstr ""
 
@@ -11724,7 +11728,7 @@ msgstr ""
 msgid "Note"
 msgstr "Note"
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1002
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1000
 msgid "Note actions"
 msgstr "Note actions"
 
@@ -11776,7 +11780,7 @@ msgstr ""
 #: app/components/staff/schedule/shift-editor-sheet.tsx:589
 #: app/components/staff/staff-profile-page.tsx:93
 #: app/components/workspace-breadcrumb.tsx:10
-#: app/routes/_app+/$orgSlug_+/notes.tsx:304
+#: app/routes/_app+/$orgSlug_+/notes.tsx:303
 msgid "Notes"
 msgstr ""
 
@@ -11809,7 +11813,7 @@ msgstr "Notes created each day."
 msgid "Notes for AI"
 msgstr "Notes for AI"
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:412
+#: app/routes/_app+/$orgSlug_+/notes.tsx:411
 msgid "Notes help you capture thoughts, meeting minutes, or anything important for your organization. Get started by creating your first note."
 msgstr ""
 
@@ -12655,7 +12659,7 @@ msgstr "Overtime rules used to estimate hours and cost. Leave them off if you do
 
 #: app/components/app-sidebar.tsx:329
 #: app/components/staff/labor/labor-page.tsx:196
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:681
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:682
 msgid "Overview"
 msgstr ""
 
@@ -12996,7 +13000,7 @@ msgstr "People you share with find this dashboard under “Shared with me”. Vi
 msgid "Per hour"
 msgstr "Per hour"
 
-#: app/components/settings/cards/organization/billing-card.tsx:425
+#: app/components/settings/cards/organization/billing-card.tsx:428
 #: app/routes/organizations+/create.tsx:1412
 msgid "per month"
 msgstr ""
@@ -13441,11 +13445,11 @@ msgstr "Played while a transfer is ringing."
 msgid "Please check configuration"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:357
+#: app/components/settings/cards/organization/billing-card.tsx:360
 msgid "Please check your Stripe configuration"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:261
+#: app/components/settings/cards/organization/billing-card.tsx:264
 msgid "Please check your Stripe configuration or try again later"
 msgstr ""
 
@@ -13661,12 +13665,12 @@ msgstr "Previous week"
 msgid "Price (USD)"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:396
+#: app/components/settings/cards/organization/billing-card.tsx:399
 #: app/routes/organizations+/create.tsx:1376
 msgid "Price not configured"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:354
+#: app/components/settings/cards/organization/billing-card.tsx:357
 msgid "Pricing not available"
 msgstr ""
 
@@ -13707,7 +13711,7 @@ msgstr "Privacy"
 msgid "Privacy & Data Rights"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:706
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:707
 msgid "Private"
 msgstr ""
 
@@ -13924,7 +13928,7 @@ msgstr "Question {number}"
 msgid "Questions"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:304
+#: app/components/settings/cards/organization/billing-card.tsx:307
 msgid "Questions about billing?"
 msgstr ""
 
@@ -14231,7 +14235,7 @@ msgid "Reload"
 msgstr "Reload"
 
 #: app/components/chat/chat-unavailable.tsx:58
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:909
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:907
 msgid "Reload page"
 msgstr ""
 
@@ -15167,7 +15171,7 @@ msgstr ""
 msgid "Save"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:220
+#: app/components/settings/cards/organization/billing-card.tsx:223
 #: app/routes/organizations+/create.tsx:921
 msgid "Save 20%"
 msgstr ""
@@ -15423,7 +15427,7 @@ msgstr "Schedule & time cards"
 msgid "Schedule & time clock"
 msgstr "Schedule & time clock"
 
-#: app/components/settings/cards/organization/billing-card.tsx:290
+#: app/components/settings/cards/organization/billing-card.tsx:293
 msgid "Schedule a call"
 msgstr ""
 
@@ -15552,11 +15556,11 @@ msgstr "Search name or position"
 msgid "Search name, email or phone"
 msgstr "Search name, email or phone"
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:365
+#: app/routes/_app+/$orgSlug_+/notes.tsx:364
 msgid "Search notes"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:366
+#: app/routes/_app+/$orgSlug_+/notes.tsx:365
 msgid "Search notes by title or content..."
 msgstr ""
 
@@ -16136,7 +16140,7 @@ msgstr "Several people are typing…"
 #: app/components/note/share-note-button.tsx:167
 #: app/components/staff/labor/labor-overview.tsx:571
 #: app/components/staff/labor/labor-tips.tsx:256
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1026
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1024
 msgid "Share"
 msgstr ""
 
@@ -16454,7 +16458,7 @@ msgstr "Since {startedOn}"
 msgid "Single choice"
 msgstr "Single choice"
 
-#: app/components/settings/cards/organization/billing-card.tsx:279
+#: app/components/settings/cards/organization/billing-card.tsx:282
 msgid "Single sign-on, custom SLA, private support channel, and more. <0>Learn more</0>"
 msgstr ""
 
@@ -16759,7 +16763,7 @@ msgstr "Standard system role."
 msgid "Standing application"
 msgstr "Standing application"
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1022
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1020
 msgid "Star"
 msgstr "Star"
 
@@ -17031,7 +17035,7 @@ msgstr ""
 msgid "Submitted"
 msgstr "Submitted"
 
-#: app/components/settings/cards/organization/billing-card.tsx:185
+#: app/components/settings/cards/organization/billing-card.tsx:188
 msgid "Subscribe"
 msgstr ""
 
@@ -17039,7 +17043,7 @@ msgstr ""
 msgid "Subscription Cancelled"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:159
+#: app/components/settings/cards/organization/billing-card.tsx:162
 msgid "Subscription inactive"
 msgstr ""
 
@@ -18403,7 +18407,7 @@ msgstr ""
 msgid "This action cannot be undone. Are you sure you want to delete this announcement?"
 msgstr "This action cannot be undone. Are you sure you want to delete this announcement?"
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1087
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1085
 msgid "This action cannot be undone. The note and its comments will be permanently removed."
 msgstr "This action cannot be undone. The note and its comments will be permanently removed."
 
@@ -19307,7 +19311,7 @@ msgstr ""
 msgid "Trending up by {trend}% this period"
 msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:157
+#: app/components/settings/cards/organization/billing-card.tsx:160
 msgid "Trial period active"
 msgstr ""
 
@@ -19549,7 +19553,7 @@ msgstr "Unable to load calls. Try again."
 msgid "Unable to load more calls. Try again."
 msgstr "Unable to load more calls. Try again."
 
-#: app/components/settings/cards/organization/billing-card.tsx:258
+#: app/components/settings/cards/organization/billing-card.tsx:261
 msgid "Unable to load pricing information"
 msgstr ""
 
@@ -19706,7 +19710,7 @@ msgid "Unscheduled"
 msgstr "Unscheduled"
 
 #: app/components/favorite-notes.tsx:142
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1022
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1020
 msgid "Unstar"
 msgstr ""
 
@@ -19723,7 +19727,7 @@ msgstr "Until"
 msgid "Untitled image"
 msgstr "Untitled image"
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:694
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:695
 msgid "Untitled Note"
 msgstr ""
 
@@ -19794,7 +19798,7 @@ msgstr ""
 msgid "Updated"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:699
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:700
 msgid "Updated {timeAgo} ago"
 msgstr ""
 
@@ -19815,7 +19819,7 @@ msgid "Updating section"
 msgstr "Updating section"
 
 #: app/components/app-sidebar.tsx:98
-#: app/components/settings/cards/organization/billing-card.tsx:467
+#: app/components/settings/cards/organization/billing-card.tsx:470
 msgid "Upgrade"
 msgstr ""
 
@@ -20175,7 +20179,7 @@ msgstr "Video thumbnail"
 
 #: app/components/dashboard/access-labels.ts:19
 #: app/components/roles/tenant-role-access-manager.tsx:1087
-#: app/components/settings/cards/organization/invoices-card.tsx:143
+#: app/components/settings/cards/organization/invoices-card.tsx:147
 #: app/routes/_app+/$orgSlug_+/notes-table.tsx:79
 msgid "View"
 msgstr ""
@@ -20184,7 +20188,7 @@ msgstr ""
 msgid "View all"
 msgstr ""
 
-#: app/components/settings/cards/organization/invoices-card.tsx:83
+#: app/components/settings/cards/organization/invoices-card.tsx:86
 msgid "View and download your billing invoices"
 msgstr ""
 
@@ -20573,6 +20577,10 @@ msgstr "We could not find this workplace's time zone. Set it in the time clock s
 #: app/components/staff/schedule/availability-page.tsx:200
 msgid "We could not load availability. Try again."
 msgstr "We could not load availability. Try again."
+
+#: app/components/settings/cards/organization/billing-card.tsx:117
+msgid "We could not load plan pricing right now. You can still manage an existing subscription from the customer portal."
+msgstr "We could not load plan pricing right now. You can still manage an existing subscription from the customer portal."
 
 #: app/components/staff/schedule/month-view.tsx:113
 msgid "We could not load the month. Try again."
@@ -21247,7 +21255,7 @@ msgstr "Wrong time entered"
 msgid "year"
 msgstr "year"
 
-#: app/components/settings/cards/organization/billing-card.tsx:218
+#: app/components/settings/cards/organization/billing-card.tsx:221
 #: app/routes/organizations+/create.tsx:919
 msgid "Yearly"
 msgstr ""
@@ -21350,7 +21358,7 @@ msgstr ""
 msgid "You can change your photo later"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:305
+#: app/routes/_app+/$orgSlug_+/notes.tsx:304
 msgid "You can create notes for your organization here."
 msgstr ""
 
@@ -21411,7 +21419,7 @@ msgstr "You do not have access to that workplace."
 msgid "You do not have permission to do that."
 msgstr "You do not have permission to do that."
 
-#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1186
+#: app/routes/_app+/$orgSlug_+/notes.$noteId.tsx:1184
 msgid "You do not have permission to view this note"
 msgstr ""
 
@@ -21463,7 +21471,7 @@ msgstr "You have unsaved changes. Leave this page and lose them?"
 msgid "You have used the drafting tool a lot. Try again in an hour."
 msgstr "You have used the drafting tool a lot. Try again in an hour."
 
-#: app/routes/_app+/$orgSlug_+/notes.tsx:410
+#: app/routes/_app+/$orgSlug_+/notes.tsx:409
 msgid "You haven't created any notes yet!"
 msgstr ""
 
@@ -21622,7 +21630,7 @@ msgstr "Your note: {text}"
 #~ msgid "Your organization dashboard"
 #~ msgstr ""
 
-#: app/components/settings/cards/organization/billing-card.tsx:127
+#: app/components/settings/cards/organization/billing-card.tsx:130
 msgid "Your organization's current plan and billing status"
 msgstr ""
 

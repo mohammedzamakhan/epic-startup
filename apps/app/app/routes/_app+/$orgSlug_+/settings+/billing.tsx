@@ -53,24 +53,23 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 	const shouldFetchPlans = launchStatus === 'LAUNCHED' || hasActiveSubscription
 	let plansAndPrices: Awaited<ReturnType<typeof getPlansAndPrices>> | null =
 		null
-	let plansError: string | null = null
+	let plansUnavailable = false
 	if (shouldFetchPlans) {
 		try {
 			plansAndPrices = await getPlansAndPrices()
 		} catch (error) {
 			console.error('Failed to load billing plans:', error)
-			plansError =
-				'We could not load plan pricing right now. You can still manage an existing subscription from the customer portal.'
+			plansUnavailable = true
 		}
 	}
 
 	let invoices: Awaited<ReturnType<typeof getOrganizationInvoices>> = []
-	let invoicesError: string | null = null
+	let invoicesUnavailable = false
 	try {
 		invoices = await getOrganizationInvoices(organization)
 	} catch (error) {
 		console.error('Failed to load invoices:', error)
-		invoicesError = 'Invoice history is temporarily unavailable.'
+		invoicesUnavailable = true
 	}
 
 	// Get current subscription price ID for accurate plan detection
@@ -90,9 +89,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 	return {
 		organization,
 		plansAndPrices,
-		plansError,
+		plansUnavailable,
 		invoices,
-		invoicesError,
+		invoicesUnavailable,
 		currentPriceId,
 	}
 }
@@ -155,9 +154,9 @@ export default function BillingSettings() {
 	const {
 		organization,
 		plansAndPrices,
-		plansError,
+		plansUnavailable,
 		invoices,
-		invoicesError,
+		invoicesUnavailable,
 		currentPriceId,
 	} = useLoaderData<typeof loader>()
 
@@ -167,13 +166,16 @@ export default function BillingSettings() {
 				<BillingCard
 					organization={organization}
 					plansAndPrices={plansAndPrices}
-					plansError={plansError}
+					plansUnavailable={plansUnavailable}
 					currentPriceId={currentPriceId}
 				/>
 			</AnnotatedSection>
 
 			<AnnotatedSection>
-				<InvoicesCard invoices={invoices} invoicesError={invoicesError} />
+				<InvoicesCard
+					invoices={invoices}
+					invoicesUnavailable={invoicesUnavailable}
+				/>
 			</AnnotatedSection>
 		</AnnotatedLayout>
 	)

@@ -1,9 +1,6 @@
 /** Strip Stripe secret key material from error strings before they reach clients. */
 export function sanitizeStripeErrorMessage(message: string): string {
-	return message.replace(
-		/sk_(?:live|test)_[A-Za-z0-9]+/g,
-		'[STRIPE_KEY_REDACTED]',
-	)
+	return message.replace(/\bsk_[A-Za-z0-9_-]+/g, '[STRIPE_KEY_REDACTED]')
 }
 
 export function toPublicStripeError(error: unknown, prefix: string): Error {

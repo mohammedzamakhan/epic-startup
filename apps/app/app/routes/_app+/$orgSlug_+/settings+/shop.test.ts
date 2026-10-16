@@ -18,6 +18,7 @@ import { listOrganizationShopOrders } from '#app/utils/shop.server.ts'
 describe('settings+/shop loader', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+		vi.spyOn(console, 'error').mockImplementation(() => {})
 	})
 
 	it('returns ordersUnavailable when tenant order lookup fails', async () => {

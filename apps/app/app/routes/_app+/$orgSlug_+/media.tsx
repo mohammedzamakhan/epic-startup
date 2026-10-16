@@ -901,12 +901,12 @@ export default function MediaLibraryRoute({
 										width={360}
 										height={360}
 									/>
-									<div className="pointer-events-auto absolute inset-x-0 bottom-0 flex justify-end p-2 opacity-0 focus-within:opacity-100 motion-safe:transition-opacity motion-safe:group-hover:opacity-100">
+									<div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-end p-2 opacity-0 focus-within:opacity-100 motion-safe:transition-opacity motion-safe:group-hover:opacity-100">
 										<Button
 											type="button"
 											variant="secondary"
 											size="sm"
-											className="relative z-20"
+											className="pointer-events-auto"
 											onClick={(e) => {
 												e.stopPropagation()
 												void navigator.clipboard.writeText(

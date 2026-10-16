@@ -603,5 +603,12 @@ describe('StripeProvider', () => {
 				sanitizeStripeErrorMessage(`Invalid API Key provided: ${secret}`),
 			).toBe('Invalid API Key provided: [STRIPE_KEY_REDACTED]')
 		})
+
+		it('redacts keys with organization, underscore, and hyphen suffixes', () => {
+			const secret = ['sk', 'org', 'part_one-two'].join('_')
+			expect(sanitizeStripeErrorMessage(`Invalid key: ${secret}`)).toBe(
+				'Invalid key: [STRIPE_KEY_REDACTED]',
+			)
+		})
 	})
 })
