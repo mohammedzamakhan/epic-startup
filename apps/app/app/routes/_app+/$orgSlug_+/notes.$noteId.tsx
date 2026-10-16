@@ -502,6 +502,7 @@ type NoteLoaderData = {
 			type: string
 			altText: string | null
 			objectKey: string
+			imageSrc: string
 		}[]
 		organization: { slug: string; id: string }
 		noteAccess: Array<{

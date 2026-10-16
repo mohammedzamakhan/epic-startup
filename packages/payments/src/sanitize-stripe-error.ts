@@ -6,12 +6,15 @@ export function sanitizeStripeErrorMessage(message: string): string {
 	)
 }
 
-export function toPublicStripeError(error: unknown, fallback: string): Error {
-	const raw =
+export function toPublicStripeError(error: unknown, prefix: string): Error {
+	const detail =
 		error instanceof Error
-			? error.message
+			? sanitizeStripeErrorMessage(error.message)
 			: typeof error === 'string'
-				? error
-				: fallback
-	return new Error(sanitizeStripeErrorMessage(raw) || fallback)
+				? sanitizeStripeErrorMessage(error)
+				: ''
+	if (!detail) {
+		return new Error(`${prefix}. Please try again later.`)
+	}
+	return new Error(`${prefix}: ${detail}`)
 }

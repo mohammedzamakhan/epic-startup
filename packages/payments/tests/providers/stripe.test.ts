@@ -595,4 +595,13 @@ describe('StripeProvider', () => {
 			expect(result).toEqual([])
 		})
 	})
+
+	describe('sanitizeStripeErrorMessage', () => {
+		it('redacts Stripe secret keys from error text', () => {
+			const secret = 'sk_test_key'
+			expect(
+				sanitizeStripeErrorMessage(`Invalid API Key provided: ${secret}`),
+			).toBe('Invalid API Key provided: [STRIPE_KEY_REDACTED]')
+		})
+	})
 })

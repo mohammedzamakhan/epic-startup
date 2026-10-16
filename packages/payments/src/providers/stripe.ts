@@ -62,10 +62,7 @@ export class StripeProvider implements PaymentProvider {
 			}))
 		} catch (error: unknown) {
 			console.error('StripeProvider: Failed to fetch products:', error)
-			throw toPublicStripeError(
-				error,
-				'Failed to fetch Stripe products. Please try again later.',
-			)
+			throw toPublicStripeError(error, 'Failed to fetch Stripe products')
 		}
 	}
 
@@ -94,10 +91,7 @@ export class StripeProvider implements PaymentProvider {
 			}))
 		} catch (error: unknown) {
 			console.error('StripeProvider: Failed to fetch prices:', error)
-			throw toPublicStripeError(
-				error,
-				'Failed to fetch Stripe prices. Please try again later.',
-			)
+			throw toPublicStripeError(error, 'Failed to fetch Stripe prices')
 		}
 	}
 
