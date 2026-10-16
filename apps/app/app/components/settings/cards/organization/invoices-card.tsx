@@ -39,9 +39,10 @@ type Invoice = {
 
 type InvoicesCardProps = {
 	invoices: Invoice[]
+	invoicesError?: string | null
 }
 
-export function InvoicesCard({ invoices }: InvoicesCardProps) {
+export function InvoicesCard({ invoices, invoicesError }: InvoicesCardProps) {
 	const formatCurrency = (amount: number, currency: string) => {
 		return new Intl.NumberFormat('en-US', {
 			style: 'currency',
@@ -83,6 +84,11 @@ export function InvoicesCard({ invoices }: InvoicesCardProps) {
 				</FrameDescription>
 			</FrameHeader>
 			<FramePanel className="p-0">
+				{invoicesError ? (
+					<div className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+						{invoicesError}
+					</div>
+				) : null}
 				{invoices.length === 0 ? (
 					<EmptyState
 						title={t`No invoices found`}

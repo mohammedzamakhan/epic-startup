@@ -51,8 +51,27 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 	// Fetch plans (will be null if in beta and no active subscription)
 	const shouldFetchPlans = launchStatus === 'LAUNCHED' || hasActiveSubscription
-	const plansAndPrices = shouldFetchPlans ? await getPlansAndPrices() : null
-	const invoices = await getOrganizationInvoices(organization)
+	let plansAndPrices: Awaited<ReturnType<typeof getPlansAndPrices>> | null =
+		null
+	let plansError: string | null = null
+	if (shouldFetchPlans) {
+		try {
+			plansAndPrices = await getPlansAndPrices()
+		} catch (error) {
+			console.error('Failed to load billing plans:', error)
+			plansError =
+				'We could not load plan pricing right now. You can still manage an existing subscription from the customer portal.'
+		}
+	}
+
+	let invoices: Awaited<ReturnType<typeof getOrganizationInvoices>> = []
+	let invoicesError: string | null = null
+	try {
+		invoices = await getOrganizationInvoices(organization)
+	} catch (error) {
+		console.error('Failed to load invoices:', error)
+		invoicesError = 'Invoice history is temporarily unavailable.'
+	}
 
 	// Get current subscription price ID for accurate plan detection
 	let currentPriceId: string | null = null
@@ -71,7 +90,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 	return {
 		organization,
 		plansAndPrices,
+		plansError,
 		invoices,
+		invoicesError,
 		currentPriceId,
 	}
 }
@@ -131,8 +152,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function BillingSettings() {
-	const { organization, plansAndPrices, invoices, currentPriceId } =
-		useLoaderData<typeof loader>()
+	const {
+		organization,
+		plansAndPrices,
+		plansError,
+		invoices,
+		invoicesError,
+		currentPriceId,
+	} = useLoaderData<typeof loader>()
 
 	return (
 		<AnnotatedLayout>
@@ -140,12 +167,13 @@ export default function BillingSettings() {
 				<BillingCard
 					organization={organization}
 					plansAndPrices={plansAndPrices}
+					plansError={plansError}
 					currentPriceId={currentPriceId}
 				/>
 			</AnnotatedSection>
 
 			<AnnotatedSection>
-				<InvoicesCard invoices={invoices} />
+				<InvoicesCard invoices={invoices} invoicesError={invoicesError} />
 			</AnnotatedSection>
 		</AnnotatedLayout>
 	)

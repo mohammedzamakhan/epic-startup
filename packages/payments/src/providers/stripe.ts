@@ -3,6 +3,7 @@
  */
 
 import Stripe from 'stripe'
+import { toPublicStripeError } from '../sanitize-stripe-error.js'
 import {
 	type PaymentProvider,
 	type Product,
@@ -59,10 +60,11 @@ export class StripeProvider implements PaymentProvider {
 				description: product.description,
 				defaultPriceId: product.default_price as string | undefined,
 			}))
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error('StripeProvider: Failed to fetch products:', error)
-			throw new Error(
-				`Failed to fetch Stripe products: ${error?.message || error}`,
+			throw toPublicStripeError(
+				error,
+				'Failed to fetch Stripe products. Please try again later.',
 			)
 		}
 	}
@@ -90,10 +92,11 @@ export class StripeProvider implements PaymentProvider {
 					flat_amount: tier.flat_amount,
 				})),
 			}))
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error('StripeProvider: Failed to fetch prices:', error)
-			throw new Error(
-				`Failed to fetch Stripe prices: ${error?.message || error}`,
+			throw toPublicStripeError(
+				error,
+				'Failed to fetch Stripe prices. Please try again later.',
 			)
 		}
 	}

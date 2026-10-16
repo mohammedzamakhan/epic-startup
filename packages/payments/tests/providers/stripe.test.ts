@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { sanitizeStripeErrorMessage } from '../../src/sanitize-stripe-error.js'
 import { StripeProvider } from '../../src/providers/stripe'
 
 // Mock Stripe SDK
