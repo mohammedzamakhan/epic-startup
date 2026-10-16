@@ -89,13 +89,14 @@ export function InvoicesCard({ invoices, invoicesError }: InvoicesCardProps) {
 						{invoicesError}
 					</div>
 				) : null}
-				{invoices.length === 0 ? (
+				{!invoicesError && invoices.length === 0 ? (
 					<EmptyState
 						title={t`No invoices found`}
 						description={t`Invoices will appear here once you have an active subscription.`}
 						icons={['file-text']}
 					/>
-				) : (
+				) : null}
+				{invoices.length > 0 ? (
 					<div className="space-y-3 p-6">
 						{invoices.map((invoice) => (
 							<Item key={invoice.id} size="sm">
@@ -161,7 +162,7 @@ export function InvoicesCard({ invoices, invoicesError }: InvoicesCardProps) {
 							</Item>
 						))}
 					</div>
-				)}
+				) : null}
 			</FramePanel>
 		</Frame>
 	)

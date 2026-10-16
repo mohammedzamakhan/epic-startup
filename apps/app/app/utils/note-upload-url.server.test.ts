@@ -5,7 +5,10 @@ import {
 	mockSelectResults,
 	resetMockDb,
 } from '#tests/setup/drizzle-mock.ts'
-import { enrichNoteUploadsWithImageSrc } from './note-upload-url.server.ts'
+import {
+	enrichNoteUploadsWithImageSrc,
+	enrichNotesListUploadsWithImageSrc,
+} from './note-upload-url.server.ts'
 
 vi.mock('@repo/database', async (importOriginal) => {
 	const actual = await importOriginal<typeof DatabaseModule>()

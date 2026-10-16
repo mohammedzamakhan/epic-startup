@@ -17,23 +17,18 @@ type NoteUploadRow = {
 	id?: string
 }
 
-export async function enrichNoteUploadsWithImageSrc<T extends NoteUploadRow>(
-	uploads: T[],
-	organizationId: string,
-): Promise<Array<T & { imageSrc: string }>> {
-	const imageKeys = [
-		...new Set(
-			uploads
-				.filter((upload) => upload.type === 'image')
-				.map((u) => u.objectKey),
-		),
-	]
+type MediaAssetRow = {
+	id: string
+	objectKey: string
+	updatedAt: Date
+}
 
-	if (imageKeys.length === 0) {
-		return uploads.map((upload) => ({
-			...upload,
-			imageSrc: getNoteImgSrc(upload.objectKey, organizationId),
-		}))
+async function loadMediaAssetsByObjectKeys(
+	organizationId: string,
+	objectKeys: string[],
+): Promise<Map<string, MediaAssetRow>> {
+	if (objectKeys.length === 0) {
+		return new Map()
 	}
 
 	const assets = await db
@@ -46,14 +41,18 @@ export async function enrichNoteUploadsWithImageSrc<T extends NoteUploadRow>(
 		.where(
 			and(
 				eq(OrganizationMediaAsset.organizationId, organizationId),
-				inArray(OrganizationMediaAsset.objectKey, imageKeys),
+				inArray(OrganizationMediaAsset.objectKey, objectKeys),
 			),
 		)
 
-	const assetByObjectKey = new Map(
-		assets.map((asset) => [asset.objectKey, asset] as const),
-	)
+	return new Map(assets.map((asset) => [asset.objectKey, asset] as const))
+}
 
+function attachImageSrcToUploads<T extends NoteUploadRow>(
+	uploads: T[],
+	organizationId: string,
+	assetByObjectKey: Map<string, MediaAssetRow>,
+): Array<T & { imageSrc: string }> {
 	return uploads.map((upload) => {
 		if (upload.type !== 'image') {
 			return {
@@ -68,6 +67,68 @@ export async function enrichNoteUploadsWithImageSrc<T extends NoteUploadRow>(
 			imageSrc: asset
 				? getOrganizationMediaImageUrl(asset.id, asset.updatedAt)
 				: getNoteImgSrc(upload.objectKey, organizationId),
+		}
+	})
+}
+
+export async function enrichNoteUploadsWithImageSrc<T extends NoteUploadRow>(
+	uploads: T[],
+	organizationId: string,
+): Promise<Array<T & { imageSrc: string }>> {
+	const imageKeys = [
+		...new Set(
+			uploads
+				.filter((upload) => upload.type === 'image')
+				.map((u) => u.objectKey),
+		),
+	]
+
+	const assetByObjectKey = await loadMediaAssetsByObjectKeys(
+		organizationId,
+		imageKeys,
+	)
+
+	return attachImageSrcToUploads(uploads, organizationId, assetByObjectKey)
+}
+
+export async function enrichNotesListUploadsWithImageSrc<
+	T extends { organizationNoteUploads: NoteUploadRow[] },
+>(
+	notes: T[],
+	organizationId: string,
+): Promise<
+	Array<
+		Omit<T, 'organizationNoteUploads'> & {
+			uploads: Array<
+				T['organizationNoteUploads'][number] & { imageSrc: string }
+			>
+		}
+	>
+> {
+	const imageKeys = [
+		...new Set(
+			notes.flatMap((note) =>
+				note.organizationNoteUploads
+					.filter((upload) => upload.type === 'image')
+					.map((upload) => upload.objectKey),
+			),
+		),
+	]
+
+	const assetByObjectKey = await loadMediaAssetsByObjectKeys(
+		organizationId,
+		imageKeys,
+	)
+
+	return notes.map((note) => {
+		const { organizationNoteUploads, ...rest } = note
+		return {
+			...rest,
+			uploads: attachImageSrcToUploads(
+				organizationNoteUploads,
+				organizationId,
+				assetByObjectKey,
+			),
 		}
 	})
 }
