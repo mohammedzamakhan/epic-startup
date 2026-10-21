@@ -851,6 +851,7 @@ function EditColumnForm({
 					name="name"
 					defaultValue={column.name}
 					autoFocus
+					maxLength={NOTE_STATUS_NAME_MAX_LENGTH}
 					className="h-10 flex-1 px-2"
 					onKeyDown={(e) => e.key === 'Escape' && onCancel()}
 					aria-label={t`Column name`}
