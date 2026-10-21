@@ -183,7 +183,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 	}, [open, hasTrackedUsage, organizationId, fetcher])
 
 	const searchNotes = useCallback(
-		async (searchQuery: string) => {
+		async (searchQuery: string, signal: AbortSignal) => {
 			if (!orgSlug) return
 
 			setLoading(true)
@@ -192,30 +192,38 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 					orgSlug,
 					...(searchQuery && { q: searchQuery }),
 				})
-				const response = await fetch(`/resources/search-notes?${params}`)
-				if (response.ok) {
+				const response = await fetch(`/resources/search-notes?${params}`, {
+					signal,
+				})
+				if (response.ok && !signal.aborted) {
 					const data = (await response.json()) as { notes: Note[] }
-					setNotes(data.notes)
+					if (!signal.aborted) setNotes(data.notes)
 				}
 			} catch (error) {
+				if (signal.aborted) return
 				console.error('Failed to search notes:', error)
 				setNotes([])
 			} finally {
-				setLoading(false)
+				if (!signal.aborted) setLoading(false)
 			}
 		},
 		[orgSlug],
 	)
 
-	// Debounce search
+	// Debounce search. Aborting on cleanup keeps a slow response for an older
+	// query (e.g. a no-match one) from overwriting the notes for the current one.
 	useEffect(() => {
 		if (!open) return
 
+		const controller = new AbortController()
 		const timeoutId = setTimeout(() => {
-			void searchNotes(query)
+			void searchNotes(query, controller.signal)
 		}, 300)
 
-		return () => clearTimeout(timeoutId)
+		return () => {
+			clearTimeout(timeoutId)
+			controller.abort()
+		}
 	}, [open, query, searchNotes])
 
 	return (
