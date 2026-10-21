@@ -142,10 +142,15 @@ export function getNavigationCommands({
 	return commands.filter((command) => command !== false)
 }
 
+const NOTE_VALUE_PREFIX = 'note-'
+
 // cmdk's default filter is fuzzy (the letters only have to appear in order),
 // so "Test" matches sections like Website through their keywords. Require the
 // typed text to appear as-is instead.
 function matchesSearch(value: string, search: string, keywords?: string[]) {
+	// The server already matched notes, so they always pass. Going through the
+	// filter (not forceMount) keeps cmdk's empty state and group visibility right.
+	if (value.startsWith(NOTE_VALUE_PREFIX)) return 1
 	const needle = search.trim().toLowerCase()
 	if (!needle) return 1
 	return [value, ...(keywords ?? [])].some((text) =>
@@ -300,17 +305,13 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 					</CommandGroup>
 
 					{notes.length > 0 && (
-						<CommandGroup heading={_(t`Notes`)} forceMount>
+						<CommandGroup heading={_(t`Notes`)}>
 							{notes.map((note) => {
 								const createdByName = note.createdByName
 								return (
 									<CommandItem
 										key={note.id}
-										// The server already matched the title or content, so skip
-										// the client filter. The group needs forceMount too, or cmdk
-										// hides it when no item passed the filter.
-										value={`note-${note.id}`}
-										forceMount
+										value={`${NOTE_VALUE_PREFIX}${note.id}`}
 										onSelect={() => {
 											void navigate(`/${orgSlug}/notes/${note.id}`)
 											onOpenChange(false)

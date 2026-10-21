@@ -253,5 +253,6 @@ describe('getNavigationCommands', () => {
 		expect(
 			await screen.findByText('<img src=x> Test note'),
 		).toBeInTheDocument()
+		expect(screen.queryByText('No results found.')).not.toBeInTheDocument()
 	})
 })
