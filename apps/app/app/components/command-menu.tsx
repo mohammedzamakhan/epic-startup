@@ -300,13 +300,16 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 					</CommandGroup>
 
 					{notes.length > 0 && (
-						<CommandGroup heading={_(t`Notes`)}>
+						<CommandGroup heading={_(t`Notes`)} forceMount>
 							{notes.map((note) => {
 								const createdByName = note.createdByName
 								return (
 									<CommandItem
 										key={note.id}
-										// The server already matched the title or content.
+										// The server already matched the title or content, so skip
+										// the client filter. The group needs forceMount too, or cmdk
+										// hides it when no item passed the filter.
+										value={`note-${note.id}`}
 										forceMount
 										onSelect={() => {
 											void navigate(`/${orgSlug}/notes/${note.id}`)
