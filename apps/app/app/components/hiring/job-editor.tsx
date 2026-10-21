@@ -21,6 +21,7 @@ import { Textarea } from '@repo/ui/textarea'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useBlocker, useFetcher } from 'react-router'
 import { toast } from 'sonner'
+import { useSaveBar } from '#app/components/save-bar.tsx'
 import {
 	SelectField,
 	TextField,
@@ -128,9 +129,14 @@ export function JobEditor({
 		fetcher.state !== 'idle' ? String(fetcher.formData?.get('intent')) : null
 	const busy = busyIntent !== null
 
+	// A posting that is already saved is edited through the global save bar,
+	// which also guards leaving. Only the first save of a new one is guarded here.
 	const blocker = useBlocker(
 		({ currentLocation, nextLocation }) =>
-			dirty && !busy && currentLocation.pathname !== nextLocation.pathname,
+			saved === null &&
+			dirty &&
+			!busy &&
+			currentLocation.pathname !== nextLocation.pathname,
 	)
 
 	useEffect(() => {
@@ -218,6 +224,18 @@ export function JobEditor({
 		}
 		submit('save')
 	}
+
+	useSaveBar({
+		dirty: saved !== null && dirty,
+		saving: busyIntent === 'save',
+		onSave: saveDraft,
+		onDiscard: () => {
+			if (!saved) return
+			setForm(formFromPosting(saved))
+			setErrors({})
+			setServerError(null)
+		},
+	})
 
 	function publish() {
 		const invalid = firstInvalidStep(form, options)
@@ -385,11 +403,11 @@ export function JobEditor({
 								<Trans>Back</Trans>
 							</Button>
 							<div className="flex flex-wrap items-center gap-2">
-								{!live ? (
+								{saved === null ? (
 									<Button
 										type="button"
 										variant="outline"
-										disabled={busy || (!dirty && saved !== null)}
+										disabled={busy}
 										onClick={saveDraft}
 									>
 										{busyIntent === 'save' ? (
@@ -404,19 +422,7 @@ export function JobEditor({
 										<Trans>Next</Trans>
 										<Icon name="arrow-right" className="rtl:rotate-180" />
 									</Button>
-								) : live ? (
-									<Button
-										type="button"
-										disabled={busy || !dirty}
-										onClick={saveDraft}
-									>
-										{busyIntent === 'save' ? (
-											<Trans>Saving...</Trans>
-										) : (
-											<Trans>Save changes</Trans>
-										)}
-									</Button>
-								) : (
+								) : live ? null : (
 									<Button type="button" disabled={busy} onClick={publish}>
 										{busyIntent === 'publish' ? (
 											<Trans>Publishing...</Trans>

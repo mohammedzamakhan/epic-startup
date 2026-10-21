@@ -11,11 +11,13 @@ import {
 import { Input } from '@repo/ui/input'
 import { Label } from '@repo/ui/label'
 import { Textarea } from '@repo/ui/textarea'
-import { Form } from 'react-router'
+import { useRef } from 'react'
+import { Form, useFetcher } from 'react-router'
 import {
 	MockPaymentsPanel,
 	type PaymentsMockUiState,
 } from '#app/components/settings/cards/organization/mock-payments-panel.tsx'
+import { useNativeFormSaveBar } from '#app/components/use-native-form-save-bar.ts'
 import {
 	SHOP_PLATFORM_FEE_PERCENT,
 	SHOP_PROCESSOR_CATALOG,
@@ -49,6 +51,15 @@ export function ShopCard({
 	configuredProcessors = [],
 	paymentsMock,
 }: ShopCardProps) {
+	const productFetcher = useFetcher<{
+		result?: { error?: Record<string, string[] | null> | null }
+	}>()
+	const productFormRef = useRef<HTMLFormElement>(null)
+	useNativeFormSaveBar(productFormRef, productFetcher.state !== 'idle')
+	const productErrors = Object.values(productFetcher.data?.result?.error ?? {})
+		.flat()
+		.filter((message): message is string => Boolean(message))
+
 	const isUsRegion = (organization.dataRegion || 'us') === 'us'
 	const processor = normalizeShopProcessor(organization.shopPaymentProvider)
 	const processorDefinition = getShopProcessorDefinition(processor)
@@ -232,7 +243,11 @@ export function ShopCard({
 								)}
 							</div>
 
-							<Form method="post" className="space-y-4 border-t pt-6">
+							<productFetcher.Form
+								ref={productFormRef}
+								method="post"
+								className="space-y-4 border-t pt-6"
+							>
 								<input
 									type="hidden"
 									name="intent"
@@ -325,10 +340,12 @@ export function ShopCard({
 									<Trans>Show product on your public site</Trans>
 								</label>
 
-								<Button type="submit">
-									<Trans>Save product</Trans>
-								</Button>
-							</Form>
+								{productErrors.length > 0 ? (
+									<p role="alert" className="text-destructive text-sm">
+										{productErrors.join(' ')}
+									</p>
+								) : null}
+							</productFetcher.Form>
 
 							{organization.sitePublished ? (
 								<p className="text-muted-foreground text-sm">

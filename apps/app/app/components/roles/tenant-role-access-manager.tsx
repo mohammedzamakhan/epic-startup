@@ -33,8 +33,9 @@ import {
 	TableHeader,
 	TableRow,
 } from '@repo/ui/table'
-import { useState } from 'react'
-import { Form, Link, useNavigation } from 'react-router'
+import { useRef, useState } from 'react'
+import { Form, Link, useFetcher, useNavigation } from 'react-router'
+import { useNativeFormSaveBar } from '#app/components/use-native-form-save-bar.ts'
 import { useRoleLabels } from '#app/utils/organization/role-label.ts'
 import {
 	STAFFING_IMPLIED_PERMISSION_IDS,
@@ -501,7 +502,14 @@ export function RoleAccessForm({
 	staffingEnabled?: boolean
 }) {
 	const navigation = useNavigation()
-	const isSubmitting = navigation.state === 'submitting'
+	// Editing saves through a fetcher so the save bar's redirect to the list is
+	// not held back by its own leave guard; creating keeps a plain submit.
+	const fetcher = useFetcher<{ error?: string }>()
+	const isSubmitting = role
+		? fetcher.state !== 'idle'
+		: navigation.state === 'submitting'
+	const RoleForm = role ? fetcher.Form : Form
+	const formRef = useRef<HTMLFormElement>(null)
 	const permissionGroups = getPermissionGroups().filter(
 		(group) => staffingEnabled || !group.staffing,
 	)
@@ -525,6 +533,19 @@ export function RoleAccessForm({
 		role ? null : (presets[0]?.name ?? null),
 	)
 
+	useNativeFormSaveBar(formRef, isSubmitting, {
+		enabled: Boolean(role),
+		extraDirty:
+			role !== undefined &&
+			[...selectedPermissionIds].sort().join() !==
+				[...role.permissionIds].sort().join(),
+		onDiscard: () => {
+			if (!role) return
+			setActivePreset(null)
+			setSelectedPermissionIds(role.permissionIds)
+		},
+	})
+
 	const togglePermission = (id: string, checked: boolean) => {
 		setActivePreset(null)
 		setSelectedPermissionIds((prev) => {
@@ -545,13 +566,18 @@ export function RoleAccessForm({
 
 	return (
 		<div className="space-y-6">
-			{error && (
+			{(fetcher.data?.error ?? error) && (
 				<div className="border-destructive/30 bg-destructive/10 text-destructive rounded-xl border px-4 py-3 text-sm">
-					{error}
+					{fetcher.data?.error ?? error}
 				</div>
 			)}
 
-			<Form method="POST" id="role-access-form" className="space-y-6">
+			<RoleForm
+				ref={formRef}
+				method="POST"
+				id="role-access-form"
+				className="space-y-6"
+			>
 				{/* Role Details Frame */}
 				<Frame className="w-full">
 					<FrameHeader>
@@ -796,19 +822,19 @@ export function RoleAccessForm({
 							>
 								<Trans>Cancel</Trans>
 							</Button>
-							<Button type="submit" disabled={isSubmitting}>
-								{isSubmitting ? (
-									<Trans>Saving…</Trans>
-								) : role ? (
-									<Trans>Save changes</Trans>
-								) : (
-									<Trans>Create role</Trans>
-								)}
-							</Button>
+							{role ? null : (
+								<Button type="submit" disabled={isSubmitting}>
+									{isSubmitting ? (
+										<Trans>Saving…</Trans>
+									) : (
+										<Trans>Create role</Trans>
+									)}
+								</Button>
+							)}
 						</div>
 					</FrameFooter>
 				</Frame>
-			</Form>
+			</RoleForm>
 		</div>
 	)
 }
