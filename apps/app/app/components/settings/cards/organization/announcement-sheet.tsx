@@ -65,6 +65,17 @@ export const ANNOUNCEMENT_TYPES = [
 
 export type AnnouncementType = (typeof ANNOUNCEMENT_TYPES)[number]
 
+/** Only http(s) URLs or same-site paths; blocks `javascript:` and similar. */
+export function isSafeAnnouncementLink(value: string) {
+	if (/^\/(?![/\\])/.test(value)) return true
+	try {
+		const { protocol } = new URL(value)
+		return protocol === 'http:' || protocol === 'https:'
+	} catch {
+		return false
+	}
+}
+
 export const AnnouncementSchema = z
 	.object({
 		id: z.string().optional(),
@@ -121,13 +132,11 @@ export const AnnouncementSchema = z
 			return
 		}
 
-		try {
-			new URL(data.linkUrl)
-		} catch {
+		if (!isSafeAnnouncementLink(data.linkUrl)) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
 				path: ['linkUrl'],
-				message: 'Enter a valid URL including https://',
+				message: 'Enter an http(s) URL or a path starting with /',
 			})
 		}
 
