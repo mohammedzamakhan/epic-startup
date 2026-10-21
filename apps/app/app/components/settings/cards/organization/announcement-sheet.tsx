@@ -54,6 +54,7 @@ import {
 	updateLocalizedValue,
 } from '#app/components/website/locale-fields.tsx'
 import { TranslateItemsButton } from '#app/components/website/translate-provider.tsx'
+import { isSafeAnnouncementLink } from '#app/utils/safe-link.ts'
 import { toTranslateItem } from '#app/utils/website/translation.ts'
 
 export const ANNOUNCEMENT_TYPES = [
@@ -65,16 +66,7 @@ export const ANNOUNCEMENT_TYPES = [
 
 export type AnnouncementType = (typeof ANNOUNCEMENT_TYPES)[number]
 
-/** Only http(s) URLs or same-site paths; blocks `javascript:` and similar. */
-export function isSafeAnnouncementLink(value: string) {
-	if (/^\/(?![/\\])/.test(value)) return true
-	try {
-		const { protocol } = new URL(value)
-		return protocol === 'http:' || protocol === 'https:'
-	} catch {
-		return false
-	}
-}
+export { isSafeAnnouncementLink }
 
 export const AnnouncementSchema = z
 	.object({
