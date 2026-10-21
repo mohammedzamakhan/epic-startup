@@ -369,7 +369,10 @@ export function SettingsSaveBar({
 		dirty: canUpdate && form.dirty,
 		saving: pending,
 		onSave: () => {
-			if (disabled) return
+			if (disabled) {
+				toast.error(_(msg`Select at least one language.`))
+				return
+			}
 			anchor.current?.closest('form')?.requestSubmit()
 		},
 		onDiscard: form.discard,

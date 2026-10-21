@@ -114,6 +114,15 @@ export function LaborSettingsForm({
 			}),
 		)
 		if (result.ok) {
+			// Show the saved (canonical) text so "12.0" does not stay dirty.
+			setStandards(
+				Object.fromEntries(
+					positions.map((position) => [
+						position.id,
+						next[position.id] !== undefined ? String(next[position.id]) : '',
+					]),
+				),
+			)
 			toast.success(_(t`Labor settings saved.`))
 			onSaved()
 		}

@@ -161,7 +161,7 @@ export function S3StorageCard({
 		},
 	})
 
-	useConformSaveBar(form, fetcher.state !== 'idle')
+	useConformSaveBar(form, fetcher)
 
 	const testConnectionFetcher = useFetcher()
 	const migration = activeMigration ?? latestMigration

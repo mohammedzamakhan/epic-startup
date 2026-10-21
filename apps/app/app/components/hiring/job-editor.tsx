@@ -232,6 +232,7 @@ export function JobEditor({
 		onDiscard: () => {
 			if (!saved) return
 			setForm(formFromPosting(saved))
+			setBeforeDraft(null)
 			setErrors({})
 			setServerError(null)
 		},

@@ -55,7 +55,7 @@ export function GeneralSettingsCard({
 		},
 	})
 
-	useConformSaveBar(form, fetcher.state !== 'idle')
+	useConformSaveBar(form, fetcher)
 
 	return (
 		<Card>

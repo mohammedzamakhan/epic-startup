@@ -59,7 +59,7 @@ export default function TeamSizeCard({
 	})
 
 	const sizeControl = useInputControl(fields.size)
-	useConformSaveBar(form, fetcher.state !== 'idle')
+	useConformSaveBar(form, fetcher)
 
 	const teamSizeOptions = [
 		{ value: '1-10', label: t`1-10 people` },

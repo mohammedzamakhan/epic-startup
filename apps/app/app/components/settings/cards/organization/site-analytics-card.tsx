@@ -79,7 +79,7 @@ export function SiteAnalyticsCard({
 		},
 	})
 
-	useConformSaveBar(form, fetcher.state !== 'idle')
+	useConformSaveBar(form, fetcher)
 
 	return (
 		<fetcher.Form method="post" {...getFormProps(form)}>

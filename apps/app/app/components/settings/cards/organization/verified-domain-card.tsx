@@ -52,7 +52,7 @@ export default function VerifiedDomainCard({
 	})
 
 	const toggleFetcher = useFetcher()
-	useConformSaveBar(form, saveFetcher.state !== 'idle')
+	useConformSaveBar(form, saveFetcher)
 
 	const handleSwitchChange = (checked: boolean) => {
 		setIsChecked(checked)

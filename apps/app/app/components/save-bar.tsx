@@ -11,6 +11,7 @@ import {
 type SaveBarSource = {
 	dirty: boolean
 	saving: boolean
+	guard: boolean
 	save: () => void
 	discard: () => void
 }
@@ -18,24 +19,37 @@ type SaveBarSource = {
 type SaveBarSnapshot = {
 	visible: boolean
 	saving: boolean
+	/** Block navigation: something is dirty and no source guards itself. */
+	guard: boolean
 }
 
 // One bar for the whole app, like the leave prompt in navigation-guards: every
 // form on the page registers a source and the bar acts on all dirty ones.
 const sources = new Map<string, SaveBarSource>()
 const listeners = new Set<() => void>()
-const HIDDEN: SaveBarSnapshot = { visible: false, saving: false }
+const HIDDEN: SaveBarSnapshot = { visible: false, saving: false, guard: false }
 let snapshot: SaveBarSnapshot = HIDDEN
 
 function publish() {
 	let visible = false
 	let saving = false
+	let dirty = false
+	let selfGuarded = false
 	for (const source of sources.values()) {
 		if (source.dirty || source.saving) visible = true
 		if (source.saving) saving = true
+		if (source.dirty) {
+			dirty = true
+			if (!source.guard) selfGuarded = true
+		}
 	}
-	if (visible !== snapshot.visible || saving !== snapshot.saving) {
-		snapshot = visible || saving ? { visible, saving } : HIDDEN
+	const guard = dirty && !saving && !selfGuarded
+	if (
+		visible !== snapshot.visible ||
+		saving !== snapshot.saving ||
+		guard !== snapshot.guard
+	) {
+		snapshot = visible || saving ? { visible, saving, guard } : HIDDEN
 		for (const listener of listeners) listener()
 	}
 }
@@ -67,7 +81,9 @@ export function useSaveBar({
 	onDiscard: () => void
 	/**
 	 * Set `false` when the page already blocks navigation itself (for example
-	 * with `useUnsavedChangesWarning`): React Router honors one blocker only.
+	 * with `useUnsavedChangesWarning`). The bar registers the one leave guard
+	 * (React Router honors a single blocker) and stands down while any dirty
+	 * source sets this to `false`.
 	 */
 	guard?: boolean
 }) {
@@ -82,11 +98,12 @@ export function useSaveBar({
 		sources.set(id, {
 			dirty,
 			saving,
+			guard,
 			save: () => handlers.current.onSave(),
 			discard: () => handlers.current.onDiscard(),
 		})
 		publish()
-	}, [id, dirty, saving])
+	}, [id, dirty, saving, guard])
 
 	useEffect(
 		() => () => {
@@ -95,39 +112,40 @@ export function useSaveBar({
 		},
 		[id],
 	)
+}
 
-	useDirtyBeforeUnload(guard && dirty)
-	useConfirmBlocker(
-		guard && dirty && !saving,
-		'You have unsaved changes. Leave this page and lose them?',
-	)
+/** Whether an action response reports a failed save (edits must be kept). */
+function isFailedSave(data: unknown) {
+	if (!data || typeof data !== 'object') return false
+	const { result, error } = data as {
+		result?: { status?: string }
+		error?: unknown
+	}
+	return result?.status === 'error' || Boolean(error)
 }
 
 /**
  * Registers a Conform form with the save bar: Save submits the form, Discard
- * resets it to its default values. Pass `saving` while the submit is in flight.
+ * resets it to its default values. Pass the fetcher that submits the form.
  */
 export function useConformSaveBar(
-	form: Pick<FormMetadata<any, any>, 'id' | 'dirty' | 'reset' | 'valid'>,
-	saving: boolean,
+	form: Pick<FormMetadata<any, any>, 'id' | 'dirty' | 'reset'>,
+	fetcher: { state: string; data?: unknown },
 ) {
-	// Conform adopts new `defaultValue`s only on reset, so without this a saved
-	// form stays dirty (and the bar visible) after the loader returns the new
-	// values. Wait a tick so a server-side validation error has been reported
-	// first, and keep the edits in that case.
-	const latestForm = useRef(form)
+	const saving = fetcher.state !== 'idle'
+	// Conform adopts new `defaultValue`s only on reset, so a saved form would
+	// stay dirty after the loader returns the new values. A fetcher goes idle
+	// only after the action and the revalidation landed, so reset then, but
+	// only when the action reported no error: failures keep the edits.
+	const latest = useRef({ form, failed: isFailedSave(fetcher.data) })
 	const wasSaving = useRef(false)
 	useEffect(() => {
-		latestForm.current = form
+		latest.current = { form, failed: isFailedSave(fetcher.data) }
 	})
 	useEffect(() => {
 		const finished = wasSaving.current && !saving
 		wasSaving.current = saving
-		if (!finished) return
-		const timer = setTimeout(() => {
-			if (latestForm.current.valid) latestForm.current.reset()
-		}, 0)
-		return () => clearTimeout(timer)
+		if (finished && !latest.current.failed) latest.current.form.reset()
 	}, [saving])
 
 	useSaveBar({
@@ -144,21 +162,49 @@ export function useConformSaveBar(
 	})
 }
 
+function run(action: 'save' | 'discard') {
+	for (const source of [...sources.values()]) {
+		if (source.dirty && !source.saving) source[action]()
+	}
+}
+
+/**
+ * The one leave guard for every registered form (React Router honors a single
+ * blocker). Mounted once in root.tsx, inside the router.
+ */
+export function SaveBarGuard() {
+	const { _ } = useLingui()
+	const { guard } = useSaveBarSnapshot()
+	useDirtyBeforeUnload(guard)
+	useConfirmBlocker(
+		guard,
+		_(msg`You have unsaved changes. Leave this page and lose them?`),
+	)
+	return null
+}
+
 /** Global "Unsaved changes" bar (mounted once in root.tsx). */
 export function SaveBar() {
 	const { _ } = useLingui()
 	const { visible, saving } = useSaveBarSnapshot()
-	if (!visible) return null
-
-	function run(action: 'save' | 'discard') {
-		for (const source of [...sources.values()]) {
-			if (source.dirty && !source.saving) source[action]()
+	useEffect(() => {
+		if (!visible) return
+		// Ctrl/Cmd+S saves, like the browser's own habit for documents.
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key.toLowerCase() !== 's' || !(event.metaKey || event.ctrlKey))
+				return
+			event.preventDefault()
+			if (!snapshot.saving) run('save')
 		}
-	}
+		window.addEventListener('keydown', onKeyDown)
+		return () => window.removeEventListener('keydown', onKeyDown)
+	}, [visible])
+	if (!visible) return null
 
 	return (
 		<SaveBarView
 			aria-label={_(msg`Unsaved changes`)}
+			savingLabel={_(msg`Saving…`)}
 			message={<Trans>Unsaved changes</Trans>}
 			discardLabel={<Trans>Discard</Trans>}
 			saveLabel={<Trans>Save</Trans>}

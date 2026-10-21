@@ -31,8 +31,16 @@ export function isNativeFormDirty(form: HTMLFormElement) {
 		) {
 			return true
 		} else if (element instanceof HTMLSelectElement && !element.disabled) {
-			for (const option of Array.from(element.options)) {
-				if (option.selected !== option.defaultSelected) return true
+			const options = Array.from(element.options)
+			// With no default option a single select starts on its first enabled
+			// option (and `reset()` restores that), so that is the baseline.
+			const implicit =
+				!element.multiple && !options.some((option) => option.defaultSelected)
+					? options.find((option) => !option.disabled)
+					: undefined
+			for (const option of options) {
+				if (option.selected !== (option.defaultSelected || option === implicit))
+					return true
 			}
 		}
 	}
@@ -59,28 +67,32 @@ export function useNativeFormSaveBar(
 ) {
 	const { enabled = true, extraDirty = false, onDiscard } = options
 	const discardExtra = useRef(onDiscard)
-	discardExtra.current = onDiscard
 	const [dirty, setDirty] = useState(false)
 
-	// Re-check after every render too: a save changes the defaults, not the
-	// fields, and fires no input event.
 	const check = useRef(() => {})
-	check.current = () => {
-		const form = formRef.current
-		setDirty(form ? isNativeFormDirty(form) : false)
-	}
 	useEffect(() => {
+		discardExtra.current = onDiscard
+		check.current = () => {
+			const form = formRef.current
+			setDirty(form ? isNativeFormDirty(form) : false)
+		}
+		// Re-check after every render: a save changes the defaults, not the
+		// fields, and fires no input event.
 		check.current()
 	})
 	useEffect(() => {
 		const form = formRef.current
 		if (!form) return
 		const onChange = () => check.current()
-		const onReset = () => setTimeout(() => check.current(), 0)
+		let resetTimer: ReturnType<typeof setTimeout> | undefined
+		const onReset = () => {
+			resetTimer = setTimeout(() => check.current(), 0)
+		}
 		form.addEventListener('input', onChange)
 		form.addEventListener('change', onChange)
 		form.addEventListener('reset', onReset)
 		return () => {
+			clearTimeout(resetTimer)
 			form.removeEventListener('input', onChange)
 			form.removeEventListener('change', onChange)
 			form.removeEventListener('reset', onReset)

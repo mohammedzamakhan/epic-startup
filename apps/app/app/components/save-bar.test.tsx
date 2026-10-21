@@ -43,7 +43,7 @@ function TestForm({ name, value }: { name: 'alpha' | 'beta'; value: string }) {
 		},
 		defaultValue: { intent: name, value },
 	})
-	useConformSaveBar(form, fetcher.state !== 'idle')
+	useConformSaveBar(form, fetcher)
 	return (
 		<fetcher.Form method="POST" {...getFormProps(form)}>
 			<input type="hidden" name="intent" value={name} />

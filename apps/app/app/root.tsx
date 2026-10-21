@@ -65,7 +65,7 @@ import faviconAssetUrl from './assets/favicons/favicon.svg'
 import { NotFoundErrorBoundary } from './components/error-boundary.tsx'
 import { ImpersonationBanner } from './components/impersonation-banner.tsx'
 import { LeavePageDialog } from './components/leave-page-dialog.tsx'
-import { SaveBar } from './components/save-bar.tsx'
+import { SaveBar, SaveBarGuard } from './components/save-bar.tsx'
 import { PostHogAnalytics } from './components/posthog-analytics.tsx'
 import { CookieConsentBanner } from './components/privacy-banner.tsx'
 import { useToast } from './components/toaster.tsx'
@@ -610,6 +610,7 @@ function AppWithProviders() {
 				</div>
 				<LeavePageDialog />
 				<SaveBar />
+				<SaveBarGuard />
 				{isKiosk ? null : <EpicToaster />}
 				{isKiosk ? null : <CookieConsentBanner consent={data.cookieConsent} />}
 			</OpenImgContextProvider>

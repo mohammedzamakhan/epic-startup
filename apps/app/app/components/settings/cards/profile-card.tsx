@@ -74,7 +74,7 @@ export function ProfileCard({ user }: ProfileCardProps) {
 		},
 	})
 
-	useConformSaveBar(form, fetcher.state !== 'idle')
+	useConformSaveBar(form, fetcher)
 
 	return (
 		<Card className="w-full">
