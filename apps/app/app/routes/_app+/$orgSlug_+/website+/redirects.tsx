@@ -63,11 +63,10 @@ import {
 } from '@repo/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/ui/tabs'
 import { formatDistanceToNow } from 'date-fns'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
-	useActionData,
 	useFetcher,
 	useLoaderData,
 } from 'react-router'
@@ -79,6 +78,10 @@ import {
 	ORG_PERMISSIONS,
 } from '#app/utils/organization/permissions.server.ts'
 import { purgeOrganizationSiteCache } from '#app/utils/sites/kv-cache.server.ts'
+import {
+	isValidRedirectDestination,
+	REDIRECT_DESTINATION_ERROR,
+} from '#app/utils/website/redirect-destination.ts'
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
 	await requireUserId(request)
@@ -169,23 +172,6 @@ function normalizePath(p: string): string {
 	return clean
 }
 
-function isValidRedirectDestination(val: string): boolean {
-	const trimmed = val.trim()
-	if (!trimmed) return false
-	// Reject scheme-relative URLs like //evil.com
-	if (trimmed.startsWith('//')) return false
-	if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-		try {
-			const parsed = new URL(trimmed)
-			return parsed.protocol === 'http:' || parsed.protocol === 'https:'
-		} catch {
-			return false
-		}
-	}
-	// Internal relative path must start with exactly one slash and not backslash
-	return trimmed.startsWith('/') && !trimmed.startsWith('/\\')
-}
-
 /**
  * Checks if adding/updating a redirect would cause a loop (e.g. /a -> /b -> /a).
  * Traverses internal redirect chain up to 25 hops.
@@ -248,7 +234,7 @@ const CreateRedirectSchema = z.object({
 		.min(1, 'Destination is required')
 		.refine(
 			isValidRedirectDestination,
-			'Destination must be an internal path (e.g. /page) or a valid http:// or https:// URL.',
+			REDIRECT_DESTINATION_ERROR,
 		),
 	statusCode: z.coerce
 		.number()
@@ -265,7 +251,7 @@ const UpdateRedirectSchema = z.object({
 		.min(1, 'Destination is required')
 		.refine(
 			isValidRedirectDestination,
-			'Destination must be an internal path (e.g. /page) or a valid http:// or https:// URL.',
+			REDIRECT_DESTINATION_ERROR,
 		),
 	statusCode: z.coerce
 		.number()
@@ -619,10 +605,15 @@ type NotFoundRecord = {
 
 export default function WebsiteRedirectsRoute() {
 	const { redirects, notFoundLogs, pages } = useLoaderData<typeof loader>()
-	const actionData = useActionData<{
+	const saveFetcher = useFetcher<{
 		status?: string
 		errors?: Record<string, string[]>
 	}>()
+	const [submittedSave, setSubmittedSave] = useState(false)
+	const [clientToPathError, setClientToPathError] = useState<string | null>(
+		null,
+	)
+	const actionData = saveFetcher.data
 	const toggleFetcher = useFetcher()
 	const deleteFetcher = useFetcher()
 	const { _ } = useLingui()
@@ -651,7 +642,21 @@ export default function WebsiteRedirectsRoute() {
 	const [logToDelete, setLogToDelete] = useState<NotFoundRecord | null>(null)
 	const [clearAll404Open, setClearAll404Open] = useState(false)
 
+	// A successful save redirects, which leaves the fetcher with no data. A
+	// rejected one returns errors, and the drawer stays open with its values.
+	const saveSubmitted = saveFetcher.state !== 'idle'
+	useEffect(() => {
+		if (saveSubmitted) setSubmittedSave(true)
+	}, [saveSubmitted])
+	useEffect(() => {
+		if (submittedSave && !saveSubmitted) {
+			setSubmittedSave(false)
+			if (!saveFetcher.data?.errors) setDrawerOpen(false)
+		}
+	}, [submittedSave, saveSubmitted, saveFetcher.data])
+
 	const openCreateDrawer = useCallback((initialFromPath = '') => {
+		setClientToPathError(null)
 		setEditingRedirect(null)
 		setFromPathInput(initialFromPath)
 		setToPathInput('')
@@ -664,6 +669,7 @@ export default function WebsiteRedirectsRoute() {
 
 	const openEditDrawer = useCallback(
 		(record: RedirectRecord) => {
+			setClientToPathError(null)
 			setEditingRedirect(record)
 			setFromPathInput(record.fromPath)
 			setStatusCodeInput(record.statusCode)
@@ -1147,8 +1153,17 @@ export default function WebsiteRedirectsRoute() {
 						</SheetDescription>
 					</SheetHeader>
 
-					<form
+					<saveFetcher.Form
 						method="post"
+						noValidate
+						onSubmit={(e) => {
+							if (!isValidRedirectDestination(toPathInput)) {
+								e.preventDefault()
+								setClientToPathError(REDIRECT_DESTINATION_ERROR)
+								return
+							}
+							setClientToPathError(null)
+						}}
 						className="flex flex-1 flex-col justify-between overflow-y-auto"
 					>
 						<input
@@ -1298,7 +1313,10 @@ export default function WebsiteRedirectsRoute() {
 											name="toPath"
 											placeholder="/new-page or https://..."
 											value={toPathInput}
-											onChange={(e) => setToPathInput(e.target.value)}
+											onChange={(e) => {
+												setToPathInput(e.target.value)
+												setClientToPathError(null)
+											}}
 											required
 											className="font-mono text-sm"
 										/>
@@ -1310,9 +1328,9 @@ export default function WebsiteRedirectsRoute() {
 										</p>
 									</div>
 								)}
-								{actionData?.errors?.toPath && (
+								{(clientToPathError ?? actionData?.errors?.toPath?.[0]) && (
 									<p className="text-destructive text-xs font-medium">
-										{actionData.errors.toPath[0]}
+										{clientToPathError ?? actionData?.errors?.toPath?.[0]}
 									</p>
 								)}
 							</div>
@@ -1433,7 +1451,7 @@ export default function WebsiteRedirectsRoute() {
 								{editingRedirect ? _(t`Save changes`) : _(t`Create redirect`)}
 							</Button>
 						</SheetFooter>
-					</form>
+					</saveFetcher.Form>
 				</SheetContent>
 			</Sheet>
 
