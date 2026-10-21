@@ -138,7 +138,7 @@ export function LaborSettingsForm({
 				void submit()
 			}}
 		>
-			<FieldSet disabled={!canEdit}>
+			<FieldSet disabled={!canEdit || save.pending}>
 				<FieldLegend>
 					<Trans>Where sales come from</Trans>
 				</FieldLegend>
@@ -195,6 +195,7 @@ export function LaborSettingsForm({
 										dir="ltr"
 										value={standards[position.id] ?? ''}
 										placeholder="–"
+										readOnly={save.pending}
 										className="h-11 w-24 text-end tabular-nums md:h-8"
 										onChange={(event) => {
 											const value = event.target.value

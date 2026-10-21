@@ -57,7 +57,7 @@ export function DetailsTab({
 	return (
 		<div className="flex flex-col gap-6">
 			<PersonForm
-				key={person.updatedAt ?? person.id}
+				key={`${person.id}:${person.updatedAt ?? ''}`}
 				detail={detail}
 				onChanged={onChanged}
 			/>

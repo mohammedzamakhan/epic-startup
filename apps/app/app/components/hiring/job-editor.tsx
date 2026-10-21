@@ -19,7 +19,7 @@ import { PageHeader } from '@repo/ui/page-header'
 import { Tabs, TabsList, TabsTrigger } from '@repo/ui/tabs'
 import { Textarea } from '@repo/ui/textarea'
 import { useEffect, useId, useRef, useState } from 'react'
-import { Link, useBlocker, useFetcher } from 'react-router'
+import { Link, useFetcher } from 'react-router'
 import { toast } from 'sonner'
 import { useSaveBar } from '#app/components/save-bar.tsx'
 import {
@@ -129,16 +129,6 @@ export function JobEditor({
 		fetcher.state !== 'idle' ? String(fetcher.formData?.get('intent')) : null
 	const busy = busyIntent !== null
 
-	// A posting that is already saved is edited through the global save bar,
-	// which also guards leaving. Only the first save of a new one is guarded here.
-	const blocker = useBlocker(
-		({ currentLocation, nextLocation }) =>
-			saved === null &&
-			dirty &&
-			!busy &&
-			currentLocation.pathname !== nextLocation.pathname,
-	)
-
 	useEffect(() => {
 		const data = fetcher.data
 		if (!data) return
@@ -225,9 +215,13 @@ export function JobEditor({
 		submit('save')
 	}
 
+	// The bar is shown for saved postings only; a new one is just guarded so
+	// leaving asks first. Publish and delete count as saving too, so Discard
+	// and Save cannot interrupt them.
 	useSaveBar({
-		dirty: saved !== null && dirty,
-		saving: busyIntent === 'save',
+		dirty,
+		showBar: saved !== null,
+		saving: busy,
 		onSave: saveDraft,
 		onDiscard: () => {
 			if (!saved) return
@@ -437,37 +431,6 @@ export function JobEditor({
 							</div>
 						</div>
 					</form>
-
-					<AlertDialog
-						open={blocker.state === 'blocked'}
-						onOpenChange={(open) => {
-							if (!open && blocker.state === 'blocked') blocker.reset()
-						}}
-					>
-						<AlertDialogContent>
-							<AlertDialogHeader>
-								<AlertDialogTitle>
-									<Trans>Leave without saving?</Trans>
-								</AlertDialogTitle>
-								<AlertDialogDescription>
-									<Trans>Your changes to this job will be lost.</Trans>
-								</AlertDialogDescription>
-							</AlertDialogHeader>
-							<AlertDialogFooter>
-								<AlertDialogCancel>
-									<Trans>Keep editing</Trans>
-								</AlertDialogCancel>
-								<AlertDialogAction
-									variant="destructive"
-									onClick={() =>
-										blocker.state === 'blocked' && blocker.proceed()
-									}
-								>
-									<Trans>Leave</Trans>
-								</AlertDialogAction>
-							</AlertDialogFooter>
-						</AlertDialogContent>
-					</AlertDialog>
 				</div>
 			</TranslateProvider>
 		</LocaleContext.Provider>

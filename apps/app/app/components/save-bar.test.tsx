@@ -24,12 +24,14 @@ const Schema = z.object({
 
 let db: { alpha: string; beta: string }
 let saved: string[]
+let gate: Promise<void> | null = null
 
 beforeEach(() => {
 	i18n.load('en', {})
 	i18n.activate('en')
 	db = { alpha: 'one', beta: 'two' }
 	saved = []
+	gate = null
 })
 
 function TestForm({ name, value }: { name: 'alpha' | 'beta'; value: string }) {
@@ -84,6 +86,7 @@ function renderPage() {
 						result: result.reply({ fieldErrors: { value: ['Already taken'] } }),
 					}
 				}
+				if (gate) await gate
 				saved.push(intent)
 				db[intent] = result.value.value
 				return redirect('/')
@@ -181,5 +184,23 @@ describe('save bar with several forms', () => {
 		expect(screen.getByLabelText('alpha')).toHaveValue('taken')
 		expect(bar()).toBeInTheDocument()
 		expect(saved).toEqual([])
+	})
+
+	it('keeps what is typed while a save is still in flight', async () => {
+		const user = userEvent.setup()
+		let release!: () => void
+		gate = new Promise<void>((resolve) => (release = resolve))
+		renderPage()
+		await screen.findByLabelText('alpha')
+
+		await user.type(screen.getByLabelText('alpha'), '1')
+		await user.click(screen.getByRole('button', { name: 'Save' }))
+		await user.type(screen.getByLabelText('alpha'), '2')
+		release()
+
+		await waitFor(() => expect(saved).toEqual(['alpha']))
+		await waitFor(() => expect(db.alpha).toBe('one1'))
+		expect(screen.getByLabelText('alpha')).toHaveValue('one12')
+		expect(bar()).toBeInTheDocument()
 	})
 })

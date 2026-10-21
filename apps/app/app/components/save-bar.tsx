@@ -12,6 +12,7 @@ type SaveBarSource = {
 	dirty: boolean
 	saving: boolean
 	guard: boolean
+	showBar: boolean
 	save: () => void
 	discard: () => void
 }
@@ -36,7 +37,7 @@ function publish() {
 	let dirty = false
 	let selfGuarded = false
 	for (const source of sources.values()) {
-		if (source.dirty || source.saving) visible = true
+		if (source.showBar && (source.dirty || source.saving)) visible = true
 		if (source.saving) saving = true
 		if (source.dirty) {
 			dirty = true
@@ -49,7 +50,7 @@ function publish() {
 		saving !== snapshot.saving ||
 		guard !== snapshot.guard
 	) {
-		snapshot = visible || saving ? { visible, saving, guard } : HIDDEN
+		snapshot = visible || saving || guard ? { visible, saving, guard } : HIDDEN
 		for (const listener of listeners) listener()
 	}
 }
@@ -74,6 +75,7 @@ export function useSaveBar({
 	onSave,
 	onDiscard,
 	guard = true,
+	showBar = true,
 }: {
 	dirty: boolean
 	saving: boolean
@@ -86,6 +88,8 @@ export function useSaveBar({
 	 * source sets this to `false`.
 	 */
 	guard?: boolean
+	/** `false` keeps the bar hidden but still guards leaving (new, unsaved records). */
+	showBar?: boolean
 }) {
 	const id = useId()
 	// The bar calls the latest handlers without re-registering on every render.
@@ -99,11 +103,12 @@ export function useSaveBar({
 			dirty,
 			saving,
 			guard,
+			showBar,
 			save: () => handlers.current.onSave(),
 			discard: () => handlers.current.onDiscard(),
 		})
 		publish()
-	}, [id, dirty, saving, guard])
+	}, [id, dirty, saving, guard, showBar])
 
 	useEffect(
 		() => () => {
@@ -124,6 +129,18 @@ function isFailedSave(data: unknown) {
 	return result?.status === 'error' || Boolean(error)
 }
 
+/** What the browser would submit right now, for "did anything change since". */
+function snapshotForm(id: string) {
+	const element = document.getElementById(id)
+	if (!(element instanceof HTMLFormElement)) return null
+	return JSON.stringify(
+		Array.from(new FormData(element)).map(([key, value]) => [
+			key,
+			typeof value === 'string' ? value : value.name,
+		]),
+	)
+}
+
 /**
  * Registers a Conform form with the save bar: Save submits the form, Discard
  * resets it to its default values. Pass the fetcher that submits the form.
@@ -135,17 +152,40 @@ export function useConformSaveBar(
 	const saving = fetcher.state !== 'idle'
 	// Conform adopts new `defaultValue`s only on reset, so a saved form would
 	// stay dirty after the loader returns the new values. A fetcher goes idle
-	// only after the action and the revalidation landed, so reset then, but
-	// only when the action reported no error: failures keep the edits.
-	const latest = useRef({ form, failed: isFailedSave(fetcher.data) })
+	// only after the action and the revalidation landed. Reset then, but only
+	// when this save got a fresh, error-free response and the fields still hold
+	// what was submitted: failures and edits made mid-save are kept.
+	const latest = useRef({ form, data: fetcher.data })
+	const submitted = useRef<{ values: string | null; data: unknown } | null>(
+		null,
+	)
 	const wasSaving = useRef(false)
 	useEffect(() => {
-		latest.current = { form, failed: isFailedSave(fetcher.data) }
+		latest.current = { form, data: fetcher.data }
 	})
+	useEffect(() => {
+		const element = document.getElementById(form.id)
+		if (!element) return
+		const onSubmit = () => {
+			submitted.current = {
+				values: snapshotForm(form.id),
+				data: latest.current.data,
+			}
+		}
+		element.addEventListener('submit', onSubmit, true)
+		return () => element.removeEventListener('submit', onSubmit, true)
+	}, [form.id])
 	useEffect(() => {
 		const finished = wasSaving.current && !saving
 		wasSaving.current = saving
-		if (finished && !latest.current.failed) latest.current.form.reset()
+		if (!finished || !submitted.current) return
+		const { values, data: dataAtSubmit } = submitted.current
+		submitted.current = null
+		const { form: current, data } = latest.current
+		// A redirect leaves no data; otherwise a response must be new.
+		const fresh = data === undefined || data !== dataAtSubmit
+		if (!fresh || isFailedSave(data)) return
+		if (snapshotForm(current.id) === values) current.reset()
 	}, [saving])
 
 	useSaveBar({
@@ -164,7 +204,7 @@ export function useConformSaveBar(
 
 function run(action: 'save' | 'discard') {
 	for (const source of [...sources.values()]) {
-		if (source.dirty && !source.saving) source[action]()
+		if (source.showBar && source.dirty && !source.saving) source[action]()
 	}
 }
 

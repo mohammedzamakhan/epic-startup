@@ -15,8 +15,23 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-function Source({ dirty, guard }: { dirty: boolean; guard?: boolean }) {
-	useSaveBar({ dirty, saving: false, onSave() {}, onDiscard() {}, guard })
+function Source({
+	dirty,
+	guard,
+	showBar,
+}: {
+	dirty: boolean
+	guard?: boolean
+	showBar?: boolean
+}) {
+	useSaveBar({
+		dirty,
+		saving: false,
+		onSave() {},
+		onDiscard() {},
+		guard,
+		showBar,
+	})
 	return null
 }
 
@@ -63,5 +78,14 @@ describe('SaveBarGuard', () => {
 		const router = renderPage(<Source dirty guard={false} />)
 		await userEvent.click(screen.getByRole('link', { name: 'Away' }))
 		await waitFor(() => expect(router.state.location.pathname).toBe('/away'))
+	})
+
+	it('guards a dirty source that keeps the bar hidden', async () => {
+		const router = renderPage(<Source dirty showBar={false} />)
+		await userEvent.click(screen.getByRole('link', { name: 'Away' }))
+		await waitFor(() =>
+			expect(screen.getByText('Leave this page?')).toBeInTheDocument(),
+		)
+		expect(router.state.location.pathname).toBe('/')
 	})
 })
