@@ -655,6 +655,7 @@ export default function WebsiteRedirectsRoute() {
 
 	const openCreateDrawer = useCallback((initialFromPath = '') => {
 		setSaveFetcherKey((k) => k + 1)
+		setSubmittedSave(false)
 		setClientToPathError(null)
 		setEditingRedirect(null)
 		setFromPathInput(initialFromPath)
@@ -669,6 +670,7 @@ export default function WebsiteRedirectsRoute() {
 	const openEditDrawer = useCallback(
 		(record: RedirectRecord) => {
 			setSaveFetcherKey((k) => k + 1)
+			setSubmittedSave(false)
 			setClientToPathError(null)
 			setEditingRedirect(record)
 			setFromPathInput(record.fromPath)
