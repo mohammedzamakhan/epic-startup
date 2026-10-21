@@ -813,7 +813,7 @@ msgstr "{name} was put back."
 msgid "{name} was rehired. Add their workplaces again."
 msgstr "{name} was rehired. Add their workplaces again."
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1127
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1129
 msgid "{notFoundCount} missing URLs logged"
 msgstr "{notFoundCount} missing URLs logged"
 
@@ -936,7 +936,7 @@ msgstr "{readyCount} ready, {needFix} need a fix. Rows with a problem are skippe
 msgid "{recipientCount} recipients"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1004
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1006
 msgid "{redirectCount} redirects"
 msgstr "{redirectCount} redirects"
 
@@ -1126,7 +1126,7 @@ msgstr "1 form"
 msgid "1 means no premium. Holiday hours are not counted toward overtime."
 msgstr "1 means no premium. Holiday hours are not counted toward overtime."
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1125
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1127
 msgid "1 missing URL logged"
 msgstr "1 missing URL logged"
 
@@ -1138,7 +1138,7 @@ msgstr "1 onboarding task is still open"
 msgid "1 page"
 msgstr "1 page"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1002
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1004
 msgid "1 redirect"
 msgstr "1 redirect"
 
@@ -1166,7 +1166,7 @@ msgstr "2026-03-31 (year first)"
 msgid "31/03/2026 (day first)"
 msgstr "31/03/2026 (day first)"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:792
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:794
 msgid "404 Error History"
 msgstr "404 Error History"
 
@@ -1485,7 +1485,7 @@ msgstr ""
 msgid "Account ID copied to clipboard"
 msgstr ""
 
-#: app/components/command-menu.tsx:337
+#: app/components/command-menu.tsx:341
 msgid "Account settings"
 msgstr ""
 
@@ -1510,15 +1510,15 @@ msgstr ""
 msgid "Across your organization"
 msgstr "Across your organization"
 
-#: app/components/command-menu.tsx:281
+#: app/components/command-menu.tsx:286
 #: app/components/phone-agent/flow-editor/node-palette.tsx:106
 #: app/components/roles/tenant-role-access-manager.tsx:1060
 #: app/routes/_app+/$orgSlug_+/mcp.tsx:966
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:640
 #: app/routes/_app+/$orgSlug_+/website+/forms.tsx:213
 #: app/routes/_app+/$orgSlug_+/website+/pages._index.tsx:623
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:875
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1052
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:877
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1054
 msgid "Actions"
 msgstr ""
 
@@ -3130,7 +3130,7 @@ msgid "Billed monthly"
 msgstr ""
 
 #: app/components/app-sidebar.tsx:516
-#: app/components/command-menu.tsx:349
+#: app/components/command-menu.tsx:353
 #: app/components/workspace-breadcrumb.tsx:67
 msgid "Billing"
 msgstr ""
@@ -3397,7 +3397,7 @@ msgstr "Button label"
 msgid "Buttons"
 msgstr ""
 
-#: app/components/command-menu.tsx:320
+#: app/components/command-menu.tsx:324
 msgid "by {createdByName}"
 msgstr ""
 
@@ -3681,10 +3681,10 @@ msgstr "Can't text that number"
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:513
 #: app/routes/_app+/$orgSlug_+/website+/pages._index.tsx:498
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:1770
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1455
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1493
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1539
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1577
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1457
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1495
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1541
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1579
 #: app/routes/organizations+/create.tsx:822
 #: app/routes/organizations+/create.tsx:957
 msgid "Cancel"
@@ -4316,7 +4316,7 @@ msgstr ""
 msgid "Clear"
 msgstr "Clear"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1566
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1568
 msgid "Clear all 404 history?"
 msgstr "Clear all 404 history?"
 
@@ -4332,11 +4332,11 @@ msgstr "Clear draft"
 msgid "Clear filters"
 msgstr "Clear filters"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:829
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:831
 msgid "Clear history"
 msgstr "Clear history"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1588
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1590
 msgid "Clear History"
 msgstr "Clear History"
 
@@ -5344,7 +5344,7 @@ msgstr "Create group chats"
 msgid "Create Link"
 msgstr ""
 
-#: app/components/command-menu.tsx:289
+#: app/components/command-menu.tsx:294
 msgid "Create new note"
 msgstr ""
 
@@ -5377,8 +5377,8 @@ msgstr ""
 msgid "Create PIN"
 msgstr "Create PIN"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1102
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1458
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1104
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1460
 msgid "Create redirect"
 msgstr "Create redirect"
 
@@ -5572,7 +5572,7 @@ msgstr "Custom task"
 msgid "Custom trigger event"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1250
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1252
 msgid "Custom URL"
 msgstr "Custom URL"
 
@@ -5911,9 +5911,9 @@ msgstr ""
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:527
 #: app/routes/_app+/$orgSlug_+/website+/pages._index.tsx:473
 #: app/routes/_app+/$orgSlug_+/website+/pages._index.tsx:512
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:989
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1509
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1555
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:991
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1511
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1557
 msgid "Delete"
 msgstr ""
 
@@ -5937,7 +5937,7 @@ msgstr "Delete {channelName}?"
 msgid "Delete {name}'s application?"
 msgstr "Delete {name}'s application?"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1525
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1527
 msgid "Delete 404 log entry?"
 msgstr "Delete 404 log entry?"
 
@@ -6017,7 +6017,7 @@ msgstr "Delete last digit"
 msgid "Delete link"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1111
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1113
 msgid "Delete log entry"
 msgstr "Delete log entry"
 
@@ -6059,7 +6059,7 @@ msgstr ""
 msgid "Delete question"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1475
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1477
 msgid "Delete redirect rule?"
 msgstr "Delete redirect rule?"
 
@@ -6188,7 +6188,7 @@ msgstr "Design email"
 msgid "Desktop"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1217
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1219
 msgid "Destination"
 msgstr "Destination"
 
@@ -6252,7 +6252,7 @@ msgstr ""
 msgid "Dimensions:"
 msgstr "Dimensions:"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1079
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1081
 msgid "Direct / Unknown"
 msgstr "Direct / Unknown"
 
@@ -6696,7 +6696,7 @@ msgstr "Early out"
 #: app/routes/_app+/$orgSlug_+/staff+/positions.tsx:240
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:483
 #: app/routes/_app+/$orgSlug_+/website+/pages._index.tsx:430
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:982
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:984
 msgid "Edit"
 msgstr ""
 
@@ -6779,7 +6779,7 @@ msgstr "Edit position"
 msgid "Edit private details"
 msgstr "Edit private details"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1147
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1149
 msgid "Edit redirect"
 msgstr "Edit redirect"
 
@@ -6959,7 +6959,7 @@ msgstr ""
 msgid "Enable hosted checkout"
 msgstr "Enable hosted checkout"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1426
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1428
 msgid "Enable redirect immediately"
 msgstr "Enable redirect immediately"
 
@@ -7106,7 +7106,7 @@ msgstr "Enter an amount like 15.50."
 msgid "Enter an email address"
 msgstr "Enter an email address"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1327
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1329
 msgid "Enter an internal path (e.g. /new-page) or full external URL."
 msgstr "Enter an internal path (e.g. /new-page) or full external URL."
 
@@ -7439,7 +7439,7 @@ msgstr ""
 msgid "Execution runs and step history, triggered by \"{triggerLabel}\"."
 msgstr "Execution runs and step history, triggered by \"{triggerLabel}\"."
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1238
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1240
 msgid "Existing page"
 msgstr "Existing page"
 
@@ -7936,7 +7936,7 @@ msgstr "Former member"
 msgid "Forms"
 msgstr "Forms"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:758
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:760
 msgid "Forward old or broken URLs to your new pages to preserve SEO rank and customer traffic."
 msgstr "Forward old or broken URLs to your new pages to preserve SEO rank and customer traffic."
 
@@ -8131,7 +8131,7 @@ msgstr "Give your group a name"
 msgid "Go there"
 msgstr "Go there"
 
-#: app/components/command-menu.tsx:264
+#: app/components/command-menu.tsx:269
 msgid "Go to"
 msgstr ""
 
@@ -8471,17 +8471,17 @@ msgstr "Hiring…"
 msgid "History"
 msgstr "History"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:948
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1070
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:950
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1072
 msgid "hit"
 msgstr "hit"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:948
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1070
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:950
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1072
 msgid "hits"
 msgstr "hits"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1042
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1044
 msgid "Hits"
 msgstr "Hits"
 
@@ -8699,7 +8699,7 @@ msgstr "If the caller doesn't choose"
 msgid "If you change your email, you'll need to verify the new address"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:841
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:843
 msgid "If you moved from an older website or changed page URLs, create redirects so visitors and search engines are automatically forwarded."
 msgstr "If you moved from an older website or changed page URLs, create redirects so visitors and search engines are automatically forwarded."
 
@@ -8987,7 +8987,7 @@ msgstr "Invite member"
 msgid "Invite members"
 msgstr ""
 
-#: app/components/command-menu.tsx:298
+#: app/components/command-menu.tsx:303
 #: app/components/roles/tenant-role-access-manager.tsx:124
 msgid "Invite new members"
 msgstr ""
@@ -9214,7 +9214,7 @@ msgstr "Keep waiting"
 msgid "Keep who works each shift"
 msgstr "Keep who works each shift"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1392
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1394
 msgid "Keeps original indexing"
 msgstr "Keeps original indexing"
 
@@ -9393,7 +9393,7 @@ msgstr ""
 msgid "Last day"
 msgstr "Last day"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1045
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1047
 msgid "Last Encountered"
 msgstr "Last Encountered"
 
@@ -9677,7 +9677,7 @@ msgstr "Listening"
 
 #: app/components/hiring/job-labels.ts:50
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:624
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:859
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:861
 msgid "Live"
 msgstr ""
 
@@ -10440,7 +10440,7 @@ msgstr "Missed transfers"
 msgid "Missing clock-out"
 msgstr "Missing clock-out"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1039
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1041
 msgid "Missing Path"
 msgstr "Missing Path"
 
@@ -10775,7 +10775,7 @@ msgid "Never"
 msgstr "Never"
 
 #: app/routes/_app+/$orgSlug_+/mcp.tsx:987
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:959
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:961
 msgid "Never used"
 msgstr ""
 
@@ -10817,7 +10817,7 @@ msgstr ""
 msgid "New dashboard"
 msgstr "New dashboard"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:865
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:867
 msgid "New Destination"
 msgstr "New Destination"
 
@@ -10893,11 +10893,11 @@ msgstr "New PIN"
 msgid "New PIN for {scopeName}"
 msgstr "New PIN for {scopeName}"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1147
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1149
 msgid "New redirect"
 msgstr "New redirect"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:772
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:774
 msgid "New Redirect"
 msgstr "New Redirect"
 
@@ -10961,11 +10961,11 @@ msgstr "Next week"
 msgid "No"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1027
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1029
 msgid "No 404 errors match that search"
 msgstr "No 404 errors match that search"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1019
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1021
 msgid "No 404 errors recorded"
 msgstr "No 404 errors recorded"
 
@@ -11471,11 +11471,11 @@ msgstr "No pronunciations yet."
 msgid "No rate"
 msgstr "No rate"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:839
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:841
 msgid "No redirects created yet"
 msgstr "No redirects created yet"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:847
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:849
 msgid "No redirects match that search"
 msgstr "No redirects match that search"
 
@@ -11483,7 +11483,7 @@ msgstr "No redirects match that search"
 msgid "No responses yet."
 msgstr "No responses yet."
 
-#: app/components/command-menu.tsx:259
+#: app/components/command-menu.tsx:264
 msgid "No results found."
 msgstr ""
 
@@ -11802,7 +11802,7 @@ msgstr "Not sent"
 msgid "Not set up for this position here"
 msgstr "Not set up for this position here"
 
-#: app/components/dashboard/share-dashboard-dialog.tsx:395
+#: app/components/dashboard/share-dashboard-dialog.tsx:404
 msgid "Not shared with anyone yet."
 msgstr "Not shared with anyone yet."
 
@@ -11888,7 +11888,7 @@ msgstr ""
 
 #: app/components/app-sidebar.tsx:294
 #: app/components/command-menu.tsx:84
-#: app/components/command-menu.tsx:303
+#: app/components/command-menu.tsx:308
 #: app/components/hiring/candidate-sheet.tsx:350
 #: app/components/staff/notes-tab.tsx:84
 #: app/components/staff/schedule/shift-editor-sheet.tsx:589
@@ -12086,11 +12086,11 @@ msgstr "Offline"
 msgid "Offline punch"
 msgstr "Offline punch"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1186
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1188
 msgid "Old path (Source)"
 msgstr "Old path (Source)"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:862
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:864
 msgid "Old URL (Source)"
 msgstr "Old URL (Source)"
 
@@ -13129,11 +13129,11 @@ msgstr "People who work at more than one workplace"
 msgid "People whose shifts changed"
 msgstr "People whose shifts changed"
 
-#: app/components/dashboard/share-dashboard-dialog.tsx:391
+#: app/components/dashboard/share-dashboard-dialog.tsx:400
 msgid "People with access"
 msgstr "People with access"
 
-#: app/components/dashboard/share-dashboard-dialog.tsx:381
+#: app/components/dashboard/share-dashboard-dialog.tsx:390
 msgid "People you share with find this dashboard under “Shared with me”. View access lets them look at it. Edit access also lets them change its blocks and layout for everyone."
 msgstr "People you share with find this dashboard under “Shared with me”. View access lets them look at it. Edit access also lets them change its blocks and layout for everyone."
 
@@ -13162,7 +13162,7 @@ msgstr "Per year"
 msgid "Performance metrics"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1404
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1406
 msgid "Permanent (301) tells search engines (like Google) that the page has moved permanently, passing ranking and backlinks."
 msgstr "Permanent (301) tells search engines (like Google) that the page has moved permanently, passing ranking and backlinks."
 
@@ -14210,7 +14210,7 @@ msgstr "Recommended"
 msgid "Recommended for"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1354
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1356
 msgid "Recommended for SEO"
 msgstr "Recommended for SEO"
 
@@ -14272,15 +14272,15 @@ msgstr "Red"
 msgid "Redeliver"
 msgstr "Redeliver"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:971
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:973
 msgid "Redirect actions"
 msgstr "Redirect actions"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1349
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1351
 msgid "Redirect type"
 msgstr "Redirect type"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1092
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1094
 msgid "Redirected"
 msgstr "Redirected"
 
@@ -14291,11 +14291,11 @@ msgstr "Redirected"
 msgid "Redirects"
 msgstr "Redirects"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:756
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:758
 msgid "Redirects & 404 History"
 msgstr "Redirects & 404 History"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1048
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1050
 msgid "Referrer"
 msgstr "Referrer"
 
@@ -15076,7 +15076,7 @@ msgstr "Rounding step"
 msgid "Rounds clock-in and clock-out when hours are added up. The exact punch times are always kept."
 msgstr "Rounds clock-in and clock-out when hours are added up. The exact punch times are always kept."
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1150
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1152
 msgid "Route incoming traffic from an old path to a new destination."
 msgstr "Route incoming traffic from an old path to a new destination."
 
@@ -15339,7 +15339,7 @@ msgstr "Save card for later charges"
 #: app/routes/_app+/$orgSlug_+/media.tsx:1958
 #: app/routes/_app+/$orgSlug_+/notes-cards.tsx:418
 #: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:432
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1458
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1460
 msgid "Save changes"
 msgstr ""
 
@@ -15672,7 +15672,7 @@ msgstr "Search media library"
 msgid "Search messages"
 msgstr "Search messages"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:813
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:815
 msgid "Search missing URLs..."
 msgstr "Search missing URLs..."
 
@@ -15700,7 +15700,7 @@ msgstr ""
 msgid "Search or filter to narrow the list."
 msgstr "Search or filter to narrow the list."
 
-#: app/components/command-menu.tsx:250
+#: app/components/command-menu.tsx:255
 #: app/components/site-header.tsx:52
 msgid "Search or jump to…"
 msgstr "Search or jump to…"
@@ -15718,7 +15718,7 @@ msgstr "Search people"
 msgid "Search preview"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:812
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:814
 msgid "Search redirects..."
 msgstr "Search redirects..."
 
@@ -15764,7 +15764,7 @@ msgstr ""
 msgid "Search…"
 msgstr "Search…"
 
-#: app/components/command-menu.tsx:257
+#: app/components/command-menu.tsx:262
 msgid "Searching…"
 msgstr ""
 
@@ -15914,7 +15914,7 @@ msgstr "Select a submission to read the details and start a reply."
 msgid "Select a subscription plan to get started with your organization. Your trial will begin after payment setup."
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1268
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1270
 msgid "Select a website page"
 msgstr "Select a website page"
 
@@ -16227,8 +16227,8 @@ msgstr "Set up this tablet"
 
 #: app/components/app-sidebar.tsx:363
 #: app/components/app-sidebar.tsx:456
-#: app/components/command-menu.tsx:328
-#: app/components/command-menu.tsx:361
+#: app/components/command-menu.tsx:332
+#: app/components/command-menu.tsx:365
 #: app/components/phone-agent/agent-details.tsx:315
 #: app/components/staff/labor/labor-page.tsx:199
 #: app/components/workspace-breadcrumb.tsx:12
@@ -16256,7 +16256,7 @@ msgid "Several people are typing…"
 msgstr "Several people are typing…"
 
 #: app/components/dashboard/share-dashboard-dialog.tsx:229
-#: app/components/dashboard/share-dashboard-dialog.tsx:369
+#: app/components/dashboard/share-dashboard-dialog.tsx:378
 #: app/components/note/share-note-button.tsx:186
 #: app/components/staff/labor/labor-overview.tsx:571
 #: app/components/staff/labor/labor-tips.tsx:256
@@ -16264,9 +16264,13 @@ msgstr "Several people are typing…"
 msgid "Share"
 msgstr ""
 
+#: app/components/dashboard/share-dashboard-dialog.tsx:369
+msgid "Share “{name}”"
+msgstr "Share “{name}”"
+
 #: app/components/dashboard/share-dashboard-dialog.tsx:375
-msgid "Share “<0>{name}</0>”"
-msgstr "Share “<0>{name}</0>”"
+#~ msgid "Share “<0>{name}</0>”"
+#~ msgstr "Share “<0>{name}</0>”"
 
 #: app/components/settings/cards/organization/announcement-sheet.tsx:464
 msgid "Share an update, maintenance notice, or promotion…"
@@ -17491,11 +17495,11 @@ msgstr "Templates…"
 msgid "Temporary"
 msgstr "Temporary"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1410
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1412
 msgid "Temporary (302) keeps original search indexing. Best for short-term promotions, maintenance, or seasonal campaigns."
 msgstr "Temporary (302) keeps original search indexing. Best for short-term promotions, maintenance, or seasonal campaigns."
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1358
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1360
 msgid "Temporary forward"
 msgstr "Temporary forward"
 
@@ -18181,7 +18185,7 @@ msgstr "The page will not mention pay. Showing a range tends to bring more appli
 msgid "The passwords must match"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1198
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1200
 msgid "The path on your old site that visitors or search engines request."
 msgstr "The path on your old site that visitors or search engines request."
 
@@ -18957,15 +18961,15 @@ msgstr "This week has not been published yet."
 msgid "This will be the URL path for this page."
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1528
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1530
 msgid "This will delete the 404 record for <0>{deleteLogPath}</0> from your history."
 msgstr "This will delete the 404 record for <0>{deleteLogPath}</0> from your history."
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1569
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1571
 msgid "This will permanently delete all recorded 404 errors for your organization website. This action cannot be undone."
 msgstr "This will permanently delete all recorded 404 errors for your organization website. This action cannot be undone."
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1478
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1480
 msgid "This will permanently delete the redirect from <0>{deleteRedirectFrom}</0> to <1>{deleteRedirectTo}</1>. Visitors requesting this old URL will no longer be forwarded."
 msgstr "This will permanently delete the redirect from <0>{deleteRedirectFrom}</0> to <1>{deleteRedirectTo}</1>. Visitors requesting this old URL will no longer be forwarded."
 
@@ -19250,7 +19254,7 @@ msgstr ""
 msgid "Toggle notifications"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:895
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:897
 msgid "Toggle redirect active status"
 msgstr "Toggle redirect active status"
 
@@ -19400,7 +19404,7 @@ msgstr "Transfers"
 #~ msgid "Transfers are paused"
 #~ msgstr "Transfers are paused"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1377
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1379
 msgid "Transfers search rank"
 msgstr "Transfers search rank"
 
@@ -19501,8 +19505,8 @@ msgid "Try a different search or clear the filters."
 msgstr "Try a different search or clear the filters."
 
 #: app/routes/_app+/$orgSlug_+/website+/pages._index.tsx:600
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:849
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1029
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:851
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1031
 msgid "Try a different search term or clear the search."
 msgstr ""
 
@@ -19653,7 +19657,7 @@ msgstr ""
 #: app/components/website/link-inspector.tsx:341
 #: app/routes/_app+/$orgSlug_+/website+/announcements.tsx:630
 #: app/routes/_app+/$orgSlug_+/website+/pages.$pageId.tsx:3928
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:868
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:870
 #: app/routes/mock-payments+/dashboard.tsx:155
 msgid "Type"
 msgstr ""
@@ -20039,7 +20043,7 @@ msgstr ""
 msgid "URL copied to clipboard"
 msgstr "URL copied to clipboard"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:786
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:788
 msgid "URL Redirects"
 msgstr "URL Redirects"
 
@@ -20047,7 +20051,7 @@ msgstr "URL Redirects"
 msgid "URL:"
 msgstr "URL:"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:871
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:873
 msgid "Usage"
 msgstr "Usage"
 
@@ -21024,7 +21028,7 @@ msgstr "When a call connects"
 msgid "When a caller asks for a callback, leaves a message, or needs help your agent couldn’t give, the call appears here."
 msgstr "When a caller asks for a callback, leaves a message, or needs help your agent couldn’t give, the call appears here."
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1429
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1431
 msgid "When active, visitors requesting the old URL will be forwarded right away."
 msgstr "When active, visitors requesting the old URL will be forwarded right away."
 
@@ -21084,7 +21088,7 @@ msgstr "When to apply, e.g. The caller mentions an allergy"
 msgid "When to transfer a call or take a message for staff."
 msgstr "When to transfer a call or take a message for staff."
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1021
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1023
 msgid "When visitors or search engines request a URL that doesn't exist, it will appear here so you can set up redirects."
 msgstr "When visitors or search engines request a URL that doesn't exist, it will appear here so you can set up redirects."
 
@@ -21228,7 +21232,7 @@ msgstr "Why are you changing this?"
 msgid "Width"
 msgstr "Width"
 
-#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1304
+#: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1306
 msgid "Will redirect to"
 msgstr "Will redirect to"
 
