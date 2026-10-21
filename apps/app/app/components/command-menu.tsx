@@ -142,6 +142,19 @@ export function getNavigationCommands({
 	return commands.filter((command) => command !== false)
 }
 
+// cmdk's default filter is fuzzy (the letters only have to appear in order),
+// so "Test" matches sections like Website through their keywords. Require the
+// typed text to appear as-is instead.
+function matchesSearch(value: string, search: string, keywords?: string[]) {
+	const needle = search.trim().toLowerCase()
+	if (!needle) return 1
+	return [value, ...(keywords ?? [])].some((text) =>
+		text.toLowerCase().includes(needle),
+	)
+		? 1
+		: 0
+}
+
 interface CommandMenuProps {
 	open: boolean
 	onOpenChange: (open: boolean) => void
@@ -232,7 +245,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 			onOpenChange={onOpenChange}
 			className="rounded-lg border shadow-md md:min-w-[650px]"
 		>
-			<Command>
+			<Command filter={matchesSearch}>
 				<CommandInput
 					placeholder={_(t`Search or jump to…`)}
 					value={query}
@@ -293,6 +306,8 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 								return (
 									<CommandItem
 										key={note.id}
+										// The server already matched the title or content.
+										forceMount
 										onSelect={() => {
 											void navigate(`/${orgSlug}/notes/${note.id}`)
 											onOpenChange(false)
