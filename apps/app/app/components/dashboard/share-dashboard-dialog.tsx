@@ -372,7 +372,9 @@ export function ShareDashboardDialog({
 				<DialogHeader>
 					<DialogTitle>
 						<span className="wrap-anywhere">
-							<Trans>Share</Trans> <bdi>“{name}”</bdi>
+							<Trans>
+								Share “<bdi>{name}</bdi>”
+							</Trans>
 						</span>
 					</DialogTitle>
 					<DialogDescription>
