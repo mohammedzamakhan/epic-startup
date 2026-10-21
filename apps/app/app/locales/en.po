@@ -16264,10 +16264,6 @@ msgstr "Several people are typing…"
 msgid "Share"
 msgstr ""
 
-#: app/components/dashboard/share-dashboard-dialog.tsx:375
-msgid "Share “{name}”"
-msgstr "Share “{name}”"
-
 #: app/components/settings/cards/organization/announcement-sheet.tsx:463
 msgid "Share an update, maintenance notice, or promotion…"
 msgstr ""
