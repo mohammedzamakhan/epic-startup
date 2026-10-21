@@ -57,6 +57,7 @@ import {
 	setCachedPublicForm,
 } from '#app/utils/sites/kv-cache.server.ts'
 import { getOperatorTenantClient } from '#app/utils/tenant-api.server.ts'
+import { hasEveryFieldLabel } from '#app/utils/website/form-labels.ts'
 import { parseTenantFormResponse } from '#app/utils/website/tenant-form-response.ts'
 
 type FormField = PublicFormField
@@ -78,7 +79,9 @@ type FormSubmission = {
 const updateSchema = z.object({
 	name: z.string().trim().min(1).max(120),
 	description: z.string().trim().max(500),
-	fields: publicFormFieldsSchema,
+	fields: publicFormFieldsSchema.refine(hasEveryFieldLabel, {
+		message: 'Every field needs a label.',
+	}),
 	submitLabel: z.string().trim().min(1).max(50),
 	successMessage: z.string().trim().min(1).max(300),
 	status: z.enum(['draft', 'published']),
