@@ -358,6 +358,7 @@ export function ShareDashboardDialog({
 	name: string
 	sharing: DashboardSharing
 }) {
+	const { _ } = useLingui()
 	const listLabelId = useId()
 
 	return (
@@ -372,7 +373,7 @@ export function ShareDashboardDialog({
 				<DialogHeader>
 					<DialogTitle>
 						<span className="wrap-anywhere">
-							<Trans>Share “{name}”</Trans>
+							{_(msg`Share “${name}”`)}
 						</span>
 					</DialogTitle>
 					<DialogDescription>
