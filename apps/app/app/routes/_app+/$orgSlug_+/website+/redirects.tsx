@@ -232,10 +232,7 @@ const CreateRedirectSchema = z.object({
 		.string()
 		.trim()
 		.min(1, 'Destination is required')
-		.refine(
-			isValidRedirectDestination,
-			REDIRECT_DESTINATION_ERROR,
-		),
+		.refine(isValidRedirectDestination, REDIRECT_DESTINATION_ERROR),
 	statusCode: z.coerce
 		.number()
 		.refine((val) => val === 301 || val === 302, 'Must be 301 or 302'),
@@ -249,10 +246,7 @@ const UpdateRedirectSchema = z.object({
 		.string()
 		.trim()
 		.min(1, 'Destination is required')
-		.refine(
-			isValidRedirectDestination,
-			REDIRECT_DESTINATION_ERROR,
-		),
+		.refine(isValidRedirectDestination, REDIRECT_DESTINATION_ERROR),
 	statusCode: z.coerce
 		.number()
 		.refine((val) => val === 301 || val === 302, 'Must be 301 or 302'),
@@ -605,10 +599,13 @@ type NotFoundRecord = {
 
 export default function WebsiteRedirectsRoute() {
 	const { redirects, notFoundLogs, pages } = useLoaderData<typeof loader>()
+	// A fresh fetcher per drawer opening, so errors from a rejected save do not
+	// show up again when the drawer is reopened.
+	const [saveFetcherKey, setSaveFetcherKey] = useState(0)
 	const saveFetcher = useFetcher<{
 		status?: string
 		errors?: Record<string, string[]>
-	}>()
+	}>({ key: `redirect-save-${saveFetcherKey}` })
 	const [submittedSave, setSubmittedSave] = useState(false)
 	const [clientToPathError, setClientToPathError] = useState<string | null>(
 		null,
@@ -656,6 +653,7 @@ export default function WebsiteRedirectsRoute() {
 	}, [submittedSave, saveSubmitted, saveFetcher.data])
 
 	const openCreateDrawer = useCallback((initialFromPath = '') => {
+		setSaveFetcherKey((k) => k + 1)
 		setClientToPathError(null)
 		setEditingRedirect(null)
 		setFromPathInput(initialFromPath)
@@ -669,6 +667,7 @@ export default function WebsiteRedirectsRoute() {
 
 	const openEditDrawer = useCallback(
 		(record: RedirectRecord) => {
+			setSaveFetcherKey((k) => k + 1)
 			setClientToPathError(null)
 			setEditingRedirect(record)
 			setFromPathInput(record.fromPath)
