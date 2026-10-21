@@ -355,6 +355,9 @@ export function OrgNoteEditor({
 						<Button
 							variant="outline"
 							size="sm"
+							// Base UI Button defaults to type="button"; conform's reset intent
+							// only runs when this button submits the form.
+							type="submit"
 							{...form.reset.getButtonProps()}
 							onClick={() => {
 								// Title and content are mirrored in local state; restore it too
