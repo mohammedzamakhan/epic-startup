@@ -16,6 +16,9 @@ describe('isValidRedirectDestination', () => {
 		'//evil.com',
 		'/\\evil.com',
 		'page',
+		'/\t/evil.com',
+		'/\n/evil.com',
+		'/\r/evil.com',
 	])('rejects %s', (value) => {
 		expect(isValidRedirectDestination(value)).toBe(false)
 	})

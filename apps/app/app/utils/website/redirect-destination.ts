@@ -4,6 +4,8 @@ export const REDIRECT_DESTINATION_ERROR =
 export function isValidRedirectDestination(val: string): boolean {
 	const trimmed = val.trim()
 	if (!trimmed) return false
+	// Browsers strip tab/CR/LF from URLs, so `/\t/evil.com` would become `//evil.com`.
+	if (/[\u0000-\u001f\u007f]/.test(trimmed)) return false
 	// Reject scheme-relative URLs like //evil.com
 	if (trimmed.startsWith('//')) return false
 	if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {

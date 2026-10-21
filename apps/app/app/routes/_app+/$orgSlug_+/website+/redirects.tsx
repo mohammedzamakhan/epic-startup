@@ -611,6 +611,7 @@ export default function WebsiteRedirectsRoute() {
 		null,
 	)
 	const actionData = saveFetcher.data
+	const toPathError = clientToPathError ?? actionData?.errors?.toPath?.[0]
 	const toggleFetcher = useFetcher()
 	const deleteFetcher = useFetcher()
 	const { _ } = useLingui()
@@ -1159,6 +1160,7 @@ export default function WebsiteRedirectsRoute() {
 							if (!isValidRedirectDestination(toPathInput)) {
 								e.preventDefault()
 								setClientToPathError(REDIRECT_DESTINATION_ERROR)
+								document.getElementById('toPath')?.focus()
 								return
 							}
 							setClientToPathError(null)
@@ -1317,6 +1319,8 @@ export default function WebsiteRedirectsRoute() {
 												setClientToPathError(null)
 											}}
 											required
+											aria-invalid={toPathError ? true : undefined}
+											aria-describedby={toPathError ? 'toPath-error' : undefined}
 											className="font-mono text-sm"
 										/>
 										<p className="text-muted-foreground text-xs">
@@ -1327,9 +1331,13 @@ export default function WebsiteRedirectsRoute() {
 										</p>
 									</div>
 								)}
-								{(clientToPathError ?? actionData?.errors?.toPath?.[0]) && (
-									<p className="text-destructive text-xs font-medium">
-										{clientToPathError ?? actionData?.errors?.toPath?.[0]}
+								{toPathError && (
+									<p
+										id="toPath-error"
+										role="alert"
+										className="text-destructive text-xs font-medium"
+									>
+										{toPathError}
 									</p>
 								)}
 							</div>
