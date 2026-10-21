@@ -228,6 +228,7 @@ export function OrgNoteEditor({
 								<Input
 									autoFocus
 									{...getInputProps(fields.title, { type: 'text' })}
+									key={fields.title.key}
 									onChange={(e) => setTitleValue(e.target.value)}
 									aria-invalid={fields.title.errors?.length ? true : undefined}
 								/>
@@ -246,6 +247,7 @@ export function OrgNoteEditor({
 										Priority
 									</label>
 									<select
+										key={fields.priority.key}
 										id={fields.priority.id}
 										name={fields.priority.name}
 										defaultValue={fields.priority.initialValue}
@@ -277,6 +279,7 @@ export function OrgNoteEditor({
 										</FieldLabel>
 										<Input
 											{...getInputProps(fields.tags, { type: 'text' })}
+											key={fields.tags.key}
 											placeholder={_(t`e.g. urgent, meeting, project`)}
 											aria-invalid={
 												fields.tags.errors?.length ? true : undefined
@@ -353,6 +356,13 @@ export function OrgNoteEditor({
 							variant="outline"
 							size="sm"
 							{...form.reset.getButtonProps()}
+							onClick={() => {
+								// Title and content are mirrored in local state; restore it too
+								const savedContent = note?.content || ''
+								setTitleValue(note?.title || '')
+								setContentValue(savedContent)
+								contentEditorRef.current?.setContent(savedContent)
+							}}
 						>
 							Reset
 						</Button>
