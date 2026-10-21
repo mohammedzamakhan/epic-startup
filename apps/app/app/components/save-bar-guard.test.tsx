@@ -83,9 +83,7 @@ describe('SaveBarGuard', () => {
 	it('guards a dirty source that keeps the bar hidden', async () => {
 		const router = renderPage(<Source dirty showBar={false} />)
 		await userEvent.click(screen.getByRole('link', { name: 'Away' }))
-		await waitFor(() =>
-			expect(screen.getByText('Leave this page?')).toBeInTheDocument(),
-		)
+		expect(await screen.findByText('Leave this page?')).toBeInTheDocument()
 		expect(router.state.location.pathname).toBe('/')
 	})
 })
