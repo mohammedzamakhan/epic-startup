@@ -50,8 +50,11 @@ describe('RoleAccessForm permission checkboxes', () => {
 			name: 'Select all Notes & Documents',
 		})
 		expect(group).toBePartiallyChecked()
+		// The box draws a dash, not an empty square, for the mixed state.
+		expect(group.querySelector('use')?.getAttribute('href')).toMatch(/#minus$/)
 
 		await user.click(group)
+		expect(group.querySelector('use')?.getAttribute('href')).toMatch(/#check$/)
 		expect(group).toBeChecked()
 
 		await user.click(group)
