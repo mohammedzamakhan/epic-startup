@@ -2,11 +2,20 @@
 
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { createRoutesStub } from 'react-router'
+import {
+	createMemoryRouter,
+	createRoutesStub,
+	RouterProvider,
+	useActionData,
+} from 'react-router'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { RoleAccessForm } from './tenant-role-access-manager.tsx'
+import {
+	RoleAccessForm,
+	type TenantRole,
+	TenantRoleAccessManager,
+} from './tenant-role-access-manager.tsx'
 
 beforeEach(() => {
 	i18n.load('en', {})
@@ -59,5 +68,120 @@ describe('RoleAccessForm permission checkboxes', () => {
 
 		await user.click(group)
 		expect(group).not.toBeChecked()
+	})
+})
+
+const builtInRoles: TenantRole[] = [
+	{ id: 'org_role_admin', name: 'admin', memberCount: 1 },
+	{ id: 'org_role_member', name: 'member', memberCount: 0 },
+	{ id: 'org_role_viewer', name: 'viewer', memberCount: 0 },
+	{ id: 'org_role_guest', name: 'guest', memberCount: 0 },
+].map((role) => ({
+	...role,
+	description: '',
+	isBuiltIn: true,
+	permissionIds: [],
+}))
+
+function renderManager(roles: TenantRole[]) {
+	const router = createMemoryRouter([
+		{
+			path: '/',
+			element: <TenantRoleAccessManager roles={roles} orgSlug="acme" />,
+		},
+	])
+	return render(
+		<I18nProvider i18n={i18n}>
+			<RouterProvider router={router} />
+		</I18nProvider>,
+	)
+}
+
+describe('TenantRoleAccessManager built-in roles table', () => {
+	it('gives each role row one link, named by the role', () => {
+		renderManager(builtInRoles)
+
+		const table = screen.getAllByRole('table').at(-1)!
+		const rows = within(table).getAllByRole('row').slice(1)
+		expect(rows).toHaveLength(4)
+
+		const expected = [
+			['Admin', 'org_role_admin'],
+			['Member', 'org_role_member'],
+			['Viewer', 'org_role_viewer'],
+			['Guest', 'org_role_guest'],
+		]
+		rows.forEach((row, index) => {
+			const [name, id] = expected[index]!
+			const links = within(row).getAllByRole('link')
+			expect(links).toHaveLength(1)
+			expect(links[0]).toHaveAccessibleName(name)
+			expect(links[0]).toHaveAttribute('href', `/acme/settings/roles/${id}`)
+		})
+		expect(
+			within(table).queryByRole('link', { name: /^\d+$/ }),
+		).not.toBeInTheDocument()
+	})
+})
+
+function renderFormWithErrors(errors: { error?: string; nameError?: string }) {
+	function CreateRole() {
+		const actionData = useActionData<typeof errors>()
+		return (
+			<RoleAccessForm cancelHref="/acme/settings/roles" errors={actionData} />
+		)
+	}
+	const Stub = createRoutesStub([
+		{
+			path: '/acme/settings/roles/new',
+			Component: CreateRole,
+			action: () => errors,
+		},
+	])
+	return render(
+		<I18nProvider i18n={i18n}>
+			<Stub initialEntries={['/acme/settings/roles/new']} />
+		</I18nProvider>,
+	)
+}
+
+describe('RoleAccessForm errors', () => {
+	it('shows a bad role name under Role name, marks it invalid, and focuses it', async () => {
+		const user = userEvent.setup()
+		renderFormWithErrors({
+			nameError: 'Give the role a name with at least 2 characters.',
+		})
+
+		const name = await screen.findByLabelText(/^Role name/)
+		await user.type(name, '   ')
+		await user.click(screen.getByRole('button', { name: 'Create role' }))
+
+		const message = await screen.findByText(
+			'Give the role a name with at least 2 characters.',
+		)
+		expect(name).toHaveAttribute('aria-invalid', 'true')
+		expect(name).toHaveAccessibleDescription(message.textContent!)
+		expect(name).toHaveFocus()
+		expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+	})
+
+	it('announces and focuses a form-level error', async () => {
+		const user = userEvent.setup()
+		renderFormWithErrors({
+			error:
+				'One or more selected access options are not available for custom roles.',
+		})
+
+		await user.type(await screen.findByLabelText(/^Role name/), 'Editors')
+		await user.click(screen.getByRole('button', { name: 'Create role' }))
+
+		const alert = await screen.findByRole('alert')
+		expect(alert).toHaveTextContent(
+			'One or more selected access options are not available for custom roles.',
+		)
+		expect(alert).toHaveFocus()
+		expect(screen.getByLabelText(/^Role name/)).not.toHaveAttribute(
+			'aria-invalid',
+		)
 	})
 })

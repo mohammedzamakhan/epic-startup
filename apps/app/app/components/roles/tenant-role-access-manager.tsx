@@ -11,7 +11,7 @@ import {
 	AlertDialogTitle,
 } from '@repo/ui/alert-dialog'
 import { Badge } from '@repo/ui/badge'
-import { Button } from '@repo/ui/button'
+import { Button, buttonVariants } from '@repo/ui/button'
 import { Checkbox } from '@repo/ui/checkbox'
 import {
 	Frame,
@@ -1198,32 +1198,37 @@ export function TenantRoleAccessManager({
 					</TableHeader>
 					<TableBody>
 						{builtInRoles.map((role) => (
-							<TableRow key={role.id} className="group cursor-pointer">
+							// One link per row: the role name, stretched over the whole row so
+							// any cell still opens the role. The other cells stay plain text
+							// so screen readers do not hear links named only "0" or "1".
+							<TableRow key={role.id} className="group relative cursor-pointer">
 								<TableCell className="text-foreground group-hover:text-primary align-middle transition-colors">
-									<Link to={`${basePath}/${role.id}`} className="block py-1">
+									<Link
+										to={`${basePath}/${role.id}`}
+										className="block py-1 after:absolute after:inset-0"
+									>
 										{roleName(role)}
 									</Link>
 								</TableCell>
 								<TableCell className="text-muted-foreground align-middle text-sm">
-									<Link to={`${basePath}/${role.id}`} className="block py-1">
+									<span className="block py-1">
 										{roleDescription(role) || t`Platform-provided role.`}
-									</Link>
+									</span>
 								</TableCell>
 								<TableCell className="text-muted-foreground text-center align-middle text-sm">
-									<Link to={`${basePath}/${role.id}`} className="block py-1">
-										{role.memberCount}
-									</Link>
+									<span className="block py-1">{role.memberCount}</span>
 								</TableCell>
 								<TableCell className="text-right align-middle">
-									<Button
-										variant="ghost"
-										size="sm"
-										render={<Link to={`${basePath}/${role.id}`} />}
-										className="text-muted-foreground group-hover:text-foreground gap-1 text-xs"
+									<span
+										aria-hidden
+										className={cn(
+											buttonVariants({ variant: 'ghost', size: 'sm' }),
+											'text-muted-foreground group-hover:text-foreground gap-1 text-xs',
+										)}
 									>
 										<Trans>Inspect</Trans>
 										<Icon name="arrow-right" className="size-3.5" />
-									</Button>
+									</span>
 								</TableCell>
 							</TableRow>
 						))}
