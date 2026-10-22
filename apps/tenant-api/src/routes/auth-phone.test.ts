@@ -117,6 +117,15 @@ describe.each([
 		expect(await db.select().from(customers).all()).toHaveLength(1)
 	})
 
+	it('says a short number is invalid and only an empty one is required', async () => {
+		const short = await post(app, '/auth/send-code', { phone: 'abc' })
+		expect(short.status).toBe(400)
+		expect(await short.json()).toEqual({ error: 'Invalid phone number' })
+		const blank = await post(app, '/auth/send-code', { phone: '  ' })
+		expect(blank.status).toBe(400)
+		expect(await blank.json()).toEqual({ error: 'Phone number is required' })
+	})
+
 	describe('legacy stored forms', () => {
 		const legacyForms = [
 			scenario.e164.slice(1),
