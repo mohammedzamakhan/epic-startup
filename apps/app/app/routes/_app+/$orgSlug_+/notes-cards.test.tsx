@@ -50,9 +50,7 @@ describe('NoteCard copy link', () => {
 		expect(
 			await screen.findByRole('button', { name: 'Link copied!' }),
 		).toBeTruthy()
-		expect(writeText).toHaveBeenCalledWith(
-			expect.stringMatching(/\/note_1$/),
-		)
+		expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/note_1$/))
 	})
 
 	it('does not claim success when the browser denies the clipboard write', async () => {
