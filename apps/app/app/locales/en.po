@@ -3694,7 +3694,7 @@ msgstr ""
 msgid "Cancel deletion"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:428
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:444
 msgid "Cancel editing"
 msgstr ""
 
@@ -5008,8 +5008,7 @@ msgstr "Copy into this week"
 #: app/components/hiring/job-share-panel.tsx:87
 #: app/components/staff/kiosk-manager.tsx:782
 #: app/routes/_app+/$orgSlug_+/media.tsx:919
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:367
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:378
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:214
 msgid "Copy link"
 msgstr ""
 
@@ -5132,6 +5131,10 @@ msgstr "Could not upload image. Try again."
 #: app/components/phone-agent/test-call-panel.tsx:286
 msgid "Couldn't connect to the test call. Make sure the voice agent is running and try again."
 msgstr "Couldn't connect to the test call. Make sure the voice agent is running and try again."
+
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:213
+msgid "Couldn't copy link"
+msgstr "Couldn't copy link"
 
 #: app/routes/_app+/$orgSlug_+/phone-agent+/calls.tsx:546
 msgid "Couldn't load calls"
@@ -7621,7 +7624,7 @@ msgstr ""
 msgid "Failed to save automation"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:444
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:460
 msgid "Failed to save:"
 msgstr ""
 
@@ -9625,8 +9628,7 @@ msgstr "Link (optional)"
 msgid "Link columns"
 msgstr ""
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:367
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:378
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:211
 msgid "Link copied!"
 msgstr ""
 
@@ -11856,7 +11858,7 @@ msgstr "Note added."
 msgid "Note changed"
 msgstr "Note changed"
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:438
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:454
 msgid "Note content..."
 msgstr ""
 
@@ -11873,7 +11875,7 @@ msgstr "Note for your manager"
 msgid "Note removed"
 msgstr "Note removed"
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:411
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:427
 msgid "Note title..."
 msgstr ""
 
@@ -14079,7 +14081,7 @@ msgstr "Questions are optional. A short yes or no on weekends or experience save
 msgid "Queued"
 msgstr "Queued"
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:354
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:368
 msgid "Quick edit"
 msgstr ""
 
@@ -15325,7 +15327,7 @@ msgstr "Save card for later charges"
 #: app/components/settings/cards/organization/announcement-sheet.tsx:551
 #: app/components/staff/timesheets/card-sheet.tsx:310
 #: app/routes/_app+/$orgSlug_+/media.tsx:1958
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:418
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:434
 #: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:432
 #: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1460
 msgid "Save changes"
@@ -19751,7 +19753,7 @@ msgstr "Unknown"
 msgid "Unknown caller"
 msgstr "Unknown caller"
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:446
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:462
 msgid "Unknown error"
 msgstr ""
 

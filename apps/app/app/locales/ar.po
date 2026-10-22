@@ -3692,7 +3692,7 @@ msgstr "إلغاء"
 msgid "Cancel deletion"
 msgstr "إلغاء الحذف"
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:428
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:444
 msgid "Cancel editing"
 msgstr "إلغاء التعديل"
 
@@ -5006,8 +5006,7 @@ msgstr "نسخ إلى هذا الأسبوع"
 #: app/components/hiring/job-share-panel.tsx:87
 #: app/components/staff/kiosk-manager.tsx:782
 #: app/routes/_app+/$orgSlug_+/media.tsx:919
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:367
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:378
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:214
 msgid "Copy link"
 msgstr "نسخ الرابط"
 
@@ -5130,6 +5129,10 @@ msgstr "تعذّر رفع الصورة. حاول مرة أخرى."
 #: app/components/phone-agent/test-call-panel.tsx:286
 msgid "Couldn't connect to the test call. Make sure the voice agent is running and try again."
 msgstr "تعذّر الاتصال بالمكالمة التجريبية. تأكد من أن الوكيل الصوتي قيد التشغيل وحاول مرة أخرى."
+
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:213
+msgid "Couldn't copy link"
+msgstr "تعذّر نسخ الرابط"
 
 #: app/routes/_app+/$orgSlug_+/phone-agent+/calls.tsx:546
 msgid "Couldn't load calls"
@@ -7619,7 +7622,7 @@ msgstr "فشل نشر الرحلة"
 msgid "Failed to save automation"
 msgstr "فشل حفظ الأتمتة"
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:444
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:460
 msgid "Failed to save:"
 msgstr "فشل الحفظ:"
 
@@ -9623,8 +9626,7 @@ msgstr "رابط (اختياري)"
 msgid "Link columns"
 msgstr "أعمدة الروابط"
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:367
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:378
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:211
 msgid "Link copied!"
 msgstr "تم نسخ الرابط!"
 
@@ -11854,7 +11856,7 @@ msgstr "تمت إضافة الملاحظة."
 msgid "Note changed"
 msgstr "تم تغيير الملاحظة"
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:438
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:454
 msgid "Note content..."
 msgstr "محتوى الملاحظة..."
 
@@ -11871,7 +11873,7 @@ msgstr "ملاحظة لمديرك"
 msgid "Note removed"
 msgstr "تمت إزالة الملاحظة"
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:411
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:427
 msgid "Note title..."
 msgstr "عنوان الملاحظة..."
 
@@ -14077,7 +14079,7 @@ msgstr "الأسئلة اختيارية. سؤال قصير بنعم أو لا ع
 msgid "Queued"
 msgstr "في الانتظار"
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:354
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:368
 msgid "Quick edit"
 msgstr "تعديل سريع"
 
@@ -15323,7 +15325,7 @@ msgstr "حفظ البطاقة للمعاملات اللاحقة"
 #: app/components/settings/cards/organization/announcement-sheet.tsx:551
 #: app/components/staff/timesheets/card-sheet.tsx:310
 #: app/routes/_app+/$orgSlug_+/media.tsx:1958
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:418
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:434
 #: app/routes/_app+/$orgSlug_+/settings+/chat.tsx:432
 #: app/routes/_app+/$orgSlug_+/website+/redirects.tsx:1460
 msgid "Save changes"
@@ -19749,7 +19751,7 @@ msgstr "غير معروف"
 msgid "Unknown caller"
 msgstr "متصل غير معروف"
 
-#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:446
+#: app/routes/_app+/$orgSlug_+/notes-cards.tsx:462
 msgid "Unknown error"
 msgstr "خطأ غير معروف"
 

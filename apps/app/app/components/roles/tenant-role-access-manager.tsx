@@ -11,7 +11,7 @@ import {
 	AlertDialogTitle,
 } from '@repo/ui/alert-dialog'
 import { Badge } from '@repo/ui/badge'
-import { Button } from '@repo/ui/button'
+import { Button, buttonVariants } from '@repo/ui/button'
 import { Checkbox } from '@repo/ui/checkbox'
 import {
 	Frame,
@@ -33,7 +33,7 @@ import {
 	TableHeader,
 	TableRow,
 } from '@repo/ui/table'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Form, Link, useFetcher, useNavigation } from 'react-router'
 import { useNativeFormSaveBar } from '#app/components/use-native-form-save-bar.ts'
 import { useRoleLabels } from '#app/utils/organization/role-label.ts'
@@ -491,12 +491,13 @@ export function getPresets(): RolePreset[] {
 export function RoleAccessForm({
 	role,
 	cancelHref,
-	error,
+	errors,
 	staffingEnabled = false,
 }: {
 	role?: TenantRole
 	cancelHref: string
-	error?: string
+	/** The action's errors: `nameError` under Role name, `error` above the form. */
+	errors?: { error?: string; nameError?: string }
 	orgSlug?: string
 	/** Whether the Staff module is turned on for this organization. */
 	staffingEnabled?: boolean
@@ -504,12 +505,27 @@ export function RoleAccessForm({
 	const navigation = useNavigation()
 	// Editing saves through a fetcher so the save bar's redirect to the list is
 	// not held back by its own leave guard; creating keeps a plain submit.
-	const fetcher = useFetcher<{ error?: string }>()
+	const fetcher = useFetcher<{ error?: string; nameError?: string }>()
 	const isSubmitting = role
 		? fetcher.state !== 'idle'
 		: navigation.state === 'submitting'
 	const RoleForm = role ? fetcher.Form : Form
 	const formRef = useRef<HTMLFormElement>(null)
+	// An edit's errors come back on the fetcher, a create's as action data.
+	const actionErrors = role ? (fetcher.data ?? errors) : errors
+	const error = actionErrors?.error
+	const nameError = actionErrors?.nameError
+	const errorRef = useRef<HTMLDivElement>(null)
+	const nameRef = useRef<HTMLInputElement>(null)
+	// The Create role button sits in the footer, far below both messages, so
+	// each failed submit moves focus to the message (or the field it is about).
+	// Focus also makes screen readers read it, so the message has no alert role
+	// (that would read it twice). The action data is a new object on every
+	// submit, so a repeated identical error still moves focus.
+	useEffect(() => {
+		if (actionErrors?.nameError) nameRef.current?.focus()
+		else if (actionErrors?.error) errorRef.current?.focus()
+	}, [actionErrors])
 	const permissionGroups = getPermissionGroups().filter(
 		(group) => staffingEnabled || !group.staffing,
 	)
@@ -566,9 +582,13 @@ export function RoleAccessForm({
 
 	return (
 		<div className="space-y-6">
-			{(fetcher.data?.error ?? error) && (
-				<div className="border-destructive/30 bg-destructive/10 text-destructive rounded-xl border px-4 py-3 text-sm">
-					{fetcher.data?.error ?? error}
+			{error && (
+				<div
+					ref={errorRef}
+					tabIndex={-1}
+					className="border-destructive/30 bg-destructive/10 text-destructive rounded-xl border px-4 py-3 text-sm"
+				>
+					{error}
 				</div>
 			)}
 
@@ -602,6 +622,7 @@ export function RoleAccessForm({
 									<span className="text-destructive">*</span>
 								</Label>
 								<Input
+									ref={nameRef}
 									id="role-name"
 									name="name"
 									defaultValue={role?.name}
@@ -609,8 +630,15 @@ export function RoleAccessForm({
 									maxLength={80}
 									placeholder="e.g. Content Editor"
 									disabled={isSubmitting}
+									aria-invalid={nameError ? true : undefined}
+									aria-describedby={nameError ? 'role-name-error' : undefined}
 									className="h-10 text-sm"
 								/>
+								{nameError ? (
+									<p id="role-name-error" className="text-destructive text-sm">
+										{nameError}
+									</p>
+								) : null}
 							</div>
 							<div className="space-y-2">
 								<Label
@@ -723,6 +751,9 @@ export function RoleAccessForm({
 											<TableHead className="w-12 text-center">
 												<Checkbox
 													checked={allGroupSelected}
+													indeterminate={
+														selectedInGroup > 0 && !allGroupSelected
+													}
 													onCheckedChange={toggleGroup}
 													disabled={isSubmitting}
 													aria-label={`Select all ${group.title}`}
@@ -757,6 +788,7 @@ export function RoleAccessForm({
 													>
 														<Checkbox
 															id={id}
+															aria-label={permission.label}
 															checked={isChecked}
 															onCheckedChange={(checked) =>
 																togglePermission(
@@ -1220,32 +1252,38 @@ export function TenantRoleAccessManager({
 					</TableHeader>
 					<TableBody>
 						{builtInRoles.map((role) => (
-							<TableRow key={role.id} className="group cursor-pointer">
+							// One link per row: the role name, stretched over the whole row so
+							// any cell still opens the role. The other cells stay plain text
+							// so screen readers do not hear links named only "0" or "1". The
+							// focus ring is drawn on the stretched area, so it outlines the row.
+							<TableRow key={role.id} className="group relative cursor-pointer">
 								<TableCell className="text-foreground group-hover:text-primary align-middle transition-colors">
-									<Link to={`${basePath}/${role.id}`} className="block py-1">
+									<Link
+										to={`${basePath}/${role.id}`}
+										className="focus-visible:after:ring-ring block py-1 outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-inset"
+									>
 										{roleName(role)}
 									</Link>
 								</TableCell>
 								<TableCell className="text-muted-foreground align-middle text-sm">
-									<Link to={`${basePath}/${role.id}`} className="block py-1">
+									<span className="block py-1">
 										{roleDescription(role) || t`Platform-provided role.`}
-									</Link>
+									</span>
 								</TableCell>
 								<TableCell className="text-muted-foreground text-center align-middle text-sm">
-									<Link to={`${basePath}/${role.id}`} className="block py-1">
-										{role.memberCount}
-									</Link>
+									<span className="block py-1">{role.memberCount}</span>
 								</TableCell>
 								<TableCell className="text-right align-middle">
-									<Button
-										variant="ghost"
-										size="sm"
-										render={<Link to={`${basePath}/${role.id}`} />}
-										className="text-muted-foreground group-hover:text-foreground gap-1 text-xs"
+									<span
+										aria-hidden
+										className={cn(
+											buttonVariants({ variant: 'ghost', size: 'sm' }),
+											'text-muted-foreground group-hover:text-foreground gap-1 text-xs',
+										)}
 									>
 										<Trans>Inspect</Trans>
 										<Icon name="arrow-right" className="size-3.5" />
-									</Button>
+									</span>
 								</TableCell>
 							</TableRow>
 						))}
