@@ -80,13 +80,9 @@ describe('NoteCard copy link', () => {
 			clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
 		})
 		renderCard()
-		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Copy link' }))
-		})
+		fireEvent.click(screen.getByRole('button', { name: 'Copy link' }))
 		await act(() => vi.advanceTimersByTimeAsync(1500))
-		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Link copied!' }))
-		})
+		fireEvent.click(screen.getByRole('button', { name: 'Link copied!' }))
 		await act(() => vi.advanceTimersByTimeAsync(1000))
 		expect(screen.getByRole('button', { name: 'Link copied!' })).toBeTruthy()
 		await act(() => vi.advanceTimersByTimeAsync(1000))
