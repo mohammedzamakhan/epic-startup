@@ -2,7 +2,7 @@
 
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NoteCard, type Note } from './notes-cards.tsx'
@@ -38,6 +38,7 @@ function renderCard() {
 
 afterEach(() => {
 	cleanup()
+	vi.useRealTimers()
 	vi.unstubAllGlobals()
 })
 
@@ -71,5 +72,52 @@ describe('NoteCard copy link', () => {
 		).toBeTruthy()
 		expect(screen.queryByRole('button', { name: 'Link copied!' })).toBeNull()
 		expect(screen.getByRole('status')).toHaveTextContent("Couldn't copy link")
+	})
+
+	it('keeps the feedback for two seconds after the latest click', async () => {
+		vi.useFakeTimers()
+		vi.stubGlobal('navigator', {
+			clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+		})
+		renderCard()
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Copy link' }))
+		})
+		await act(() => vi.advanceTimersByTimeAsync(1500))
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Link copied!' }))
+		})
+		await act(() => vi.advanceTimersByTimeAsync(1000))
+		expect(screen.getByRole('button', { name: 'Link copied!' })).toBeTruthy()
+		await act(() => vi.advanceTimersByTimeAsync(1000))
+		expect(screen.getByRole('button', { name: 'Copy link' })).toBeTruthy()
+	})
+
+	it('ignores an older write that settles after a newer one', async () => {
+		let failFirstWrite: (error: unknown) => void = () => {}
+		const writeText = vi
+			.fn()
+			.mockImplementationOnce(
+				() =>
+					new Promise((_, reject) => {
+						failFirstWrite = reject
+					}),
+			)
+			.mockResolvedValueOnce(undefined)
+		vi.stubGlobal('navigator', { clipboard: { writeText } })
+		renderCard()
+		const button = screen.getByRole('button', { name: 'Copy link' })
+		fireEvent.click(button)
+		fireEvent.click(button)
+		expect(
+			await screen.findByRole('button', { name: 'Link copied!' }),
+		).toBeTruthy()
+		await act(async () => {
+			failFirstWrite(
+				new DOMException('Document is not focused.', 'NotAllowedError'),
+			)
+		})
+		expect(screen.getByRole('button', { name: 'Link copied!' })).toBeTruthy()
+		expect(screen.getByRole('status')).toHaveTextContent('Link copied!')
 	})
 })

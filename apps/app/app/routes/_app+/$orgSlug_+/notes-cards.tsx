@@ -80,6 +80,8 @@ export const NoteCard = ({
 		'idle',
 	)
 	const [tooltipOpen, setTooltipOpen] = useState(false)
+	const copyAttemptRef = useRef(0)
+	const copyResetRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 	const [editTitle, setEditTitle] = useState(note.title)
 	const [editContent, setEditContent] = useState(
 		note.content
@@ -113,14 +115,7 @@ export const NoteCard = ({
 		}
 	}, [isEditing])
 
-	useEffect(() => {
-		if (copyState === 'idle') return
-		const timeoutId = setTimeout(() => {
-			setCopyState('idle')
-			setTooltipOpen(false)
-		}, 2000)
-		return () => clearTimeout(timeoutId)
-	}, [copyState])
+	useEffect(() => () => clearTimeout(copyResetRef.current), [])
 
 	const handleCardClick = useCallback(() => {
 		if (!isEditing) {
@@ -194,14 +189,25 @@ export const NoteCard = ({
 		async (e: React.MouseEvent) => {
 			e.stopPropagation()
 			const noteUrl = `${window.location.origin}${window.location.pathname}/${note.id}`
+			const attempt = ++copyAttemptRef.current
+			let result: 'copied' | 'failed'
 			try {
 				await navigator.clipboard.writeText(noteUrl)
-				setCopyState('copied')
+				result = 'copied'
 			} catch {
 				// Blocked clipboard permission or an insecure context
-				setCopyState('failed')
+				result = 'failed'
 			}
+			// Writes can settle out of order; only the latest click reports.
+			if (attempt !== copyAttemptRef.current) return
+			setCopyState(result)
 			setTooltipOpen(true)
+			// Restart the timer on every click, even when the state is unchanged.
+			clearTimeout(copyResetRef.current)
+			copyResetRef.current = setTimeout(() => {
+				setCopyState('idle')
+				setTooltipOpen(false)
+			}, 2000)
 		},
 		[note.id],
 	)
