@@ -102,14 +102,15 @@ function Switch({
 	name,
 	formId,
 	value,
-	defaultChecked: _defaultChecked,
+	defaultChecked,
 	...props
 }: SwitchProps) {
 	const control = useInputControl({
 		formId,
 		key: props.id,
 		name,
-		initialValue: value,
+		// Match the form's default, or the form starts dirty.
+		initialValue: value ?? (defaultChecked ? 'on' : ''),
 	})
 
 	return (

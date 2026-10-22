@@ -2,7 +2,14 @@ import { type FormMetadata } from '@conform-to/react'
 import { Trans, msg } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
 import { SaveBar as SaveBarView } from '@repo/ui/save-bar'
-import { useEffect, useId, useRef, useSyncExternalStore } from 'react'
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useRef,
+	useSyncExternalStore,
+} from 'react'
+import { type BlockerFunction } from 'react-router'
 import {
 	useConfirmBlocker,
 	useDirtyBeforeUnload,
@@ -13,6 +20,7 @@ type SaveBarSource = {
 	saving: boolean
 	guard: boolean
 	showBar: boolean
+	saveLast: boolean
 	save: () => void
 	discard: () => void
 }
@@ -30,21 +38,24 @@ const sources = new Map<string, SaveBarSource>()
 const listeners = new Set<() => void>()
 const HIDDEN: SaveBarSnapshot = { visible: false, saving: false, guard: false }
 let snapshot: SaveBarSnapshot = HIDDEN
+// `saveLast` sources waiting for the rest of a combined save to finish.
+let deferredSaves: string[] = []
 
 function publish() {
 	let visible = false
 	let saving = false
-	let dirty = false
+	let unsaved = false
 	let selfGuarded = false
 	for (const source of sources.values()) {
 		if (source.showBar && (source.dirty || source.saving)) visible = true
 		if (source.saving) saving = true
 		if (source.dirty) {
-			dirty = true
 			if (!source.guard) selfGuarded = true
+			// A form that is saving is not lost by leaving; any other dirty one is.
+			else if (!source.saving) unsaved = true
 		}
 	}
-	const guard = dirty && !saving && !selfGuarded
+	const guard = unsaved && !selfGuarded
 	if (
 		visible !== snapshot.visible ||
 		saving !== snapshot.saving ||
@@ -53,6 +64,7 @@ function publish() {
 		snapshot = visible || saving || guard ? { visible, saving, guard } : HIDDEN
 		for (const listener of listeners) listener()
 	}
+	if (deferredSaves.length > 0 && !saving) flushDeferredSaves()
 }
 
 function subscribe(callback: () => void) {
@@ -76,6 +88,7 @@ export function useSaveBar({
 	onDiscard,
 	guard = true,
 	showBar = true,
+	saveLast = false,
 }: {
 	dirty: boolean
 	saving: boolean
@@ -90,6 +103,11 @@ export function useSaveBar({
 	guard?: boolean
 	/** `false` keeps the bar hidden but still guards leaving (new, unsaved records). */
 	showBar?: boolean
+	/**
+	 * Save after every other dirty form finished saving, for a save that moves
+	 * the page (an organization slug change redirects to the new URL).
+	 */
+	saveLast?: boolean
 }) {
 	const id = useId()
 	// The bar calls the latest handlers without re-registering on every render.
@@ -104,11 +122,12 @@ export function useSaveBar({
 			saving,
 			guard,
 			showBar,
+			saveLast,
 			save: () => handlers.current.onSave(),
 			discard: () => handlers.current.onDiscard(),
 		})
 		publish()
-	}, [id, dirty, saving, guard, showBar])
+	}, [id, dirty, saving, guard, showBar, saveLast])
 
 	useEffect(
 		() => () => {
@@ -148,6 +167,7 @@ function snapshotForm(id: string) {
 export function useConformSaveBar(
 	form: Pick<FormMetadata<any, any>, 'id' | 'dirty' | 'reset'>,
 	fetcher: { state: string; data?: unknown },
+	options: { saveLast?: boolean } = {},
 ) {
 	const saving = fetcher.state !== 'idle'
 	// Conform adopts new `defaultValue`s only on reset, so a saved form would
@@ -164,16 +184,18 @@ export function useConformSaveBar(
 		latest.current = { form, data: fetcher.data }
 	})
 	useEffect(() => {
-		const element = document.getElementById(form.id)
-		if (!element) return
-		const onSubmit = () => {
+		// Listen on the document so a form that mounts later or remounts under
+		// the same id is still seen.
+		const onSubmit = (event: Event) => {
+			if (!(event.target instanceof HTMLFormElement)) return
+			if (event.target.id !== form.id) return
 			submitted.current = {
 				values: snapshotForm(form.id),
 				data: latest.current.data,
 			}
 		}
-		element.addEventListener('submit', onSubmit, true)
-		return () => element.removeEventListener('submit', onSubmit, true)
+		document.addEventListener('submit', onSubmit, true)
+		return () => document.removeEventListener('submit', onSubmit, true)
 	}, [form.id])
 	useEffect(() => {
 		const finished = wasSaving.current && !saving
@@ -199,12 +221,39 @@ export function useConformSaveBar(
 			const element = document.getElementById(form.id)
 			if (element instanceof HTMLFormElement) element.reset()
 		},
+		saveLast: options.saveLast,
 	})
 }
 
+function runnable(source: SaveBarSource | undefined) {
+	return Boolean(source && source.showBar && source.dirty && !source.saving)
+}
+
+function flushDeferredSaves() {
+	const ids = deferredSaves
+	deferredSaves = []
+	for (const id of ids) {
+		const source = sources.get(id)
+		if (source && runnable(source)) source.save()
+	}
+}
+
 function run(action: 'save' | 'discard') {
-	for (const source of [...sources.values()]) {
-		if (source.showBar && source.dirty && !source.saving) source[action]()
+	const ready = [...sources.entries()].filter(([, source]) => runnable(source))
+	if (action === 'discard') {
+		deferredSaves = []
+		for (const [, source] of ready) source.discard()
+		return
+	}
+	const first = ready.filter(([, source]) => !source.saveLast)
+	const last = ready.filter(([, source]) => source.saveLast)
+	deferredSaves = last.map(([id]) => id)
+	for (const [, source] of first) source.save()
+	// Started saves are published by now; with none in flight, save the rest.
+	if (deferredSaves.length > 0) {
+		setTimeout(() => {
+			if (deferredSaves.length > 0 && !snapshot.saving) flushDeferredSaves()
+		}, 0)
 	}
 }
 
@@ -216,8 +265,15 @@ export function SaveBarGuard() {
 	const { _ } = useLingui()
 	const { guard } = useSaveBarSnapshot()
 	useDirtyBeforeUnload(guard)
+	// Only leaving the page loses edits: same-page posts and search or hash
+	// changes are not blocked.
+	const shouldBlock = useCallback<BlockerFunction>(
+		({ currentLocation, nextLocation }) =>
+			guard && currentLocation.pathname !== nextLocation.pathname,
+		[guard],
+	)
 	useConfirmBlocker(
-		guard,
+		shouldBlock,
 		_(msg`You have unsaved changes. Leave this page and lose them?`),
 	)
 	return null
@@ -232,6 +288,10 @@ export function SaveBar() {
 		// Ctrl/Cmd+S saves, like the browser's own habit for documents.
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key.toLowerCase() !== 's' || !(event.metaKey || event.ctrlKey))
+				return
+			// Leave the shortcut to an open dialog or an editor that handled it.
+			if (event.defaultPrevented) return
+			if (document.querySelector('[role="dialog"], [role="alertdialog"]'))
 				return
 			event.preventDefault()
 			if (!snapshot.saving) run('save')

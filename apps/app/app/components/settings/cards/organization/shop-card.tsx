@@ -79,6 +79,10 @@ export function ShopCard({
 			? (organization.shopProductPriceCents / 100).toFixed(2)
 			: '19.99'
 	const orgSharePercent = 100 - SHOP_PLATFORM_FEE_PERCENT
+	// The name is required, so a saved product always has one. Once saved, the
+	// fields show what was stored (a blank description stays blank), so the save
+	// bar sees a clean form after saving.
+	const productSaved = Boolean(organization.shopProductName)
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -303,8 +307,9 @@ export function ShopCard({
 										name="productDescription"
 										rows={3}
 										defaultValue={
-											organization.shopProductDescription ||
-											'A simple offering for your customers.'
+											productSaved
+												? (organization.shopProductDescription ?? '')
+												: 'A simple offering for your customers.'
 										}
 									/>
 								</div>
