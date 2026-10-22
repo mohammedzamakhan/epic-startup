@@ -216,12 +216,12 @@ export function JobEditor({
 	}
 
 	// The bar is shown for saved postings only; a new one is just guarded so
-	// leaving asks first. Publish and delete count as saving too, so Discard
-	// and Save cannot interrupt them.
+	// leaving asks first. Publish and delete count as saving on a dirty job, so
+	// Discard and Save cannot interrupt them; a clean job never shows the bar.
 	useSaveBar({
 		dirty,
 		showBar: saved !== null,
-		saving: busy,
+		saving: busy && dirty,
 		onSave: saveDraft,
 		onDiscard: () => {
 			if (!saved) return
