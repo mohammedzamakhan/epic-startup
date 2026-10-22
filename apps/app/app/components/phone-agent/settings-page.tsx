@@ -301,7 +301,12 @@ export function useSettingsFormState<TSaved>({
 		}
 	}, [base.cleanDraft, draftKey])
 
-	const result = fetcher.state === 'idle' ? fetcher.data : undefined
+	// Discard hides the last save's errors along with the edits.
+	const [dismissedResult, setDismissedResult] = useState<SettingsSaveResult>()
+	const result =
+		fetcher.state === 'idle' && fetcher.data !== dismissedResult
+			? fetcher.data
+			: undefined
 	const rawFieldErrors = result && !result.ok ? result.fieldErrors : undefined
 	const fieldErrors = useSettingsFieldErrors(rawFieldErrors)
 	const conflict = Boolean(result && !result.ok && result.error === 'conflict')
@@ -333,6 +338,7 @@ export function useSettingsFormState<TSaved>({
 		/** Drops unsaved edits and shows the settings as last saved. */
 		discard() {
 			adoptLatest()
+			setDismissedResult(fetcher.data)
 		},
 		/** Drops unsaved edits and shows the latest saved settings. */
 		reload() {

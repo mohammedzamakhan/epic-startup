@@ -55,7 +55,8 @@ export function GeneralSettingsCard({
 		},
 	})
 
-	useConformSaveBar(form, fetcher)
+	// A slug change redirects, so the other forms save first.
+	useConformSaveBar(form, fetcher, { saveLast: true })
 
 	return (
 		<Card>
