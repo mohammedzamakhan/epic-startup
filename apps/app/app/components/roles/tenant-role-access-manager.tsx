@@ -33,7 +33,7 @@ import {
 	TableHeader,
 	TableRow,
 } from '@repo/ui/table'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Form, Link, useNavigation } from 'react-router'
 import { useRoleLabels } from '#app/utils/organization/role-label.ts'
 import {
@@ -490,18 +490,29 @@ export function getPresets(): RolePreset[] {
 export function RoleAccessForm({
 	role,
 	cancelHref,
-	error,
+	errors,
 	staffingEnabled = false,
 }: {
 	role?: TenantRole
 	cancelHref: string
-	error?: string
+	/** The action's errors: `nameError` under Role name, `error` above the form. */
+	errors?: { error?: string; nameError?: string }
 	orgSlug?: string
 	/** Whether the Staff module is turned on for this organization. */
 	staffingEnabled?: boolean
 }) {
 	const navigation = useNavigation()
 	const isSubmitting = navigation.state === 'submitting'
+	const error = errors?.error
+	const nameError = errors?.nameError
+	const errorRef = useRef<HTMLDivElement>(null)
+	const nameRef = useRef<HTMLInputElement>(null)
+	// The Create role button sits in the footer, far below both messages, so
+	// each failed submit moves focus to the message (or the field it is about).
+	useEffect(() => {
+		if (errors?.nameError) nameRef.current?.focus()
+		else if (errors?.error) errorRef.current?.focus()
+	}, [errors])
 	const permissionGroups = getPermissionGroups().filter(
 		(group) => staffingEnabled || !group.staffing,
 	)
@@ -546,7 +557,12 @@ export function RoleAccessForm({
 	return (
 		<div className="space-y-6">
 			{error && (
-				<div className="border-destructive/30 bg-destructive/10 text-destructive rounded-xl border px-4 py-3 text-sm">
+				<div
+					ref={errorRef}
+					role="alert"
+					tabIndex={-1}
+					className="border-destructive/30 bg-destructive/10 text-destructive rounded-xl border px-4 py-3 text-sm"
+				>
 					{error}
 				</div>
 			)}
@@ -576,6 +592,7 @@ export function RoleAccessForm({
 									<span className="text-destructive">*</span>
 								</Label>
 								<Input
+									ref={nameRef}
 									id="role-name"
 									name="name"
 									defaultValue={role?.name}
@@ -583,8 +600,15 @@ export function RoleAccessForm({
 									maxLength={80}
 									placeholder="e.g. Content Editor"
 									disabled={isSubmitting}
+									aria-invalid={nameError ? true : undefined}
+									aria-describedby={nameError ? 'role-name-error' : undefined}
 									className="h-10 text-sm"
 								/>
+								{nameError ? (
+									<p id="role-name-error" className="text-destructive text-sm">
+										{nameError}
+									</p>
+								) : null}
 							</div>
 							<div className="space-y-2">
 								<Label
