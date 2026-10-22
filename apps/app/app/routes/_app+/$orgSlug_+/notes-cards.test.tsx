@@ -81,8 +81,11 @@ describe('NoteCard copy link', () => {
 		})
 		renderCard()
 		fireEvent.click(screen.getByRole('button', { name: 'Copy link' }))
+		// Settle the clipboard write now, so the reset timer starts at 0 ms.
+		await act(() => vi.advanceTimersByTimeAsync(0))
 		await act(() => vi.advanceTimersByTimeAsync(1500))
 		fireEvent.click(screen.getByRole('button', { name: 'Link copied!' }))
+		await act(() => vi.advanceTimersByTimeAsync(0))
 		await act(() => vi.advanceTimersByTimeAsync(1000))
 		expect(screen.getByRole('button', { name: 'Link copied!' })).toBeTruthy()
 		await act(() => vi.advanceTimersByTimeAsync(1000))
