@@ -76,7 +76,9 @@ export const NoteCard = ({
 	setEditingNote,
 }: NoteCardProps) => {
 	const { _ } = useLingui()
-	const [copied, setCopied] = useState(false)
+	const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>(
+		'idle',
+	)
 	const [tooltipOpen, setTooltipOpen] = useState(false)
 	const [editTitle, setEditTitle] = useState(note.title)
 	const [editContent, setEditContent] = useState(
@@ -112,13 +114,13 @@ export const NoteCard = ({
 	}, [isEditing])
 
 	useEffect(() => {
-		if (!copied) return
+		if (copyState === 'idle') return
 		const timeoutId = setTimeout(() => {
-			setCopied(false)
+			setCopyState('idle')
 			setTooltipOpen(false)
 		}, 2000)
 		return () => clearTimeout(timeoutId)
-	}, [copied])
+	}, [copyState])
 
 	const handleCardClick = useCallback(() => {
 		if (!isEditing) {
@@ -189,15 +191,27 @@ export const NoteCard = ({
 	)
 
 	const handleCopyLink = useCallback(
-		(e: React.MouseEvent) => {
+		async (e: React.MouseEvent) => {
 			e.stopPropagation()
 			const noteUrl = `${window.location.origin}${window.location.pathname}/${note.id}`
-			void navigator.clipboard.writeText(noteUrl)
-			setCopied(true)
+			try {
+				await navigator.clipboard.writeText(noteUrl)
+				setCopyState('copied')
+			} catch {
+				// Blocked clipboard permission or an insecure context
+				setCopyState('failed')
+			}
 			setTooltipOpen(true)
 		},
 		[note.id],
 	)
+
+	const copyLabel =
+		copyState === 'copied'
+			? t`Link copied!`
+			: copyState === 'failed'
+				? t`Couldn't copy link`
+				: t`Copy link`
 
 	// Get the first media item for display (prioritize videos, then images)
 	const firstVideo = note.uploads.find((u) => u.type === 'video')
@@ -365,10 +379,12 @@ export const NoteCard = ({
 												<button
 													className="bg-background text-foreground flex items-center gap-1.5 rounded-tr-[16px] border-b border-l border-black/10 px-2 py-1.5"
 													onClick={handleCopyLink}
-													aria-label={copied ? t`Link copied!` : t`Copy link`}
+													aria-label={copyLabel}
 												>
-													{copied ? (
+													{copyState === 'copied' ? (
 														<Icon name="check" className="h-3.5 w-3.5" />
+													) : copyState === 'failed' ? (
+														<Icon name="x" className="h-3.5 w-3.5" />
 													) : (
 														<Icon name="copy" className="h-3.5 w-3.5" />
 													)}
@@ -376,7 +392,7 @@ export const NoteCard = ({
 											}
 										></TooltipTrigger>
 										<TooltipContent>
-											<p>{copied ? t`Link copied!` : t`Copy link`}</p>
+											<p>{copyLabel}</p>
 										</TooltipContent>
 									</Tooltip>
 								</div>
