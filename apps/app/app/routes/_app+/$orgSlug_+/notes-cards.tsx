@@ -395,6 +395,11 @@ export const NoteCard = ({
 											<p>{copyLabel}</p>
 										</TooltipContent>
 									</Tooltip>
+									{/* A changed label on a focused button is not announced, so the
+									    result is also read out from a live region. */}
+									<span role="status" aria-live="polite" className="sr-only">
+										{copyState === 'idle' ? '' : copyLabel}
+									</span>
 								</div>
 							</div>
 

@@ -50,6 +50,7 @@ describe('NoteCard copy link', () => {
 		expect(
 			await screen.findByRole('button', { name: 'Link copied!' }),
 		).toBeTruthy()
+		expect(screen.getByRole('status')).toHaveTextContent('Link copied!')
 		expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/note_1$/))
 	})
 
@@ -69,5 +70,6 @@ describe('NoteCard copy link', () => {
 			await screen.findByRole('button', { name: "Couldn't copy link" }),
 		).toBeTruthy()
 		expect(screen.queryByRole('button', { name: 'Link copied!' })).toBeNull()
+		expect(screen.getByRole('status')).toHaveTextContent("Couldn't copy link")
 	})
 })

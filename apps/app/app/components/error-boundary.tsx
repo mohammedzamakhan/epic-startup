@@ -1,7 +1,13 @@
 import { usePostHog } from '@posthog/react'
 import { getErrorMessage } from '@repo/common'
 import { NotFoundPage } from '@repo/ui/not-found-page'
-import { useEffect, type ReactElement } from 'react'
+import {
+	createContext,
+	useContext,
+	useEffect,
+	type ReactElement,
+	type ReactNode,
+} from 'react'
 import {
 	type ErrorResponse,
 	isRouteErrorResponse,
@@ -13,6 +19,18 @@ type StatusHandler = (info: {
 	error: ErrorResponse
 	params: Record<string, string | undefined>
 }) => ReactElement | null
+
+const InAppShellContext = createContext(false)
+
+// The App shell (sidebar and header) wraps its Outlet in this, so a route
+// error inside it can fill the content area instead of the whole screen.
+export function AppShellErrorScope({ children }: { children: ReactNode }) {
+	return (
+		<InAppShellContext.Provider value={true}>
+			{children}
+		</InAppShellContext.Provider>
+	)
+}
 
 export function GeneralErrorBoundary({
 	defaultStatusHandler = ({ error }) => (
@@ -31,6 +49,7 @@ export function GeneralErrorBoundary({
 	const posthog = usePostHog()
 	const params = useParams()
 	const isResponse = isRouteErrorResponse(error)
+	const inAppShell = useContext(InAppShellContext)
 
 	if (typeof document !== 'undefined') {
 		console.error(error)
@@ -46,10 +65,10 @@ export function GeneralErrorBoundary({
 	}, [error, isResponse, posthog])
 
 	// A route without its own 404 handler (for example Staff while the module
-	// is off) renders inside the org shell, so the not-found page fills the
-	// content area instead of the screen.
+	// is off) gets the not-found page. Inside the App shell it fills the
+	// content area; elsewhere (the auth pages) it is a standalone page.
 	if (isResponse && error.status === 404 && !statusHandlers?.[404]) {
-		return <NotFoundPage variant="inline" />
+		return <NotFoundPage variant={inAppShell ? 'inline' : 'screen'} />
 	}
 
 	return (

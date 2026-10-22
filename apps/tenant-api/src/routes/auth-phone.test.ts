@@ -126,6 +126,21 @@ describe.each([
 		expect(await blank.json()).toEqual({ error: 'Phone number is required' })
 	})
 
+	// The per-phone send limit, the OTP and the SMS all use the normalized
+	// number, so padding a number reaches the same customer (and limit bucket).
+	it('treats a whitespace-padded number as the same number', async () => {
+		for (const phone of [` ${scenario.e164} `, scenario.e164]) {
+			expect((await post(app, '/auth/send-code', { phone })).status).toBe(200)
+		}
+		const db = await getTenantDb(orgId)
+		const rows = await db.select().from(customers).all()
+		expect(rows.map((row) => row.phone)).toEqual([scenario.e164])
+		expect(vi.mocked(sendSms).mock.calls.map(([sms]) => sms.to)).toEqual([
+			scenario.e164,
+			scenario.e164,
+		])
+	})
+
 	describe('legacy stored forms', () => {
 		const legacyForms = [
 			scenario.e164.slice(1),

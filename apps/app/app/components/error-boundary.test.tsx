@@ -6,6 +6,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { consoleError } from '#tests/setup/setup-test-env.ts'
 import {
+	AppShellErrorScope,
 	GeneralErrorBoundary,
 	NotFoundErrorBoundary,
 } from './error-boundary.tsx'
@@ -70,6 +71,29 @@ describe('GeneralErrorBoundary', () => {
 		expect(
 			screen.getByText('Take me home').closest('a')?.getAttribute('href'),
 		).toBe('/')
+	})
+
+	it('fills the content area inside the App shell and the screen outside it', async () => {
+		const { unmount } = renderRootError(
+			new Response('Not Found', { status: 404 }),
+			GeneralErrorBoundary,
+		)
+		const standalone = (await screen.findByText('Page not found')).closest(
+			'section',
+		)
+		expect(standalone?.className).toContain('min-h-screen')
+		unmount()
+
+		renderRootError(new Response('Not Found', { status: 404 }), () => (
+			<AppShellErrorScope>
+				<GeneralErrorBoundary />
+			</AppShellErrorScope>
+		))
+		const inline = (await screen.findByText('Page not found')).closest(
+			'section',
+		)
+		expect(inline?.className).toContain('flex-1')
+		expect(inline?.className).not.toContain('min-h-screen')
 	})
 
 	it('keeps a route-specific 404 handler', async () => {

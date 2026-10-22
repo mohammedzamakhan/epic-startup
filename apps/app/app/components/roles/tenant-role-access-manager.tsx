@@ -509,6 +509,9 @@ export function RoleAccessForm({
 	const nameRef = useRef<HTMLInputElement>(null)
 	// The Create role button sits in the footer, far below both messages, so
 	// each failed submit moves focus to the message (or the field it is about).
+	// Focus also makes screen readers read it, so the message has no alert role
+	// (that would read it twice). `errors` is the action data, a new object on
+	// every submit, so a repeated identical error still moves focus.
 	useEffect(() => {
 		if (errors?.nameError) nameRef.current?.focus()
 		else if (errors?.error) errorRef.current?.focus()
@@ -559,7 +562,6 @@ export function RoleAccessForm({
 			{error && (
 				<div
 					ref={errorRef}
-					role="alert"
 					tabIndex={-1}
 					className="border-destructive/30 bg-destructive/10 text-destructive rounded-xl border px-4 py-3 text-sm"
 				>
@@ -1224,12 +1226,13 @@ export function TenantRoleAccessManager({
 						{builtInRoles.map((role) => (
 							// One link per row: the role name, stretched over the whole row so
 							// any cell still opens the role. The other cells stay plain text
-							// so screen readers do not hear links named only "0" or "1".
+							// so screen readers do not hear links named only "0" or "1". The
+							// focus ring is drawn on the stretched area, so it outlines the row.
 							<TableRow key={role.id} className="group relative cursor-pointer">
 								<TableCell className="text-foreground group-hover:text-primary align-middle transition-colors">
 									<Link
 										to={`${basePath}/${role.id}`}
-										className="block py-1 after:absolute after:inset-0"
+										className="focus-visible:after:ring-ring block py-1 outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-inset"
 									>
 										{roleName(role)}
 									</Link>

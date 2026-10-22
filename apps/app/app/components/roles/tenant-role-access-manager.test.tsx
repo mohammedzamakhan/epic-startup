@@ -165,7 +165,7 @@ describe('RoleAccessForm errors', () => {
 		expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 	})
 
-	it('announces and focuses a form-level error', async () => {
+	it('focuses a form-level error so it is read once', async () => {
 		const user = userEvent.setup()
 		renderFormWithErrors({
 			error:
@@ -175,11 +175,11 @@ describe('RoleAccessForm errors', () => {
 		await user.type(await screen.findByLabelText(/^Role name/), 'Editors')
 		await user.click(screen.getByRole('button', { name: 'Create role' }))
 
-		const alert = await screen.findByRole('alert')
-		expect(alert).toHaveTextContent(
+		const message = await screen.findByText(
 			'One or more selected access options are not available for custom roles.',
 		)
-		expect(alert).toHaveFocus()
+		expect(message).toHaveFocus()
+		expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 		expect(screen.getByLabelText(/^Role name/)).not.toHaveAttribute(
 			'aria-invalid',
 		)
