@@ -697,6 +697,9 @@ export function RoleAccessForm({
 											<TableHead className="w-12 text-center">
 												<Checkbox
 													checked={allGroupSelected}
+													indeterminate={
+														selectedInGroup > 0 && !allGroupSelected
+													}
 													onCheckedChange={toggleGroup}
 													disabled={isSubmitting}
 													aria-label={`Select all ${group.title}`}
@@ -731,6 +734,7 @@ export function RoleAccessForm({
 													>
 														<Checkbox
 															id={id}
+															aria-label={permission.label}
 															checked={isChecked}
 															onCheckedChange={(checked) =>
 																togglePermission(
