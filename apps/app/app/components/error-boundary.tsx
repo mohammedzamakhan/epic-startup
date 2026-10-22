@@ -45,6 +45,13 @@ export function GeneralErrorBoundary({
 		})
 	}, [error, isResponse, posthog])
 
+	// A route without its own 404 handler (for example Staff while the module
+	// is off) renders inside the org shell, so the not-found page fills the
+	// content area instead of the screen.
+	if (isResponse && error.status === 404 && !statusHandlers?.[404]) {
+		return <NotFoundPage variant="inline" />
+	}
+
 	return (
 		<div className="container flex items-center justify-center p-20 text-2xl">
 			{isResponse
