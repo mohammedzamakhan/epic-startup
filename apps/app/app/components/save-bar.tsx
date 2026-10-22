@@ -40,6 +40,42 @@ const HIDDEN: SaveBarSnapshot = { visible: false, saving: false, guard: false }
 let snapshot: SaveBarSnapshot = HIDDEN
 // `saveLast` sources waiting for the rest of a combined save to finish.
 let deferredSaves: string[] = []
+// Sources of the combined save that must finish before `deferredSaves` run.
+let awaitedSaves: string[] = []
+let settleTimer: ReturnType<typeof setTimeout> | undefined
+const SETTLE_MS = 150
+
+function clearDeferred() {
+	deferredSaves = []
+	awaitedSaves = []
+	clearTimeout(settleTimer)
+	settleTimer = undefined
+}
+
+// The page-moving save runs only once every other save landed and its form
+// reset. A form still dirty and idle after a grace period failed: running the
+// last save would navigate away from the edits that were kept.
+function settleDeferred() {
+	if (deferredSaves.length === 0 || snapshot.saving) return
+	const blocked = awaitedSaves.some((id) => {
+		const source = sources.get(id)
+		return Boolean(source && source.dirty)
+	})
+	if (!blocked) {
+		clearTimeout(settleTimer)
+		settleTimer = undefined
+		flushDeferredSaves()
+		return
+	}
+	if (settleTimer) return
+	settleTimer = setTimeout(() => {
+		settleTimer = undefined
+		if (deferredSaves.length === 0 || snapshot.saving) return
+		const stillBlocked = awaitedSaves.some((id) => sources.get(id)?.dirty)
+		if (stillBlocked) clearDeferred()
+		else flushDeferredSaves()
+	}, SETTLE_MS)
+}
 
 function publish() {
 	let visible = false
@@ -64,7 +100,7 @@ function publish() {
 		snapshot = visible || saving || guard ? { visible, saving, guard } : HIDDEN
 		for (const listener of listeners) listener()
 	}
-	if (deferredSaves.length > 0 && !saving) flushDeferredSaves()
+	if (deferredSaves.length > 0 && !saving) settleDeferred()
 }
 
 function subscribe(callback: () => void) {
@@ -231,7 +267,7 @@ function runnable(source: SaveBarSource | undefined) {
 
 function flushDeferredSaves() {
 	const ids = deferredSaves
-	deferredSaves = []
+	clearDeferred()
 	for (const id of ids) {
 		const source = sources.get(id)
 		if (source && runnable(source)) source.save()
@@ -241,19 +277,19 @@ function flushDeferredSaves() {
 function run(action: 'save' | 'discard') {
 	const ready = [...sources.entries()].filter(([, source]) => runnable(source))
 	if (action === 'discard') {
-		deferredSaves = []
+		clearDeferred()
 		for (const [, source] of ready) source.discard()
 		return
 	}
 	const first = ready.filter(([, source]) => !source.saveLast)
 	const last = ready.filter(([, source]) => source.saveLast)
+	clearDeferred()
 	deferredSaves = last.map(([id]) => id)
+	awaitedSaves = first.map(([id]) => id)
 	for (const [, source] of first) source.save()
 	// Started saves are published by now; with none in flight, save the rest.
 	if (deferredSaves.length > 0) {
-		setTimeout(() => {
-			if (deferredSaves.length > 0 && !snapshot.saving) flushDeferredSaves()
-		}, 0)
+		setTimeout(settleDeferred, 0)
 	}
 }
 

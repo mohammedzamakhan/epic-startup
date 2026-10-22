@@ -112,12 +112,11 @@ function PersonForm({
 
 	// What the last successful save sent. Until the reload remounts this form
 	// with the new person, those values are saved even though `initial` is old.
-	const [savedValues, setSavedValues] = useState<string | null>(null)
-	const dirty =
-		JSON.stringify(values) !== savedValues &&
-		(Object.keys(initial) as Array<keyof typeof initial>).some(
-			(key) => values[key] !== initial[key],
-		)
+	const [saved, setSaved] = useState<typeof initial | null>(null)
+	const baseline = saved ?? initial
+	const dirty = (Object.keys(initial) as Array<keyof typeof initial>).some(
+		(key) => values[key] !== baseline[key],
+	)
 	const terminated = person.status === 'terminated'
 	const formRef = useRef<HTMLFormElement>(null)
 
@@ -126,7 +125,7 @@ function PersonForm({
 		saving: action.pending,
 		onSave: () => formRef.current?.requestSubmit(),
 		onDiscard: () => {
-			setValues(initial)
+			setValues(baseline)
 			setErrors({})
 			action.reset()
 		},
@@ -140,7 +139,7 @@ function PersonForm({
 		if (hasErrors(found)) return
 
 		const patch: Record<string, unknown> = {}
-		const changed = (key: keyof typeof initial) => values[key] !== initial[key]
+		const changed = (key: keyof typeof initial) => values[key] !== baseline[key]
 		if (changed('firstName')) patch.firstName = values.firstName.trim()
 		if (changed('lastName')) patch.lastName = values.lastName.trim()
 		if (changed('email')) patch.email = blankToNull(values.email)
@@ -162,7 +161,7 @@ function PersonForm({
 			),
 		)
 		if (result.ok) {
-			setSavedValues(JSON.stringify(values))
+			setSaved(values)
 			toast.success(_(t`Details saved.`))
 			reloadRoster()
 			onChanged()
