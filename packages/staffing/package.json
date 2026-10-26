@@ -41,12 +41,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@repo/zoned-time": "*",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@repo/config": "*",
-    "fake-indexeddb": "^6.0.0",
     "typescript": "^5.8.3",
     "vitest": "^4.1.10"
   }
