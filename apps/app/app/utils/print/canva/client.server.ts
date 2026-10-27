@@ -371,9 +371,9 @@ export function canvaApi(accessToken: string) {
 export type CanvaApi = ReturnType<typeof canvaApi>
 
 /**
- * Downloads a file Canva handed out (an export or a thumbnail): https only,
- * no redirects, a time limit and a size cap, so a bad link cannot hold the
- * request or fill memory.
+ * Downloads a file Canva handed out (an export or a thumbnail): https only
+ * (redirects too, at most three), a time limit and a size cap, so a bad link
+ * cannot hold the request or fill memory.
  */
 export async function downloadCanvaFile(
 	url: string,
@@ -390,14 +390,23 @@ export async function downloadCanvaFile(
 	if (parsed.protocol !== 'https:') {
 		throw new CanvaError('failed', 'Canva returned a bad link')
 	}
+	const signal = AbortSignal.timeout(options.timeoutMs ?? 60_000)
 	let response: Response
-	try {
-		response = await fetch(parsed, {
-			redirect: 'follow',
-			signal: AbortSignal.timeout(options.timeoutMs ?? 60_000),
-		})
-	} catch {
-		throw new CanvaError('unavailable', 'The Canva file did not download')
+	for (let hops = 0; ; hops += 1) {
+		try {
+			response = await fetch(parsed, { redirect: 'manual', signal })
+		} catch {
+			throw new CanvaError('unavailable', 'The Canva file did not download')
+		}
+		const location = response.headers.get('location')
+		if (response.status < 300 || response.status >= 400 || !location) break
+		const next = URL.canParse(location, parsed)
+			? new URL(location, parsed)
+			: null
+		if (hops >= 3 || next?.protocol !== 'https:') {
+			throw new CanvaError('failed', 'Canva returned a bad link')
+		}
+		parsed = next
 	}
 	if (!response.ok || !response.body) {
 		throw new CanvaError('unavailable', 'The Canva file did not download')

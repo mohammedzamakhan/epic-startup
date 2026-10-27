@@ -253,6 +253,29 @@ describe('downloadCanvaFile', () => {
 		expect(file.contentType).toBe('application/pdf')
 	})
 
+	it('follows https redirects only', async () => {
+		fetchMock.mockResolvedValueOnce(
+			new Response(null, {
+				status: 302,
+				headers: { Location: 'https://cdn.canva.com/a.pdf' },
+			}),
+		)
+		fetchMock.mockResolvedValueOnce(new Response('%PDF-1.7'))
+		const file = await downloadCanvaFile('https://export.canva.com/a.pdf')
+		expect(new TextDecoder().decode(file.bytes)).toBe('%PDF-1.7')
+		expect(String(requestAt(1).url)).toBe('https://cdn.canva.com/a.pdf')
+
+		fetchMock.mockResolvedValueOnce(
+			new Response(null, {
+				status: 302,
+				headers: { Location: 'http://169.254.169.254/latest' },
+			}),
+		)
+		await expect(
+			downloadCanvaFile('https://export.canva.com/a.pdf'),
+		).rejects.toMatchObject({ code: 'failed' })
+	})
+
 	it('stops at the size cap, declared or streamed', async () => {
 		fetchMock.mockResolvedValueOnce(
 			new Response('x', { headers: { 'Content-Length': '99' } }),
