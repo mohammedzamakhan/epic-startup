@@ -251,13 +251,14 @@ export default function CanvaImportRoute() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<Button
-							render={
-								<a href={`/${data.orgSlug}/marketing/print/canva/connect`} />
-							}
+						{/* A full page post: Canva's consent page is another site. */}
+						<Form
+							method="post"
+							action={`/${data.orgSlug}/marketing/print/canva/connect`}
+							reloadDocument
 						>
-							{_(msg`Connect Canva`)}
-						</Button>
+							<Button type="submit">{_(msg`Connect Canva`)}</Button>
+						</Form>
 					</CardContent>
 				</Card>
 			) : (

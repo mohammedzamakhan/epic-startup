@@ -62,6 +62,7 @@ function fromCanva(error: unknown): never {
 	if (error instanceof CanvaError) {
 		switch (error.code) {
 			case 'unauthorized':
+			case 'invalid_grant':
 				throw new PrintArtworkError('canva_not_connected')
 			case 'not_found':
 				throw new PrintArtworkError('canva_not_found')
@@ -100,6 +101,12 @@ async function exportPdf(api: CanvaApi, designId: string) {
 	}
 }
 
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+
+function isPng(bytes: Uint8Array) {
+	return PNG_SIGNATURE.every((byte, index) => bytes[index] === byte)
+}
+
 async function fetchArtwork(
 	access: PrintShopAccess,
 	input: { designId: string; product: string; sizeKey: string },
@@ -126,9 +133,14 @@ async function fetchArtwork(
 	if (new TextDecoder().decode(pdf.bytes.slice(0, 5)) !== '%PDF-') {
 		throw new PrintArtworkError('artwork_unreadable')
 	}
-	// The page as exported; without readable boxes, the thumbnail's shape.
+	// The page as exported (page tree, inherited boxes, rotation).
 	let page = readPdfPageSize(pdf.bytes)?.media ?? null
 	if (!page) {
+		// The PDF keeps its page tree in compressed object streams, so its
+		// size cannot be read here. The thumbnail can only confirm the shape,
+		// not the size or the bleed: its pixels are rounded, hence the 2%. The
+		// print is then recorded at the product size without bleed, and the
+		// vendor fits the file to the product.
 		const thumb = design.thumbnail
 		const ratio = thumb && thumb.width ? thumb.height / thumb.width : 0
 		const expected = size.heightMm / size.widthMm
@@ -140,11 +152,15 @@ async function fetchArtwork(
 	const fit = printArtworkFit(size, page)
 	if (!fit.fits) throw new PrintArtworkError('artwork_size')
 
+	// Content-addressed: the same file is stored once per organization, and
+	// designs with identical bytes share it. Print files are never deleted
+	// (updates and archiving leave them), so a shared key cannot break a
+	// design; any future cleanup must check every PrintDesign and order first.
 	const fileHash = crypto.createHash('sha256').update(pdf.bytes).digest('hex')
 	const folder = `print/${access.organization.id}/artwork/${fileHash.slice(0, 32)}`
 	await uploadPrintFile(`${folder}/print.pdf`, pdf.bytes, 'application/pdf')
-	const previewKey =
-		png && png.contentType === 'image/png' ? `${folder}/preview.png` : null
+	// The proof is shown inline, so its bytes must really be a PNG.
+	const previewKey = png && isPng(png.bytes) ? `${folder}/preview.png` : null
 	if (previewKey && png)
 		await uploadPrintFile(previewKey, png.bytes, 'image/png')
 	return {
@@ -242,8 +258,11 @@ export async function sendDesignToCanva(
 	} else {
 		throw new PrintArtworkError('render_failed')
 	}
-	const imported = await withCanva(access, (api) =>
-		api.importPdf(bytes, view.name),
+	// Never sent twice: a retried import could make a second Canva design.
+	const imported = await withCanva(
+		access,
+		(api) => api.importPdf(bytes, view.name),
+		{ idempotent: false },
 	).catch(fromCanva)
 	if (!imported.editUrl) throw new PrintArtworkError('canva_unavailable')
 	return imported.editUrl

@@ -101,10 +101,14 @@ async function tokenRequest(
 		string,
 		unknown
 	> | null
-	if (response.status === 400 || response.status === 401) {
+	const reason = body?.error ?? body?.code
+	if (
+		(response.status === 400 || response.status === 401) &&
+		reason === 'invalid_grant'
+	) {
 		// A used or revoked refresh token, or a bad code: connect again.
 		throw new CanvaError(
-			'unauthorized',
+			'invalid_grant',
 			'Canva refused the grant',
 			response.status,
 		)
@@ -371,9 +375,23 @@ export function canvaApi(accessToken: string) {
 export type CanvaApi = ReturnType<typeof canvaApi>
 
 /**
- * Downloads a file Canva handed out (an export or a thumbnail): https only
- * (redirects too, at most three), a time limit and a size cap, so a bad link
- * cannot hold the request or fill memory.
+ * Hosts Canva serves export downloads and thumbnails from. A link (or a
+ * redirect) anywhere else, an IP literal included, is refused, so a bad API
+ * answer cannot point this server at an internal address.
+ */
+function isCanvaFileHost(url: URL) {
+	const host = url.hostname.toLowerCase()
+	return (
+		url.protocol === 'https:' &&
+		!url.port &&
+		(host === 'canva.com' || host.endsWith('.canva.com'))
+	)
+}
+
+/**
+ * Downloads a file Canva handed out (an export or a thumbnail): https on a
+ * Canva host only (each redirect checked again, at most three), a time limit
+ * and a size cap, so a bad link cannot hold the request or fill memory.
  */
 export async function downloadCanvaFile(
 	url: string,
@@ -387,7 +405,7 @@ export async function downloadCanvaFile(
 	} catch {
 		throw new CanvaError('failed', 'Canva returned a bad link')
 	}
-	if (parsed.protocol !== 'https:') {
+	if (!isCanvaFileHost(parsed)) {
 		throw new CanvaError('failed', 'Canva returned a bad link')
 	}
 	const signal = AbortSignal.timeout(options.timeoutMs ?? 60_000)
@@ -398,12 +416,10 @@ export async function downloadCanvaFile(
 		} catch {
 			throw new CanvaError('unavailable', 'The Canva file did not download')
 		}
-		const location = response.headers.get('location')
-		if (response.status < 300 || response.status >= 400 || !location) break
-		const next = URL.canParse(location, parsed)
-			? new URL(location, parsed)
-			: null
-		if (hops >= 3 || next?.protocol !== 'https:') {
+		const target = response.headers.get('Location')
+		if (response.status < 300 || response.status >= 400 || !target) break
+		const next = URL.canParse(target, parsed) ? new URL(target, parsed) : null
+		if (hops >= 3 || !next || !isCanvaFileHost(next)) {
 			throw new CanvaError('failed', 'Canva returned a bad link')
 		}
 		parsed = next

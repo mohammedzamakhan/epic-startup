@@ -15,7 +15,9 @@ import {
  * stored encrypted with INTEGRATION_ENCRYPTION_KEY and never leave the App
  * server. Canva refresh tokens are single use: a refresh is written only if
  * the stored token is still the one we used, so two requests refreshing at
- * once cannot leave a spent token behind.
+ * once cannot leave a spent token behind. The connection is forgotten only
+ * when Canva says the grant itself is gone (`invalid_grant`), never on a
+ * passing error.
  */
 
 type Owner = Pick<PrintShopAccess, 'userId'> & {
@@ -110,7 +112,7 @@ async function refresh(
 	try {
 		tokens = await refreshCanvaTokens(current.refreshToken)
 	} catch (error) {
-		if (error instanceof CanvaError && error.code === 'unauthorized') {
+		if (error instanceof CanvaError && error.code === 'invalid_grant') {
 			// Another request may have used the token a moment ago.
 			const latest = await readTokens(owner)
 			if (latest && latest.row.refreshToken !== current.row.refreshToken) {
@@ -118,6 +120,7 @@ async function refresh(
 			}
 			// The grant is gone (revoked in Canva, or expired): connect again.
 			await db.delete(PrintCanvaConnection).where(ownedBy(owner))
+			throw new CanvaError('unauthorized', 'Canva is not connected')
 		}
 		throw error
 	}
@@ -147,11 +150,15 @@ async function refresh(
 
 /**
  * Runs `work` with this member's Canva API, refreshing the access token
- * first when it is about to run out, and once more if Canva refuses it.
+ * first when it is about to run out. If Canva refuses the token anyway, it
+ * refreshes and runs `work` again, unless the work is not `idempotent` (an
+ * import that may already have made a design): then it refreshes and fails,
+ * so the member decides whether to try again.
  */
 export async function withCanva<T>(
 	owner: Owner,
 	work: (api: CanvaApi) => Promise<T>,
+	options: { idempotent?: boolean } = {},
 ): Promise<T> {
 	const current = await readTokens(owner)
 	if (!current) throw new CanvaError('unauthorized', 'Canva is not connected')
@@ -168,6 +175,9 @@ export async function withCanva<T>(
 		const latest = await readTokens(owner)
 		if (!latest) throw error
 		accessToken = await refresh(owner, latest)
+		if (options.idempotent === false) {
+			throw new CanvaError('unavailable', 'Canva refused the token once')
+		}
 		return work(canvaApi(accessToken))
 	}
 }

@@ -89,10 +89,19 @@ describe('Canva OAuth', () => {
 		})
 	})
 
-	it('treats a refused refresh token as a lost connection', async () => {
+	it('reports a refused grant apart from other token errors', async () => {
 		fetchMock.mockResolvedValueOnce(json({ error: 'invalid_grant' }, 400))
 		await expect(refreshCanvaTokens('spent')).rejects.toMatchObject({
-			code: 'unauthorized',
+			code: 'invalid_grant',
+		})
+		// A misconfigured client or a passing 401 is not a lost grant.
+		fetchMock.mockResolvedValueOnce(json({ error: 'invalid_client' }, 401))
+		await expect(refreshCanvaTokens('rt')).rejects.toMatchObject({
+			code: 'unavailable',
+		})
+		fetchMock.mockResolvedValueOnce(json({}, 401))
+		await expect(refreshCanvaTokens('rt')).rejects.toMatchObject({
+			code: 'unavailable',
 		})
 	})
 
@@ -238,10 +247,19 @@ describe('Canva API', () => {
 })
 
 describe('downloadCanvaFile', () => {
-	it('downloads over https only', async () => {
-		await expect(
-			downloadCanvaFile('http://export.canva.com/a.pdf'),
-		).rejects.toMatchObject({ code: 'failed' })
+	it('downloads over https from Canva hosts only', async () => {
+		for (const url of [
+			'http://export.canva.com/a.pdf',
+			'https://169.254.169.254/latest/meta-data',
+			'https://127.0.0.1/a.pdf',
+			'https://export.canva.com.evil.example/a.pdf',
+			'https://export.canva.com:8443/a.pdf',
+			'https://evil.example/a.pdf',
+		]) {
+			await expect(downloadCanvaFile(url)).rejects.toMatchObject({
+				code: 'failed',
+			})
+		}
 		expect(fetchMock).not.toHaveBeenCalled()
 		fetchMock.mockResolvedValueOnce(
 			new Response('%PDF-1.7', {
@@ -253,7 +271,7 @@ describe('downloadCanvaFile', () => {
 		expect(file.contentType).toBe('application/pdf')
 	})
 
-	it('follows https redirects only', async () => {
+	it('checks every redirect against the same rule', async () => {
 		fetchMock.mockResolvedValueOnce(
 			new Response(null, {
 				status: 302,
@@ -274,6 +292,16 @@ describe('downloadCanvaFile', () => {
 		await expect(
 			downloadCanvaFile('https://export.canva.com/a.pdf'),
 		).rejects.toMatchObject({ code: 'failed' })
+		fetchMock.mockResolvedValueOnce(
+			new Response(null, {
+				status: 301,
+				headers: { Location: 'https://internal.example/a.pdf' },
+			}),
+		)
+		await expect(
+			downloadCanvaFile('https://export.canva.com/a.pdf'),
+		).rejects.toMatchObject({ code: 'failed' })
+		expect(fetchMock).toHaveBeenCalledTimes(4)
 	})
 
 	it('stops at the size cap, declared or streamed', async () => {

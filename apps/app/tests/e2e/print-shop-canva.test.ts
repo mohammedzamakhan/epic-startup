@@ -1,3 +1,4 @@
+import { type Page } from '@playwright/test'
 import { PRINT_SHOP_FLAG_KEYS } from '@repo/common/print-shop'
 import { db, eq, PrintCanvaConnection, PrintDesign } from '@repo/database'
 import { expect, test } from '#tests/playwright-utils.ts'
@@ -19,6 +20,12 @@ import {
 const CANVA_FLAGS = [PRINT_SHOP_FLAG_KEYS.enabled, PRINT_SHOP_FLAG_KEYS.canva]
 
 const canvaUrl = (slug: string) => `/${slug}/marketing/print/canva`
+
+async function connectCanva(page: Page, slug: string) {
+	await page.goto(canvaUrl(slug))
+	await linkOrButton(page, /^Connect Canva$/).click()
+	await expect(page.getByText('Canva is connected')).toBeVisible()
+}
 
 test.describe('Print shop: Canva', () => {
 	test('stays hidden without the Canva flag', async ({ page, login }) => {
@@ -44,6 +51,9 @@ test.describe('Print shop: Canva', () => {
 				(await page.request.get(`${canvaUrl(org.slug)}${path}`)).status(),
 			).toBe(403)
 		}
+		expect(
+			(await page.request.post(`${canvaUrl(org.slug)}/connect`)).status(),
+		).toBe(403)
 		await page.goto(`/${org.slug}/marketing/print`)
 		await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 		await expect(linkOrButton(page, 'Import from Canva')).toHaveCount(0)
@@ -56,6 +66,10 @@ test.describe('Print shop: Canva', () => {
 		const { user, org } = await setup(login, { flags: CANVA_FLAGS })
 		await page.goto(`/${org.slug}/marketing/print`)
 		await linkOrButton(page, 'Import from Canva').click()
+		// A plain visit (a link from anywhere) does not start connecting.
+		await page.goto(`${canvaUrl(org.slug)}/connect`)
+		await expect(page).toHaveURL(new RegExp(`${canvaUrl(org.slug)}$`))
+		await expect(page.getByText('Connect your Canva account')).toBeVisible()
 		await linkOrButton(page, /^Connect Canva$/).click()
 		await expect(page.getByText('Canva is connected')).toBeVisible()
 		await expect(
@@ -144,8 +158,7 @@ test.describe('Print shop: Canva', () => {
 		login,
 	}) => {
 		const { org } = await setup(login, { flags: CANVA_FLAGS })
-		await page.goto(`${canvaUrl(org.slug)}/connect`)
-		await expect(page.getByText('Canva is connected')).toBeVisible()
+		await connectCanva(page, org.slug)
 		await page.waitForLoadState('networkidle')
 		await expect(
 			page.getByText('2 pages: only the first one prints.'),
@@ -162,8 +175,7 @@ test.describe('Print shop: Canva', () => {
 
 	test('sends a template print to Canva', async ({ page, login }) => {
 		const { org } = await setup(login, { flags: CANVA_FLAGS })
-		await page.goto(`${canvaUrl(org.slug)}/connect`)
-		await expect(page.getByText('Canva is connected')).toBeVisible()
+		await connectCanva(page, org.slug)
 		const designId = await createDesign(page, org.slug, {
 			product: 'Poster',
 			name: 'Hours poster',

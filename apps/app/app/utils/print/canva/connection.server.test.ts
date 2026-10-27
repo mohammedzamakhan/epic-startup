@@ -108,12 +108,54 @@ describe('Canva connections', () => {
 			displayName: null,
 		})
 		client.refreshCanvaTokens.mockRejectedValueOnce(
-			new CanvaError('unauthorized', 'invalid_grant', 400),
+			new CanvaError('invalid_grant', 'invalid_grant', 400),
 		)
 		await expect(withCanva(member, async () => 'never')).rejects.toMatchObject({
 			code: 'unauthorized',
 		})
 		expect(await getCanvaConnection(member)).toBeNull()
+	})
+
+	it('keeps the connection through a passing Canva error', async () => {
+		const member = await owner()
+		await saveCanvaConnection(member, tokens('keep', 1_000), {
+			userId: null,
+			displayName: null,
+		})
+		client.refreshCanvaTokens.mockRejectedValueOnce(
+			new CanvaError('unavailable', 'Canva token request failed (401)', 401),
+		)
+		await expect(withCanva(member, async () => 'never')).rejects.toMatchObject({
+			code: 'unavailable',
+		})
+		expect(await getCanvaConnection(member)).not.toBeNull()
+	})
+
+	it('does not run work twice that is not idempotent', async () => {
+		const member = await owner()
+		await saveCanvaConnection(member, tokens('once'), {
+			userId: null,
+			displayName: null,
+		})
+		client.refreshCanvaTokens.mockResolvedValueOnce(tokens('twice'))
+		let calls = 0
+		await expect(
+			withCanva(
+				member,
+				async () => {
+					calls += 1
+					throw new CanvaError('unauthorized', 'expired', 401)
+				},
+				{ idempotent: false },
+			),
+		).rejects.toMatchObject({ code: 'unavailable' })
+		expect(calls).toBe(1)
+		// The refreshed token is kept for the member's next try.
+		const [row] = await db
+			.select()
+			.from(PrintCanvaConnection)
+			.where(eq(PrintCanvaConnection.userId, member.userId))
+		expect(await decryptAsync(row!.refreshToken, key())).toBe('refresh-twice')
 	})
 
 	it('uses the token a concurrent refresh stored instead of failing', async () => {
@@ -129,7 +171,7 @@ describe('Canva connections', () => {
 				userId: null,
 				displayName: null,
 			})
-			throw new CanvaError('unauthorized', 'invalid_grant', 400)
+			throw new CanvaError('invalid_grant', 'invalid_grant', 400)
 		})
 		const used = await withCanva(member, async (api) => api)
 		expect(used).toEqual({ token: 'access-winner' })

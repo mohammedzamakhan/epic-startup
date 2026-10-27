@@ -45,7 +45,8 @@ nothing. Playwright sets it.
 ## How it works
 
 ```text
-Connect     /:org/marketing/print/canva/connect  (PKCE + signed state cookie)
+Connect     POST /:org/marketing/print/canva/connect  (PKCE + signed state cookie;
+              a plain GET only goes back to the Import from Canva page)
               └─▶ Canva consent ─▶ /resources/print/canva/callback
                     checks: same browser (cookie), same signed-in user, state,
                     then print write access and the flag; code ─▶ tokens
@@ -76,8 +77,12 @@ The first page of the Canva design must be the print's size, give or take 2 mm,
 with or without an even bleed of up to 6 mm on every side (Canva: File,
 Settings, Show print bleed, then export with bleed). A square social post
 imported as an A3 poster is refused with a message that says what to change. The
-size is read from the PDF's `MediaBox`; when a PDF keeps it in a compressed
-object stream, the design's thumbnail ratio must match the print instead.
+size is read by walking the PDF's page tree to its first page (`/MediaBox`
+inherited from parent nodes, `/Rotate` applied), never from the first box found
+in the file. When the page tree sits in compressed object streams it cannot be
+read, and the check falls back to the design's thumbnail: its shape must match
+the print within 2% (thumbnail pixels are rounded). That fallback cannot see the
+size or the bleed, so the print is recorded at the product size without bleed.
 
 Only page 1 prints. A design with more pages imports with a note saying so.
 Without bleed the editor notes that a colour running to the edge can show a thin
@@ -98,8 +103,12 @@ live on in the member's Canva account. Sending is refused with a message.
   encrypted with `INTEGRATION_ENCRYPTION_KEY`, and never reach the browser.
 - Canva refresh tokens are single use. A refresh writes the new pair only if the
   stored refresh token is still the one used, so two requests refreshing at once
-  keep the winner's tokens. A refused refresh token (revoked in Canva, or
-  expired) deletes the connection and the member is asked to connect again.
+  keep the winner's tokens. Only Canva's `invalid_grant` answer (revoked in
+  Canva, or expired) deletes the connection and asks the member to connect
+  again; any other token error leaves it in place.
+- When Canva refuses an access token, the work is retried once after a refresh,
+  except for Send to Canva: an import may already have made a design, so the
+  member is asked to try again instead.
 - **Disconnect Canva** deletes the row and revokes the grant at Canva (best
   effort). Prints already imported stay.
 - The connection is per organization: a member of two organizations connects in
@@ -107,11 +116,15 @@ live on in the member's Canva account. Sending is refused with a message.
   the organization keeps an unused row until then, and the Print shop routes
   refuse them anyway.
 - Canva thumbnails are fetched by the App server and inlined in the picker (the
-  App's CSP loads no third-party images). Download links from Canva are https
-  only, time-limited and size-capped.
+  App's CSP loads no third-party images). Download links from Canva must be
+  https on `canva.com` or one of its subdomains (each redirect is checked the
+  same way, at most three), and are time-limited and size-capped. Previews must
+  carry PNG bytes.
 - Imported files hold whatever the operator designed in Canva. They are the
   organization's marketing material, kept in the platform bucket next to the
-  rendered PDFs.
+  rendered PDFs. Files are stored by content hash, so designs with identical
+  bytes share one file; nothing deletes print files today, and any cleanup must
+  check every design and order that refers to a key first.
 
 ## Limits
 
