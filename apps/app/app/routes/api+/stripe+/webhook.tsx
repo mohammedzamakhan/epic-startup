@@ -124,8 +124,13 @@ export async function action({ request }: ActionFunctionArgs) {
 					// Print shop orders live on the platform account: a paid session
 					// submits the order to its vendors. The same metadata on a
 					// connected account's event is that account's own: ignore it.
-					if (!event.account)
+					if (event.account) {
+						console.warn(
+							`Ignored print metadata on a connected account's ${event.type} (${event.account})`,
+						)
+					} else {
 						await handlePrintStripeSession(session, event.type)
+					}
 					break
 				}
 				if (event.type === 'checkout.session.completed') {
