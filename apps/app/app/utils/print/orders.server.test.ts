@@ -42,15 +42,23 @@ const stripeMock = vi.hoisted(() => ({
 
 const vendorState = vi.hoisted(() => ({
 	value: null as null | 'returned' | 'failed' | 'cancelled',
+	quoteError: null as null | 'rejected' | 'unavailable',
 }))
 vi.mock('./vendors/index.server.ts', async (importOriginal) => {
 	const actual = await importOriginal<typeof vendorsModule>()
+	const { VendorError } = await import('./vendors/types.ts')
 	return {
 		...actual,
 		getPrintVendor: (name: Parameters<typeof actual.getPrintVendor>[0]) => {
 			const vendor = actual.getPrintVendor(name)
 			return {
 				...vendor,
+				quote: async (...args: Parameters<typeof vendor.quote>) => {
+					if (vendorState.quoteError) {
+						throw new VendorError(name, vendorState.quoteError, 'Refused')
+					}
+					return vendor.quote(...args)
+				},
 				status: async (id: string) =>
 					vendorState.value
 						? {
@@ -199,6 +207,7 @@ describe('shipped print orders', () => {
 		vi.unstubAllEnvs()
 		vi.clearAllMocks()
 		vendorState.value = null
+		vendorState.quoteError = null
 	})
 
 	it('quotes with the markup, takes payment and submits to the vendor', async () => {
@@ -844,6 +853,39 @@ describe('shipped print orders', () => {
 			status: 'submitted',
 			holdReason: null,
 		})
+	})
+
+	it('refunds a paid order the vendor refuses when it is re-quoted', async () => {
+		const { orderId } = await paidOrderLater()
+		vendorState.quoteError = 'rejected'
+		expect(await submitPrintOrder(orderId)).toBe('done')
+		const { order, vendorOrders } = await getPrintOrderDetail(null, orderId)
+		expect(order).toMatchObject({
+			status: 'refunded',
+			failureReason: 'vendor_rejected',
+		})
+		expect(vendorOrders[0]).toMatchObject({
+			status: 'failed',
+			error: 'Refused',
+			vendorOrderId: null,
+		})
+		expect(stripeMock.refunds.create).toHaveBeenCalledWith(
+			expect.objectContaining({ payment_intent: `pi_${orderId}` }),
+			expect.anything(),
+		)
+	})
+
+	it('holds a paid order for a retry when the re-quote gets no answer', async () => {
+		const { orderId } = await paidOrderLater()
+		vendorState.quoteError = 'unavailable'
+		expect(await submitPrintOrder(orderId)).toBe('done')
+		const { order, vendorOrders } = await getPrintOrderDetail(null, orderId)
+		expect(order).toMatchObject({
+			status: 'held',
+			holdReason: 'vendor_unavailable',
+		})
+		expect(vendorOrders[0]!.status).toBe('pending')
+		expect(stripeMock.refunds.create).not.toHaveBeenCalled()
 	})
 
 	it('refunds a vendor failure before shipping, but holds one after it', async () => {

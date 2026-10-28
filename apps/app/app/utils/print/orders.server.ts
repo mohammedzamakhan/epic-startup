@@ -852,6 +852,23 @@ async function hold(orderId: string, reason: string) {
 		.where(and(eq(PrintOrder.id, orderId), eq(PrintOrder.status, 'submitting')))
 }
 
+function isVendorRejection(error: unknown): error is VendorError {
+	return error instanceof VendorError && error.code === 'rejected'
+}
+
+/** A vendor refused the order (re-quote or submit): cancel the rest, refund in full. */
+async function refuseAndRefund(
+	orderId: string,
+	vendorOrderId: string,
+	error: VendorError,
+) {
+	await db
+		.update(PrintVendorOrder)
+		.set({ status: 'failed', error: error.message })
+		.where(eq(PrintVendorOrder.id, vendorOrderId))
+	await failAndRefund(orderId, 'vendor_rejected')
+}
+
 /**
  * Set on a `submitting` order just before a vendor is called, and cleared once
  * its answer is recorded: a claim left behind with it may have reached the
@@ -994,8 +1011,10 @@ async function submitClaimedOrder(
 		items
 			.map((row) => row.item)
 			.filter((item) => item.vendorOrderId === vendorOrderId)
+	let quoting: (typeof pending)[number] | null = null
 	try {
 		for (const vendorOrder of pending) {
+			quoting = vendorOrder
 			const vendor = getPrintVendor(vendorOrder.vendor as PrintVendorName)
 			const quoteItems = itemsOf(vendorOrder.id).flatMap((item) =>
 				vendorItemsFor(item),
@@ -1025,6 +1044,7 @@ async function submitClaimedOrder(
 			}
 			ready.push({ vendorOrder, vendor, files: [] })
 		}
+		quoting = null
 		for (const entry of ready) {
 			for (const item of itemsOf(entry.vendorOrder.id)) {
 				// Each product and size has its own bleed at the vendor.
@@ -1054,7 +1074,11 @@ async function submitClaimedOrder(
 				)
 			}
 		}
-	} catch {
+	} catch (error) {
+		if (quoting && isVendorRejection(error)) {
+			await refuseAndRefund(order.id, quoting.id, error)
+			return 'done'
+		}
 		// Nothing reached a vendor in this run: safe to retry.
 		await hold(order.id, 'vendor_unavailable')
 		return 'done'
@@ -1090,12 +1114,8 @@ async function submitClaimedOrder(
 				})
 				.where(eq(PrintVendorOrder.id, vendorOrder.id))
 		} catch (error) {
-			if (error instanceof VendorError && error.code === 'rejected') {
-				await db
-					.update(PrintVendorOrder)
-					.set({ status: 'failed', error: error.message })
-					.where(eq(PrintVendorOrder.id, vendorOrder.id))
-				await failAndRefund(order.id, 'vendor_rejected')
+			if (isVendorRejection(error)) {
+				await refuseAndRefund(order.id, vendorOrder.id, error)
 				return 'done'
 			}
 			// A timeout or an error after the call may hide an order the vendor
