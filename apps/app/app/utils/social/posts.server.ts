@@ -18,6 +18,7 @@ import {
 	SocialPostTarget,
 	sql,
 } from '@repo/database'
+import { createId } from '@paralleldrive/cuid2'
 import { signMediaId } from '#app/utils/media-signing.server.ts'
 import {
 	markSocialAccountNeedsReauth,
@@ -45,6 +46,10 @@ import {
 
 const EDITABLE_STATUSES = ['draft', 'scheduled'] as const
 const RETRYABLE_STATUSES = ['failed', 'partial'] as const
+
+function socialPostRevisionGuard(postId: string, updatedAtMs: number) {
+	return sql`exists (select 1 from ${SocialPost} as p where p.id = ${postId} and p."updatedAt" = ${updatedAtMs} and p.status in ('draft', 'scheduled'))`
+}
 
 /** A post still `publishing` after this long was interrupted. */
 const STALE_PUBLISHING_MS = 15 * 60_000
@@ -174,49 +179,51 @@ export async function saveSocialPost(
 	}))
 
 	if (postId) {
-		const [updated] = await db
-			.update(SocialPost)
-			.set(values)
-			.where(
-				and(
-					eq(SocialPost.id, postId),
-					eq(SocialPost.organizationId, organizationId),
-					inArray(SocialPost.status, [...EDITABLE_STATUSES]),
-				),
-			)
-			.returning({ id: SocialPost.id, updatedAt: SocialPost.updatedAt })
-		if (!updated) throw new SocialPostConflict()
-
 		if (isD1Bound()) {
-			await db.batch([
+			const saveStamp = Date.now()
+			const batchResult = await db.batch([
+				db
+					.update(SocialPost)
+					.set({ ...values, updatedAt: new Date(saveStamp) })
+					.where(
+						and(
+							eq(SocialPost.id, postId),
+							eq(SocialPost.organizationId, organizationId),
+							inArray(SocialPost.status, [...EDITABLE_STATUSES]),
+						),
+					)
+					.returning({ id: SocialPost.id }),
 				db
 					.delete(SocialPostTarget)
 					.where(
 						and(
 							eq(SocialPostTarget.postId, postId),
-							sql`exists (select 1 from ${SocialPost} as p where p.id = ${postId} and p.updated_at = ${updated.updatedAt.getTime()} and p.status in ('draft', 'scheduled'))`,
+							socialPostRevisionGuard(postId, saveStamp),
 						),
 					),
-				...(targets.length > 0
-					? [
-							db.insert(SocialPostTarget).values(
-								targets.map((target) => ({ postId, ...target })),
-							),
-						]
-					: []),
+				...targets.map(
+					(target) =>
+						sql`insert into "SocialPostTarget" (id, "postId", "socialAccountId", platform, "accountName", status, attempts, "createdAt", "updatedAt")
+              select ${createId()}, ${postId}, ${target.socialAccountId}, ${target.platform}, ${target.accountName}, 'pending', 0, ${saveStamp}, ${saveStamp}
+              where ${socialPostRevisionGuard(postId, saveStamp)}`,
+				),
 			])
-			const [row] = await db
-				.select({ status: SocialPost.status })
-				.from(SocialPost)
-				.where(eq(SocialPost.id, postId))
-			if (
-				!row ||
-				!(EDITABLE_STATUSES as readonly string[]).includes(row.status)
-			) {
-				throw new SocialPostConflict()
-			}
+			const updatedRows = batchResult[0] as { id: string }[] | undefined
+			if (!updatedRows?.[0]?.id) throw new SocialPostConflict()
 		} else {
 			await db.transaction(async (tx) => {
+				const [updated] = await tx
+					.update(SocialPost)
+					.set(values)
+					.where(
+						and(
+							eq(SocialPost.id, postId),
+							eq(SocialPost.organizationId, organizationId),
+							inArray(SocialPost.status, [...EDITABLE_STATUSES]),
+						),
+					)
+					.returning({ id: SocialPost.id })
+				if (!updated) throw new SocialPostConflict()
 				await tx
 					.delete(SocialPostTarget)
 					.where(eq(SocialPostTarget.postId, postId))
@@ -238,11 +245,9 @@ export async function saveSocialPost(
 			.returning({ id: SocialPost.id })
 		const newId = created!.id
 		if (targets.length > 0) {
-			await db.batch([
-				db
-					.insert(SocialPostTarget)
-					.values(targets.map((target) => ({ postId: newId, ...target }))),
-			])
+			await db.insert(SocialPostTarget).values(
+				targets.map((target) => ({ postId: newId, ...target })),
+			)
 		}
 		return { id: newId, media }
 	}

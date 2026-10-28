@@ -26,6 +26,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 		date &&
 		/^\d{4}-\d{2}-\d{2}$/u.test(date) &&
 		date >= dayKey(new Date(), timeZone)
+			? date
+			: null
 	const now = new Date()
 	return {
 		orgSlug: access.organization.slug,
