@@ -1,4 +1,5 @@
 import { getFormProps, useForm, type SubmissionResult } from '@conform-to/react'
+import { getZodConstraint, parseWithZod } from '@conform-to/zod'
 import { msg } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
 import { Alert, AlertDescription, AlertTitle } from '@repo/ui/alert'
@@ -23,6 +24,7 @@ import {
 	MediaLibraryPicker,
 	type MediaLibraryAsset,
 } from '#app/components/media-library/media-library-picker.tsx'
+import { SocialPostFormSchema } from '#app/utils/social/post-schema.ts'
 import {
 	SOCIAL_MAX_MEDIA,
 	SOCIAL_PLATFORM_RULES,
@@ -79,6 +81,17 @@ export function SocialPostComposer({
 		id,
 		lastResult,
 		shouldRevalidate: 'onInput',
+		constraint: getZodConstraint(SocialPostFormSchema),
+		defaultValue: {
+			body: defaults.body,
+			accountIds: defaults.accountIds,
+			mediaIds: defaults.media.map((item) => item.mediaId),
+			scheduledAt: defaults.scheduledAt || undefined,
+			timeZone,
+		},
+		onValidate({ formData }) {
+			return parseWithZod(formData, { schema: SocialPostFormSchema })
+		},
 	})
 	const [selected, setSelected] = useState<string[]>(() =>
 		defaults.accountIds.filter((accountId) =>

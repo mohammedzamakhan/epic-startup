@@ -38,7 +38,8 @@ export const SOCIAL_TARGET_STATUS_LABELS: Record<
 }
 
 const instagramMaxText = SOCIAL_PLATFORM_RULES.instagram.maxText
-const instagramMaxHashtags = SOCIAL_PLATFORM_RULES.instagram.maxHashtags
+const instagramMaxHashtags =
+	SOCIAL_PLATFORM_RULES.instagram.maxHashtags ?? 30
 
 export const SOCIAL_PROBLEM_LABELS: Record<
 	SocialPlatform,
@@ -101,10 +102,13 @@ export function socialFormErrors(
 ): Array<{ message: string }> | undefined {
 	return errors?.map((code) => {
 		const [platform, problem] = code.split(':') as [string, string | undefined]
-		const platformLabels =
-			problem && SOCIAL_PROBLEM_LABELS[platform as SocialPlatform]
-		const label =
-			(platformLabels && platformLabels[problem as SocialPostProblem]) ??
+		const platformLabel = problem
+			? SOCIAL_PROBLEM_LABELS[platform as SocialPlatform]?.[
+					problem as SocialPostProblem
+				]
+			: undefined
+		const label: MessageDescriptor =
+			platformLabel ??
 			SOCIAL_FORM_ERROR_LABELS[code] ??
 			SOCIAL_FORM_ERROR_FALLBACK
 		return { message: translate(label) }
