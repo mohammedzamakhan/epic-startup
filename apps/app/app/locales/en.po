@@ -12600,8 +12600,8 @@ msgid "Only a form task has a link."
 msgstr "Only a form task has a link."
 
 #: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:285
-msgid "Only Admin can resolve this hold with the printer. We will update you by email."
-msgstr "Only Admin can resolve this hold with the printer. We will update you by email."
+#~ msgid "Only Admin can resolve this hold with the printer. We will update you by email."
+#~ msgstr "Only Admin can resolve this hold with the printer. We will update you by email."
 
 #: app/components/staff/labor-policy-editor.tsx:846
 msgid "Only applies where overtime rules are set below. Exempt people are never counted."
@@ -13065,6 +13065,10 @@ msgstr "Otherwise, they only see messages sent after they join."
 #: app/components/print/print-order-labels.ts:52
 msgid "Our team is checking this order with the printer. It cannot be cancelled here right now."
 msgstr "Our team is checking this order with the printer. It cannot be cancelled here right now."
+
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:285
+msgid "Our team is sorting this out with the printer, so it cannot be cancelled here. We will update you by email."
+msgstr "Our team is sorting this out with the printer, so it cannot be cancelled here. We will update you by email."
 
 #: app/components/staff/timesheets/timesheet-table.tsx:215
 msgid "Out"
