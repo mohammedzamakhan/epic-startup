@@ -18,6 +18,8 @@ import {
 	SocialPostTarget,
 	sql,
 } from '@repo/database'
+import { createId } from '@paralleldrive/cuid2'
+import type { BatchItem } from 'drizzle-orm/batch'
 import { signMediaId } from '#app/utils/media-signing.server.ts'
 import {
 	markSocialAccountNeedsReauth,
@@ -180,7 +182,7 @@ export async function saveSocialPost(
 	if (postId) {
 		if (isD1Bound()) {
 			const saveStamp = Date.now()
-			const batchResult = await db.batch([
+			const batchStatements: BatchItem<'sqlite'>[] = [
 				db
 					.update(SocialPost)
 					.set({ ...values, updatedAt: new Date(saveStamp) })
@@ -200,29 +202,16 @@ export async function saveSocialPost(
 							socialPostRevisionGuard(postId, saveStamp),
 						),
 					),
-			])
+				...targets.map(
+					(target) =>
+						sql`insert into "SocialPostTarget" (id, "postId", "socialAccountId", platform, "accountName", status, attempts, "createdAt", "updatedAt")
+              select ${createId()}, ${postId}, ${target.socialAccountId}, ${target.platform}, ${target.accountName}, 'pending', 0, ${saveStamp}, ${saveStamp}
+              where ${socialPostRevisionGuard(postId, saveStamp)}`,
+				),
+			]
+			const batchResult = await db.batch(batchStatements)
 			const updatedRows = batchResult[0] as { id: string }[] | undefined
 			if (!updatedRows?.[0]?.id) throw new SocialPostConflict()
-
-			if (targets.length > 0) {
-				const [revision] = await db
-					.select({
-						status: SocialPost.status,
-						updatedAt: SocialPost.updatedAt,
-					})
-					.from(SocialPost)
-					.where(eq(SocialPost.id, postId))
-				if (
-					!revision ||
-					revision.updatedAt.getTime() !== saveStamp ||
-					!(EDITABLE_STATUSES as readonly string[]).includes(revision.status)
-				) {
-					throw new SocialPostConflict()
-				}
-				await db.insert(SocialPostTarget).values(
-					targets.map((target) => ({ postId, ...target })),
-				)
-			}
 		} else {
 			await db.transaction(async (tx) => {
 				const [updated] = await tx
