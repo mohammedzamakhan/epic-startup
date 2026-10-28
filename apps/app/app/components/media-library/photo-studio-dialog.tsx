@@ -111,6 +111,7 @@ export function PhotoStudioDialog({
 	const saveFetcher = useFetcher<SaveData>()
 	const referenceInputRef = useRef<HTMLInputElement>(null)
 	const objectUrls = useRef<string[]>([])
+	const generationRef = useRef(0)
 	const pendingSave = useRef<{ index: number; kind: 'copy' | 'replace' }>(
 		null,
 	)
@@ -248,6 +249,7 @@ export function PhotoStudioDialog({
 
 	async function generate() {
 		const targets = selectedAssets
+		const gen = ++generationRef.current
 		setResults(
 			targets.map((asset) => ({ asset, status: 'pending', versions: [] })),
 		)
@@ -259,27 +261,35 @@ export function PhotoStudioDialog({
 				try {
 					const image = await requestImage(asset, { instructions: trimmed })
 					setResults((current) =>
-						current.map((r, i) =>
-							i === index ? { ...r, status: 'done', versions: [image] } : r,
-						),
+						gen === generationRef.current
+							? current.map((r, i) =>
+									i === index
+										? { ...r, status: 'done', versions: [image] }
+										: r,
+								)
+							: current,
 					)
 				} catch (error) {
 					setResults((current) =>
-						current.map((r, i) =>
-							i === index
-								? {
-										...r,
-										status: 'error',
-										error:
-											error instanceof Error ? error.message : errorMessage(''),
-									}
-								: r,
-						),
+						gen === generationRef.current
+							? current.map((r, i) =>
+									i === index
+										? {
+												...r,
+												status: 'error',
+												error:
+													error instanceof Error
+														? error.message
+														: errorMessage(''),
+											}
+										: r,
+								)
+							: current,
 					)
 				}
 			}),
 		)
-		setStep('results')
+		if (gen === generationRef.current) setStep('results')
 	}
 
 	async function refine() {
@@ -309,6 +319,7 @@ export function PhotoStudioDialog({
 	async function retry(index: number) {
 		const target = results[index]
 		if (!target) return
+		const gen = generationRef.current
 		setResults((current) =>
 			current.map((r, i) =>
 				i === index ? { ...r, status: 'pending', error: undefined } : r,
@@ -319,21 +330,26 @@ export function PhotoStudioDialog({
 				instructions: instructions.trim() || undefined,
 			})
 			setResults((current) =>
-				current.map((r, i) =>
-					i === index ? { ...r, status: 'done', versions: [image] } : r,
-				),
+				gen === generationRef.current
+					? current.map((r, i) =>
+							i === index ? { ...r, status: 'done', versions: [image] } : r,
+						)
+					: current,
 			)
 		} catch (error) {
 			setResults((current) =>
-				current.map((r, i) =>
-					i === index
-						? {
-								...r,
-								status: 'error',
-								error: error instanceof Error ? error.message : errorMessage(''),
-							}
-						: r,
-				),
+				gen === generationRef.current
+					? current.map((r, i) =>
+							i === index
+								? {
+										...r,
+										status: 'error',
+										error:
+											error instanceof Error ? error.message : errorMessage(''),
+									}
+								: r,
+						)
+					: current,
 			)
 		}
 	}

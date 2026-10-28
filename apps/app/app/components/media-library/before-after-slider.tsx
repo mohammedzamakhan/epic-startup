@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from 'react'
 
 /**
  * Compares two images of the same shape. The after image sets the size; the
- * before image is masked on top. On mount the divider sweeps once so the change
+ * before image is masked on top. Both layers use the same `object-contain`
+ * crop so the slider stays aligned. On mount the divider sweeps once so the
  * is visible without dragging (skipped for reduced motion).
  */
 export function BeforeAfterSlider({
@@ -60,7 +61,7 @@ export function BeforeAfterSlider({
 			<img
 				src={beforeSrc}
 				alt={beforeLabel}
-				className="pointer-events-none absolute inset-0 size-full object-cover"
+				className="pointer-events-none absolute inset-0 size-full object-contain"
 				draggable={false}
 				style={{ mask, WebkitMask: mask }}
 			/>
