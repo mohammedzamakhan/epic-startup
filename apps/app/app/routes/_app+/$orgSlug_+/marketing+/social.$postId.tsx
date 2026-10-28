@@ -1,7 +1,7 @@
 import { i18n as linguiI18n } from '@lingui/core'
 import { msg, t } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
-import { redirectWithToast } from '@repo/common/toast.server'
+import { redirectWithToast } from '@repo/common/toast'
 import {
 	AlertDialog,
 	AlertDialogCancel,

@@ -1,7 +1,7 @@
 import { parseWithZod } from '@conform-to/zod'
 import { i18n } from '@lingui/core'
 import { t } from '@lingui/macro'
-import { redirectWithToast } from '@repo/common/toast.server'
+import { redirectWithToast } from '@repo/common/toast'
 import { type SocialAccess } from './access.server.ts'
 import { socialPostProblems } from './platforms.ts'
 import { SocialPostFormSchema } from './post-schema.ts'
