@@ -158,7 +158,7 @@ async function setup() {
 			customDomain: null,
 			dataRegion: 'us',
 		},
-		features: { enabled: true, shipping: true },
+		features: { enabled: true, shipping: true, canva: false },
 		canWrite: true,
 		canPay: true,
 	}
