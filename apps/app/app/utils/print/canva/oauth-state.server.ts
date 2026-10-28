@@ -63,9 +63,12 @@ export async function clearCanvaOAuthState() {
 	return stateCookie().serialize('', { maxAge: 0 })
 }
 
-/** Constant-time comparison of the state echoed by Canva. */
+/**
+ * Constant-time comparison of the state echoed by Canva. The state is random
+ * and of fixed length, so a length mismatch reveals nothing.
+ */
 export function sameState(a: string, b: string): boolean {
-	const left = crypto.createHash('sha256').update(a).digest()
-	const right = crypto.createHash('sha256').update(b).digest()
-	return crypto.timingSafeEqual(left, right)
+	const left = Buffer.from(a, 'utf8')
+	const right = Buffer.from(b, 'utf8')
+	return left.length === right.length && crypto.timingSafeEqual(left, right)
 }

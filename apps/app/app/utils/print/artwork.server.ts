@@ -133,22 +133,11 @@ async function fetchArtwork(
 	if (new TextDecoder().decode(pdf.bytes.slice(0, 5)) !== '%PDF-') {
 		throw new PrintArtworkError('artwork_unreadable')
 	}
-	// The page as exported (page tree, inherited boxes, rotation).
-	let page = readPdfPageSize(pdf.bytes)?.media ?? null
-	if (!page) {
-		// The PDF keeps its page tree in compressed object streams, so its
-		// size cannot be read here. The thumbnail can only confirm the shape,
-		// not the size or the bleed: its pixels are rounded, hence the 2%. The
-		// print is then recorded at the product size without bleed, and the
-		// vendor fits the file to the product.
-		const thumb = design.thumbnail
-		const ratio = thumb && thumb.width ? thumb.height / thumb.width : 0
-		const expected = size.heightMm / size.widthMm
-		if (!ratio || Math.abs(ratio - expected) / expected > 0.02) {
-			throw new PrintArtworkError('artwork_size')
-		}
-		page = { widthMm: size.widthMm, heightMm: size.heightMm }
-	}
+	// The page as exported (page tree, inherited boxes, rotation). Without a
+	// readable size the file is refused: a thumbnail's shape cannot tell A4
+	// from A3, nor show a bleed.
+	const page = readPdfPageSize(pdf.bytes)?.media
+	if (!page) throw new PrintArtworkError('artwork_unreadable')
 	const fit = printArtworkFit(size, page)
 	if (!fit.fits) throw new PrintArtworkError('artwork_size')
 

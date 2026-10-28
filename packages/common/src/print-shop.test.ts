@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createPrintCatalog, printArtworkFit } from './print-shop.ts'
+import {
+	createPrintCatalog,
+	printArtworkFit,
+	printArtworkSchema,
+} from './print-shop.ts'
 
 const A3 = { widthMm: 297, heightMm: 420 }
 
@@ -18,6 +22,20 @@ describe('printArtworkFit', () => {
 			fits: true,
 			bleedMm: 0,
 		})
+	})
+
+	it('never records more bleed than an artwork may have', () => {
+		// 7 mm a side (311 × 434) is past the 6 mm limit.
+		expect(printArtworkFit(A3, { widthMm: 311, heightMm: 434 })).toEqual({
+			fits: false,
+		})
+		const rounded = printArtworkFit(A3, { widthMm: 309.4, heightMm: 432.4 })
+		expect(rounded).toEqual({ fits: true, bleedMm: 6 })
+		expect(
+			printArtworkSchema.shape.bleedMm.safeParse(
+				(rounded as { bleedMm: number }).bleedMm,
+			).success,
+		).toBe(true)
 	})
 
 	it('refuses another size, the other orientation, uneven or huge bleed', () => {

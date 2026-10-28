@@ -1,3 +1,4 @@
+import { deflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { mockCanva } from './mock.server.ts'
 import { readPdfPageSize } from './pdf-size.ts'
@@ -72,6 +73,40 @@ describe('readPdfPageSize', () => {
 		expect(size?.media.heightMm).toBeCloseTo(420, 1)
 	})
 
+	it('reads pages packed in a compressed object stream', () => {
+		// Objects 2 (pages) and 3 (page) live in object stream 4, as PDF 1.5+
+		// writers do; the catalog and the stream itself are plain objects.
+		const packed = [
+			'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+			`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pt(303)} ${pt(426)}] /Rotate 0 >>`,
+		]
+		const offsets: number[] = []
+		let body = ''
+		for (const object of packed) {
+			offsets.push(body.length)
+			body += `${object}\n`
+		}
+		const header = `2 ${offsets[0]} 3 ${offsets[1]} `
+		const stream = deflateSync(Buffer.from(header + body, 'latin1'))
+		const head = Buffer.from(
+			[
+				'%PDF-1.7',
+				'1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
+				`4 0 obj\n<< /Type /ObjStm /N 2 /First ${header.length} /Filter /FlateDecode /Length ${stream.length} >>\nstream\n`,
+			].join('\n'),
+			'latin1',
+		)
+		const tail = Buffer.from(
+			'\nendstream\nendobj\ntrailer\n<< /Size 5 /Root 1 0 R >>\n%%EOF',
+			'latin1',
+		)
+		const size = readPdfPageSize(
+			new Uint8Array(Buffer.concat([head, stream, tail])),
+		)
+		expect(size?.media.widthMm).toBeCloseTo(303, 1)
+		expect(size?.media.heightMm).toBeCloseTo(426, 1)
+	})
+
 	it('fails closed when the page tree cannot be read', () => {
 		expect(readPdfPageSize(encode('<html></html>'))).toBeNull()
 		// A page box but no catalog: not taken as page 1.
@@ -82,12 +117,12 @@ describe('readPdfPageSize', () => {
 				),
 			),
 		).toBeNull()
-		// The pages live in a compressed object stream.
+		// A packed object stream with another filter cannot be read.
 		expect(
 			readPdfPageSize(
 				pdf([
 					'<< /Type /Catalog /Pages 9 0 R >>',
-					'<< /Type /ObjStm /N 1 /First 4 /Filter /FlateDecode >>',
+					'<< /Type /ObjStm /N 1 /First 4 /Filter /LZWDecode /Length 1 >>\nstream\nx\nendstream',
 				]),
 			),
 		).toBeNull()

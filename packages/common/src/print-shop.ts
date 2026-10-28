@@ -349,13 +349,16 @@ export function printArtworkFit(
 	const bleedHeight = Math.max(0, extraHeight / 2)
 	if (Math.abs(bleedWidth - bleedHeight) > tolerance / 2) return { fits: false }
 	const bleedMm = (bleedWidth + bleedHeight) / 2
-	if (bleedMm > PRINT_ARTWORK_MAX_BLEED_MM + tolerance / 2) {
-		return { fits: false }
-	}
+	// Half a millimetre over the limit is point rounding; the recorded bleed
+	// never exceeds what `printArtworkSchema` accepts.
+	if (bleedMm > PRINT_ARTWORK_MAX_BLEED_MM + 0.5) return { fits: false }
 	// Under a millimetre of extra is rounding, not bleed.
 	return {
 		fits: true,
-		bleedMm: bleedMm < 1 ? 0 : Math.round(bleedMm * 10) / 10,
+		bleedMm:
+			bleedMm < 1
+				? 0
+				: Math.min(PRINT_ARTWORK_MAX_BLEED_MM, Math.round(bleedMm * 10) / 10),
 	}
 }
 

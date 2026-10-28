@@ -79,10 +79,10 @@ Settings, Show print bleed, then export with bleed). A square social post
 imported as an A3 poster is refused with a message that says what to change. The
 size is read by walking the PDF's page tree to its first page (`/MediaBox`
 inherited from parent nodes, `/Rotate` applied), never from the first box found
-in the file. When the page tree sits in compressed object streams it cannot be
-read, and the check falls back to the design's thumbnail: its shape must match
-the print within 2% (thumbnail pixels are rounded). That fallback cannot see the
-size or the bleed, so the print is recorded at the product size without bleed.
+in the file. Objects packed in compressed object streams (PDF 1.5+) are read
+too. A file whose size still cannot be read is refused ("Canva's file could not
+be read"): a thumbnail's shape cannot tell A4 from A3, nor show a bleed. The
+recorded bleed is at most 6 mm (half a millimetre over is point rounding).
 
 Only page 1 prints. A design with more pages imports with a note saying so.
 Without bleed the editor notes that a colour running to the edge can show a thin
