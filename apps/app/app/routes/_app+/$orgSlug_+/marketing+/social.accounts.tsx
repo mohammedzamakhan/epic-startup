@@ -14,6 +14,7 @@ import {
 } from '@repo/ui/alert-dialog'
 import { Badge } from '@repo/ui/badge'
 import { Button } from '@repo/ui/button'
+import { getHints } from '@repo/ui/client-hints'
 import { Icon } from '@repo/ui/icon'
 import {
 	Item,
@@ -66,6 +67,7 @@ const ActionSchema = z.discriminatedUnion('intent', [
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
 	const access = await requireSocialAccess(request, params.orgSlug)
+	const { timeZone } = getHints(request)
 	const url = new URL(request.url)
 	const connected = url.searchParams.get('connected')
 	const platform = url.searchParams.get('platform')
@@ -73,6 +75,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 	return {
 		orgSlug: access.organization.slug,
 		canWrite: access.canWrite,
+		timeZone,
 		configured: isMetaConfigured(),
 		mock: isSocialMock(),
 		accounts: await listSocialAccounts(access.organization.id),
@@ -138,7 +141,7 @@ const PLATFORM_DESCRIPTIONS: Record<SocialPlatform, MessageDescriptor> = {
 
 export default function SocialAccountsRoute() {
 	const { _, i18n } = useLingui()
-	const { orgSlug, canWrite, configured, mock, accounts, notice } =
+	const { orgSlug, canWrite, timeZone, configured, mock, accounts, notice } =
 		useLoaderData<typeof loader>()
 	const navigation = useNavigation()
 	const connecting =
@@ -148,6 +151,7 @@ export default function SocialAccountsRoute() {
 			: null
 	const connectedOn = new Intl.DateTimeFormat(i18n.locale, {
 		dateStyle: 'medium',
+		timeZone,
 	})
 
 	return (

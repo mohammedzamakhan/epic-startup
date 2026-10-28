@@ -93,3 +93,33 @@ export function monthWindow(month: string): { from: Date; to: Date } {
 		to: new Date(Date.UTC(year, monthNumber, 1) + 7 * 86_400_000),
 	}
 }
+
+/** Matches `SocialPostFormSchema` schedule rules (at least one minute ahead). */
+export const MIN_SCHEDULE_LEAD_MS = 60_000
+
+export function isScheduleLocalValid(
+	value: string,
+	timeZone: string,
+	now = new Date(),
+): boolean {
+	if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u.test(value)) return false
+	const at = fromLocalInputValue(value, timeZone)
+	return (
+		!Number.isNaN(at.getTime()) &&
+		at.getTime() >= now.getTime() + MIN_SCHEDULE_LEAD_MS
+	)
+}
+
+/** Default `datetime-local` when opening the composer for a calendar day. */
+export function schedulePrefillForDay(
+	day: string,
+	timeZone: string,
+	now = new Date(),
+): string {
+	const nine = `${day}T09:00`
+	if (isScheduleLocalValid(nine, timeZone, now)) return nine
+	return toLocalInputValue(
+		new Date(now.getTime() + MIN_SCHEDULE_LEAD_MS),
+		timeZone,
+	)
+}

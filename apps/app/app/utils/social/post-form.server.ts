@@ -23,6 +23,10 @@ export async function handleSocialPostForm(
 	request: Request,
 	access: SocialAccess,
 	postId?: string,
+	options?: {
+		/** Publish after the redirect (Workers `waitUntil`). Tests run inline. */
+		publishInBackground?: (task: () => Promise<unknown>) => void
+	},
 ) {
 	const submission = parseWithZod(await request.formData(), {
 		schema: SocialPostFormSchema,
@@ -86,7 +90,14 @@ export async function handleSocialPostForm(
 		throw error
 	}
 
-	if (intent === 'publish') await publishSocialPost(saved.id, now)
+	if (intent === 'publish') {
+		const publish = () => publishSocialPost(saved.id, now)
+		if (options?.publishInBackground) {
+			options.publishInBackground(publish)
+		} else {
+			await publish()
+		}
+	}
 	if (intent === 'schedule' && scheduledAt) {
 		await wakeSocialPublisherAt(
 			saved.id,

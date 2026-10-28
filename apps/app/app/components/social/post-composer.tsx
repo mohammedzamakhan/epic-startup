@@ -24,6 +24,7 @@ import {
 	MediaLibraryPicker,
 	type MediaLibraryAsset,
 } from '#app/components/media-library/media-library-picker.tsx'
+import { isScheduleLocalValid } from '#app/utils/social/time.ts'
 import { SocialPostFormSchema } from '#app/utils/social/post-schema.ts'
 import {
 	SOCIAL_MAX_MEDIA,
@@ -95,17 +96,24 @@ export function SocialPostComposer({
 	})
 	const [selected, setSelected] = useState<string[]>(() =>
 		defaults.accountIds.filter((accountId) =>
-			accounts.some((account) => account.id === accountId),
+			accounts.some(
+				(account) => account.id === accountId && account.status === 'active',
+			),
 		),
 	)
 	const [body, setBody] = useState(defaults.body)
 	const [media, setMedia] = useState<SocialPostMedia[]>(defaults.media)
 	const [scheduledAt, setScheduledAt] = useState(defaults.scheduledAt)
 
+	const activeSelected = selected.filter((accountId) =>
+		accounts.some(
+			(account) => account.id === accountId && account.status === 'active',
+		),
+	)
 	const platforms = [
 		...new Set(
 			accounts
-				.filter((account) => selected.includes(account.id))
+				.filter((account) => activeSelected.includes(account.id))
 				.map((account) => account.platform),
 		),
 	]
@@ -120,15 +128,20 @@ export function SocialPostComposer({
 		),
 	)
 	const textLength = [...body.trim()].length
-	const canSend = selected.length > 0 && problems.length === 0
+	const canSend = activeSelected.length > 0 && problems.length === 0
+	const canSchedule =
+		Boolean(scheduledAt) && isScheduleLocalValid(scheduledAt, timeZone)
 	const busy = submittingIntent != null
 
-	const toggleAccount = (accountId: string, checked: boolean) =>
+	const toggleAccount = (accountId: string, checked: boolean) => {
+		const account = accounts.find((item) => item.id === accountId)
+		if (!account || account.status === 'needs_reauth') return
 		setSelected((current) =>
 			checked
 				? [...new Set([...current, accountId])]
 				: current.filter((value) => value !== accountId),
 		)
+	}
 
 	const addMedia = (asset: MediaLibraryAsset) =>
 		setMedia((current) =>
@@ -392,7 +405,7 @@ export function SocialPostComposer({
 					name="intent"
 					value="schedule"
 					variant="secondary"
-					disabled={!canSend || !scheduledAt || busy}
+					disabled={!canSend || !canSchedule || busy}
 				>
 					<Icon name="calendar-clock" />
 					{_(msg`Schedule`)}

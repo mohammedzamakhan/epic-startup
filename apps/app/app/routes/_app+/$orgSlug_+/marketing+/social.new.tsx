@@ -12,7 +12,8 @@ import { SocialPostComposer } from '#app/components/social/post-composer.tsx'
 import { requireSocialAccess } from '#app/utils/social/access.server.ts'
 import { listSocialAccounts } from '#app/utils/social/accounts.server.ts'
 import { handleSocialPostForm } from '#app/utils/social/post-form.server.ts'
-import { dayKey } from '#app/utils/social/time.ts'
+import { runAfterResponse } from '#app/utils/after-response.server.ts'
+import { schedulePrefillForDay, dayKey } from '#app/utils/social/time.ts'
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
 	const access = await requireSocialAccess(request, params.orgSlug, {
@@ -25,19 +26,24 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 		date &&
 		/^\d{4}-\d{2}-\d{2}$/u.test(date) &&
 		date >= dayKey(new Date(), timeZone)
+	const now = new Date()
 	return {
 		orgSlug: access.organization.slug,
 		timeZone,
-		scheduledAt: validDate ? `${date}T09:00` : '',
+		scheduledAt: validDate
+			? schedulePrefillForDay(validDate, timeZone, now)
+			: '',
 		accounts: await listSocialAccounts(access.organization.id),
 	}
 }
 
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request, params, context }: ActionFunctionArgs) {
 	const access = await requireSocialAccess(request, params.orgSlug, {
 		write: true,
 	})
-	return handleSocialPostForm(request, access)
+	return handleSocialPostForm(request, access, undefined, {
+		publishInBackground: (task) => runAfterResponse(context, task),
+	})
 }
 
 export default function NewSocialPostRoute() {

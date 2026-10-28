@@ -6,6 +6,7 @@ import {
 	desc,
 	eq,
 	inArray,
+	isD1Bound,
 	isNotNull,
 	isNull,
 	lt,
@@ -171,37 +172,95 @@ export async function saveSocialPost(
 		platform: account.platform,
 		accountName: account.username ? `@${account.username}` : account.name,
 	}))
-	const id = await db.transaction(async (tx) => {
-		let id = postId
-		if (id) {
-			const updated = await tx
-				.update(SocialPost)
-				.set(values)
-				.where(
-					and(
-						eq(SocialPost.id, id),
-						eq(SocialPost.organizationId, organizationId),
-						inArray(SocialPost.status, [...EDITABLE_STATUSES]),
+
+	if (postId) {
+		const [updated] = await db
+			.update(SocialPost)
+			.set(values)
+			.where(
+				and(
+					eq(SocialPost.id, postId),
+					eq(SocialPost.organizationId, organizationId),
+					inArray(SocialPost.status, [...EDITABLE_STATUSES]),
+				),
+			)
+			.returning({ id: SocialPost.id, updatedAt: SocialPost.updatedAt })
+		if (!updated) throw new SocialPostConflict()
+
+		if (isD1Bound()) {
+			await db.batch([
+				db
+					.delete(SocialPostTarget)
+					.where(
+						and(
+							eq(SocialPostTarget.postId, postId),
+							sql`exists (select 1 from ${SocialPost} as p where p.id = ${postId} and p.updated_at = ${updated.updatedAt.getTime()} and p.status in ('draft', 'scheduled'))`,
+						),
 					),
-				)
-				.returning({ id: SocialPost.id })
-			if (updated.length === 0) throw new SocialPostConflict()
-			await tx.delete(SocialPostTarget).where(eq(SocialPostTarget.postId, id))
+				...(targets.length > 0
+					? [
+							db.insert(SocialPostTarget).values(
+								targets.map((target) => ({ postId, ...target })),
+							),
+						]
+					: []),
+			])
+			const [row] = await db
+				.select({ status: SocialPost.status })
+				.from(SocialPost)
+				.where(eq(SocialPost.id, postId))
+			if (
+				!row ||
+				!(EDITABLE_STATUSES as readonly string[]).includes(row.status)
+			) {
+				throw new SocialPostConflict()
+			}
 		} else {
-			const [created] = await tx
-				.insert(SocialPost)
-				.values({ organizationId, createdById: owner.userId, ...values })
-				.returning({ id: SocialPost.id })
-			id = created!.id
+			await db.transaction(async (tx) => {
+				await tx
+					.delete(SocialPostTarget)
+					.where(eq(SocialPostTarget.postId, postId))
+				if (targets.length > 0) {
+					await tx
+						.insert(SocialPostTarget)
+						.values(targets.map((target) => ({ postId, ...target })))
+				}
+			})
 		}
+
+		return { id: postId, media }
+	}
+
+	if (isD1Bound()) {
+		const [created] = await db
+			.insert(SocialPost)
+			.values({ organizationId, createdById: owner.userId, ...values })
+			.returning({ id: SocialPost.id })
+		const newId = created!.id
+		if (targets.length > 0) {
+			await db.batch([
+				db
+					.insert(SocialPostTarget)
+					.values(targets.map((target) => ({ postId: newId, ...target }))),
+			])
+		}
+		return { id: newId, media }
+	}
+
+	const newId = await db.transaction(async (tx) => {
+		const [created] = await tx
+			.insert(SocialPost)
+			.values({ organizationId, createdById: owner.userId, ...values })
+			.returning({ id: SocialPost.id })
+		const id = created!.id
 		if (targets.length > 0) {
 			await tx
 				.insert(SocialPostTarget)
-				.values(targets.map((target) => ({ postId: id!, ...target })))
+				.values(targets.map((target) => ({ postId: id, ...target })))
 		}
 		return id
 	})
-	return { id, media }
+	return { id: newId, media }
 }
 
 async function targetsOf(postIds: string[]) {

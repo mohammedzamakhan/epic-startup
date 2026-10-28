@@ -47,6 +47,7 @@ import {
 	SocialPostStatusBadge,
 	SocialTargetStatusBadge,
 } from '#app/components/social/social-ui.tsx'
+import { runAfterResponse } from '#app/utils/after-response.server.ts'
 import { requireSocialAccess } from '#app/utils/social/access.server.ts'
 import { listSocialAccounts } from '#app/utils/social/accounts.server.ts'
 import { handleSocialPostForm } from '#app/utils/social/post-form.server.ts'
@@ -81,7 +82,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 	}
 }
 
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request, params, context }: ActionFunctionArgs) {
 	const access = await requireSocialAccess(request, params.orgSlug, {
 		write: true,
 	})
@@ -130,7 +131,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 	const post = await getSocialPost(organizationId, postId)
 	if (!post) throw new Response('Not Found', { status: 404 })
-	return handleSocialPostForm(request, access, postId)
+	return handleSocialPostForm(request, access, postId, {
+		publishInBackground: (task) => runAfterResponse(context, task),
+	})
 }
 
 function DeletePostDialog({ published }: { published: boolean }) {
