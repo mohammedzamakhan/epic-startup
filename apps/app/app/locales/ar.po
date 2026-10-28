@@ -482,7 +482,7 @@ msgstr "{clientName} يطلب الوصول إلى بيانات منظمتك"
 msgid "{complete} of {total} done"
 msgstr "تم إنجاز {complete} من {total}"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:317
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:320
 msgid "{copies} printed"
 msgstr "{copies} مطبوعة"
 
@@ -2130,7 +2130,7 @@ msgstr "أضف كل حقل وسمّه ورتّبه."
 msgid "Added a shift"
 msgstr "إضافة وردية"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:345
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:348
 msgid "Added at payment"
 msgstr "تُضاف عند الدفع"
 
@@ -3814,8 +3814,8 @@ msgstr "إلغاء التعديل"
 msgid "Cancel interview"
 msgstr "إلغاء المقابلة"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:390
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:420
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:393
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:423
 msgid "Cancel order"
 msgstr "إلغاء الطلب"
 
@@ -3828,7 +3828,7 @@ msgstr "إلغاء الرد"
 msgid "Cancel request"
 msgstr "إلغاء الطلب"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:397
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:400
 msgid "Cancel this order?"
 msgstr "إلغاء هذا الطلب؟"
 
@@ -4943,7 +4943,7 @@ msgstr "أكد كلمة المرور الجديدة"
 msgid "Confirm your password"
 msgstr "أكد كلمة المرور"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:232
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:235
 msgid "Confirmation is taking longer than usual. Refresh in a minute."
 msgstr "يستغرق التأكيد وقتًا أطول من المعتاد. حدّث الصفحة بعد دقيقة."
 
@@ -8321,7 +8321,7 @@ msgstr "جارٍ إنشاء متغيرات الأيقونة. قد يستغرق �
 msgid "Generating..."
 msgstr "جاري الإنشاء..."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:443
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:446
 msgid "Get a new price"
 msgstr "الحصول على سعر جديد"
 
@@ -9315,7 +9315,7 @@ msgstr "موثّق (صحيح)"
 msgid "Issued"
 msgstr "تاريخ الإصدار"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:252
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:255
 msgid "It could not be completed or was cancelled, so the full amount went back to the card you paid with. It can take a few days to show."
 msgstr "تعذّر إكماله أو أُلغي، لذلك أُعيد المبلغ كاملًا إلى البطاقة التي دفعت بها. قد يستغرق ظهوره بضعة أيام."
 
@@ -9473,7 +9473,7 @@ msgstr "إبقاؤه"
 msgid "Keep recordings for"
 msgstr "الاحتفاظ بالتسجيلات لمدة"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:410
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:413
 msgid "Keep the order"
 msgstr "الإبقاء على الطلب"
 
@@ -9646,7 +9646,7 @@ msgstr "اللغات"
 msgid "Large"
 msgstr "كبير"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:470
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:473
 msgid "Large orders can arrive in more than one parcel."
 msgstr "قد تصل الطلبات الكبيرة في أكثر من طرد."
 
@@ -12275,7 +12275,7 @@ msgstr "لم يتغير شيء في هذه البطاقة بعد."
 msgid "Nothing could be answered from your business details. Add the answers yourself."
 msgstr "تعذرت الإجابة عن أي شيء من تفاصيل نشاطك التجاري. أضف الإجابات بنفسك."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:402
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:405
 msgid "Nothing has been charged yet."
 msgstr "لم يُحصَّل أي مبلغ بعد."
 
@@ -12348,11 +12348,11 @@ msgstr "لا يوجد ما يُعرض هنا"
 msgid "Nothing waiting for a manager."
 msgstr "لا شيء بانتظار المدير."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:261
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:264
 msgid "Nothing was charged. Start a new order whenever you are ready."
 msgstr "لم يُحصَّل أي مبلغ. ابدأ طلبًا جديدًا متى كنت جاهزًا."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:270
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:273
 msgid "Nothing was charged. You can pay again below."
 msgstr "لم يُحصَّل أي مبلغ. يمكنك الدفع مجددًا أدناه."
 
@@ -13408,7 +13408,7 @@ msgstr "إعدادات فترة الرواتب"
 msgid "Pay rate"
 msgstr "معدل الأجر"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:381
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:384
 msgid "Pay securely"
 msgstr "ادفع بأمان"
 
@@ -13433,11 +13433,11 @@ msgstr "الدفع غير متاح الآن. حاول مجددًا بعد دقي
 msgid "Payment mock"
 msgstr "محاكاة المدفوعات"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:268
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:271
 msgid "Payment not finished"
 msgstr "لم يكتمل الدفع"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:225
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:228
 msgid "Payment received"
 msgstr "تم استلام الدفعة"
 
@@ -14266,13 +14266,13 @@ msgstr "الطباعة في المنزل (A4)"
 msgid "Print at home (US Letter)"
 msgstr "الطباعة في المنزل (US Letter)"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:211
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:214
 msgid "Print order"
 msgstr "طلب طباعة"
 
 #: app/routes/_app+/$orgSlug_+/marketing+/print._index.tsx:62
 #: app/routes/_app+/$orgSlug_+/marketing+/print.orders._index.tsx:55
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:218
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:221
 #: app/routes/_app+/$orgSlug_+/marketing+/print.orders.new.tsx:195
 msgid "Print orders"
 msgstr "طلبات الطباعة"
@@ -14301,7 +14301,7 @@ msgstr "تُطبع وتُشحن حتى بابك. يمكنك الإلغاء حت�
 msgid "Printing"
 msgstr "قيد الطباعة"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:329
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:332
 msgid "Prints"
 msgstr "المطبوعات"
 
@@ -14789,7 +14789,7 @@ msgid "Referrer"
 msgstr "المُحيل"
 
 #: app/components/staff/timeclock-today.tsx:172
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:242
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:245
 #: app/routes/_app+/$orgSlug_+/phone-agent+/calls.tsx:347
 msgid "Refresh"
 msgstr "تحديث"
@@ -14813,7 +14813,7 @@ msgid "Refresh status"
 msgstr "تحديث الحالة"
 
 #: app/components/print/print-order-labels.ts:21
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:364
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:367
 msgid "Refunded"
 msgstr "تم الاسترداد"
 
@@ -15730,7 +15730,7 @@ msgstr "المبيعات في الساعة"
 msgid "Sales per labor hour"
 msgstr "المبيعات لكل ساعة عمل"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:341
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:344
 msgid "Sales tax"
 msgstr "ضريبة المبيعات"
 
@@ -16899,7 +16899,7 @@ msgstr "الورديات وبطاقات الدوام وتكلفة العمالة
 msgid "Ship from"
 msgstr "الشحن من"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:453
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:456
 #: app/routes/_app+/$orgSlug_+/marketing+/print.orders.new.tsx:306
 msgid "Ship to"
 msgstr "الشحن إلى"
@@ -16924,7 +16924,7 @@ msgstr "المطبوعات المشحونة متوقفة مؤقتًا. حاول 
 msgid "Shipped to a US address. You see the price with shipping before you pay; sales tax is added at payment."
 msgstr "تُشحن إلى عنوان في الولايات المتحدة. ترى السعر مع الشحن قبل الدفع، وتُضاف ضريبة المبيعات عند الدفع."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:335
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:338
 msgid "Shipping"
 msgstr "الشحن"
 
@@ -17785,7 +17785,7 @@ msgstr "تلخيص هذه الملاحظة"
 
 #: app/components/phone-agent/call-detail-sheet.tsx:415
 #: app/components/staff/timesheets/timesheets-page.tsx:538
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:295
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:298
 msgid "Summary"
 msgstr "الملخص"
 
@@ -18289,7 +18289,7 @@ msgstr "هذا التاريخ ليس بداية فترة رواتب."
 msgid "That date is already listed."
 msgstr "هذا التاريخ مضاف بالفعل."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:286
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:289
 msgid "That did not work"
 msgstr "لم ينجح ذلك"
 
@@ -19372,11 +19372,11 @@ msgstr "هذا الطلب مدفوع أو مغلق بالفعل."
 msgid "This order is changing right now. Refresh and try again."
 msgstr "هذا الطلب يتغيّر الآن. حدّث الصفحة وحاول مجددًا."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:258
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:261
 msgid "This order was cancelled"
 msgstr "أُلغي هذا الطلب"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:249
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:252
 msgid "This order was refunded"
 msgstr "استُرد مبلغ هذا الطلب"
 
@@ -19473,7 +19473,7 @@ msgstr "هذا الرقم السري متوقف مؤقتًا لبضع دقائق
 msgid "This preview couldn't play."
 msgstr "تعذّر تشغيل هذه المعاينة."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:438
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:441
 msgid "This price has expired."
 msgstr "انتهت صلاحية هذا السعر."
 
@@ -19481,7 +19481,7 @@ msgstr "انتهت صلاحية هذا السعر."
 msgid "This price has expired. Get a new price."
 msgstr "انتهت صلاحية هذا السعر. احصل على سعر جديد."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:429
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:432
 msgid "This price is held until {expiresAt}."
 msgstr "هذا السعر محجوز حتى {expiresAt}."
 
@@ -19970,7 +19970,7 @@ msgstr "الموضوع"
 #: app/components/staff/timesheets/payroll-summary.tsx:426
 #: app/components/staff/timesheets/timesheet-table.tsx:376
 #: app/components/staff/timesheets/timesheet-table.tsx:559
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:356
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:359
 msgid "Total"
 msgstr "الإجمالي"
 
@@ -19978,7 +19978,7 @@ msgstr "الإجمالي"
 msgid "Total {totalText} of 100"
 msgstr "المجموع {totalText} من 100"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:355
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:358
 msgid "Total before sales tax"
 msgstr "الإجمالي قبل ضريبة المبيعات"
 
@@ -19994,7 +19994,7 @@ msgstr "إجمالي الملاحظات والمتوسط اليومي والات
 msgid "Track time at this workplace"
 msgstr "تتبّع الوقت في مكان العمل هذا"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:468
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:471
 msgid "Tracking"
 msgstr "التتبع"
 
@@ -21305,11 +21305,11 @@ msgstr "تحذيرات"
 msgid "Warnings do not stop you from saving or publishing."
 msgstr "التحذيرات لا تمنعك من الحفظ أو النشر."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:279
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:282
 msgid "We are checking it with the printer and will update you by email. You can still cancel for a full refund."
 msgstr "نتحقق منه مع المطبعة وسنبلغك بالبريد الإلكتروني. ما زال بإمكانك الإلغاء واسترداد المبلغ كاملًا."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:229
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:232
 msgid "We are confirming it with the bank. This page updates in a moment."
 msgstr "نؤكده مع البنك. ستتحدّث هذه الصفحة بعد لحظات."
 
@@ -22308,7 +22308,7 @@ msgstr "ليست لديك صلاحية للقيام بذلك."
 msgid "You don't have permission to see this report's data."
 msgstr "ليست لديك صلاحية لعرض بيانات هذا التقرير."
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:404
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:407
 msgid "You get a full refund to the card you paid with."
 msgstr "يُسترد المبلغ كاملًا إلى البطاقة التي دفعت بها."
 
@@ -22532,7 +22532,7 @@ msgstr "ورديّاتك القادمة"
 msgid "Your note: {text}"
 msgstr "ملاحظتك: {text}"
 
-#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:276
+#: app/routes/_app+/$orgSlug_+/marketing+/print.orders.$orderId.tsx:279
 msgid "Your order is on hold"
 msgstr "طلبك معلّق"
 
