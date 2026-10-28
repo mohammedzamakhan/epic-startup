@@ -63,6 +63,12 @@ describe('time helpers', () => {
 		expect(before.toISOString()).toBe('2026-03-07T14:00:00.000Z')
 	})
 
+	it('rejects impossible calendar dates', () => {
+		expect(Number.isNaN(fromLocalInputValue('2026-02-30T09:00', 'UTC').getTime())).toBe(
+			true,
+		)
+	})
+
 	it('groups by the day in the member’s time zone', () => {
 		const at = new Date('2026-10-01T02:00:00Z')
 		expect(dayKey(at, 'UTC')).toBe('2026-10-01')

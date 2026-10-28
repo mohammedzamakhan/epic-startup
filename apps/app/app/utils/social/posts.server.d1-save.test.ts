@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const FIXED_NOW = new Date('2026-10-28T12:00:00.000Z')
 
 const batchMock = vi.hoisted(() =>
-	vi.fn(async () => [
+	vi.fn<(statements: unknown[]) => Promise<unknown[]>>(async () => [
 		[{ id: 'post-1' }],
 		{ meta: { changes: 0 } },
 		{ meta: { changes: 1 } },
@@ -83,7 +83,7 @@ describe('saveSocialPost D1 edit batch', () => {
 		)
 
 		expect(batchMock).toHaveBeenCalledTimes(1)
-		const statements = batchMock.mock.calls[0]?.[0]
+		const statements = batchMock.mock.calls[0]![0]
 		expect(statements).toHaveLength(3)
 		expect(insertMock).toHaveBeenCalledTimes(1)
 	})
