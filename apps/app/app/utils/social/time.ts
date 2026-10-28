@@ -58,7 +58,11 @@ export function fromLocalInputValue(value: string, timeZone: string): Date {
 			.map(Number) as number[]
 		guess += wall - Date.UTC(sy!, smo! - 1, sd!, sh!, smi!)
 	}
-	return new Date(guess)
+	const at = new Date(guess)
+	if (toLocalInputValue(at, timeZone) !== value) {
+		return new Date(Number.NaN)
+	}
+	return at
 }
 
 export function isMonthKey(value: string | null): value is string {
@@ -119,7 +123,7 @@ export function schedulePrefillForDay(
 	const nine = `${day}T09:00`
 	if (isScheduleLocalValid(nine, timeZone, now)) return nine
 	return toLocalInputValue(
-		new Date(now.getTime() + MIN_SCHEDULE_LEAD_MS),
+		new Date(now.getTime() + 2 * MIN_SCHEDULE_LEAD_MS),
 		timeZone,
 	)
 }

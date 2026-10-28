@@ -1,9 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const FIXED_NOW = new Date('2026-10-28T12:00:00.000Z')
 
 const batchMock = vi.hoisted(() =>
-	vi.fn(async () => [[{ id: 'post-1' }], { meta: { changes: 0 } }]),
+	vi.fn(async () => [
+		[{ id: 'post-1' }],
+		{ meta: { changes: 0 } },
+		{ meta: { changes: 1 } },
+	]),
 )
 const insertMock = vi.hoisted(() =>
 	vi.fn(() => ({
@@ -65,7 +69,7 @@ describe('saveSocialPost D1 edit batch', () => {
 		isD1Mock.mockReturnValue(true)
 	})
 
-	it('updates and deletes in one batch, then inserts targets with builders', async () => {
+	it('updates, deletes, and inserts targets in one D1 batch', async () => {
 		await saveSocialPost(
 			{ userId: 'user-1', organization: { id: 'org-1' } },
 			{
@@ -80,7 +84,7 @@ describe('saveSocialPost D1 edit batch', () => {
 
 		expect(batchMock).toHaveBeenCalledTimes(1)
 		const statements = batchMock.mock.calls[0]?.[0]
-		expect(statements).toHaveLength(2)
+		expect(statements).toHaveLength(3)
 		expect(insertMock).toHaveBeenCalledTimes(1)
 	})
 

@@ -1,3 +1,4 @@
+import { createId } from '@paralleldrive/cuid2'
 import {
 	and,
 	asc,
@@ -48,6 +49,32 @@ const RETRYABLE_STATUSES = ['failed', 'partial'] as const
 
 function socialPostRevisionGuard(postId: string, updatedAtMs: number) {
 	return sql`exists (select 1 from ${SocialPost} as p where p.id = ${postId} and p."updatedAt" = ${updatedAtMs} and p.status in ('draft', 'scheduled'))`
+}
+
+/** D1 allows 100 bound parameters per statement; a target row binds several fields. */
+const TARGET_INSERT_CHUNK = 10
+
+function chunkRows<T>(rows: T[], size: number): T[][] {
+	const out: T[][] = []
+	for (let i = 0; i < rows.length; i += size) out.push(rows.slice(i, i + size))
+	return out
+}
+
+type SocialPostTargetRow = {
+	postId: string
+	socialAccountId: string
+	platform: SocialPlatform
+	accountName: string
+}
+
+function socialPostTargetInsertStatements(
+	postId: string,
+	targets: Omit<SocialPostTargetRow, 'postId'>[],
+) {
+	return chunkRows(
+		targets.map((target) => ({ postId, ...target })),
+		TARGET_INSERT_CHUNK,
+	).map((rows) => db.insert(SocialPostTarget).values(rows))
 }
 
 /** A post still `publishing` after this long was interrupted. */
@@ -180,49 +207,33 @@ export async function saveSocialPost(
 	if (postId) {
 		if (isD1Bound()) {
 			const saveStamp = Date.now()
-			const batchResult = await db.batch([
-				db
-					.update(SocialPost)
-					.set({ ...values, updatedAt: new Date(saveStamp) })
-					.where(
-						and(
-							eq(SocialPost.id, postId),
-							eq(SocialPost.organizationId, organizationId),
-							inArray(SocialPost.status, [...EDITABLE_STATUSES]),
-						),
-					)
-					.returning({ id: SocialPost.id }),
-				db
-					.delete(SocialPostTarget)
-					.where(
-						and(
-							eq(SocialPostTarget.postId, postId),
-							socialPostRevisionGuard(postId, saveStamp),
-						),
+			const updatePost = db
+				.update(SocialPost)
+				.set({ ...values, updatedAt: new Date(saveStamp) })
+				.where(
+					and(
+						eq(SocialPost.id, postId),
+						eq(SocialPost.organizationId, organizationId),
+						inArray(SocialPost.status, [...EDITABLE_STATUSES]),
 					),
+				)
+				.returning({ id: SocialPost.id })
+			const deleteTargets = db
+				.delete(SocialPostTarget)
+				.where(
+					and(
+						eq(SocialPostTarget.postId, postId),
+						socialPostRevisionGuard(postId, saveStamp),
+					),
+				)
+			const targetInserts = socialPostTargetInsertStatements(postId, targets)
+			const batchResult = await db.batch([
+				updatePost,
+				deleteTargets,
+				...targetInserts,
 			])
 			const updatedRows = batchResult[0] as { id: string }[] | undefined
 			if (!updatedRows?.[0]?.id) throw new SocialPostConflict()
-
-			if (targets.length > 0) {
-				const [revision] = await db
-					.select({
-						status: SocialPost.status,
-						updatedAt: SocialPost.updatedAt,
-					})
-					.from(SocialPost)
-					.where(eq(SocialPost.id, postId))
-				if (
-					!revision ||
-					revision.updatedAt.getTime() !== saveStamp ||
-					!(EDITABLE_STATUSES as readonly string[]).includes(revision.status)
-				) {
-					throw new SocialPostConflict()
-				}
-				await db.insert(SocialPostTarget).values(
-					targets.map((target) => ({ postId, ...target })),
-				)
-			}
 		} else {
 			await db.transaction(async (tx) => {
 				const [updated] = await tx
@@ -252,15 +263,18 @@ export async function saveSocialPost(
 	}
 
 	if (isD1Bound()) {
-		const [created] = await db
-			.insert(SocialPost)
-			.values({ organizationId, createdById: owner.userId, ...values })
-			.returning({ id: SocialPost.id })
-		const newId = created!.id
-		if (targets.length > 0) {
-			await db.insert(SocialPostTarget).values(
-				targets.map((target) => ({ postId: newId, ...target })),
-			)
+		const newId = createId()
+		const insertPost = db.insert(SocialPost).values({
+			id: newId,
+			organizationId,
+			createdById: owner.userId,
+			...values,
+		})
+		const targetInserts = socialPostTargetInsertStatements(newId, targets)
+		if (targetInserts.length === 0) {
+			await insertPost
+		} else {
+			await db.batch([insertPost, ...targetInserts])
 		}
 		return { id: newId, media }
 	}
