@@ -155,6 +155,18 @@ jobs:
       - name: 🛠 Setup Database
         run: npm run db:migrate:deploy && npm run db:generate
 
+      # drizzle-kit generate writes a migration when schema.ts and the latest
+      # snapshot disagree; a fork that renumbers upstream migrations relies on this.
+      - name: 🧭 Schemas match their migrations
+        run: |
+          npm run db:generate -w @repo/tenant-db
+          drift=$(git status --porcelain -- packages/database/drizzle packages/tenant-db/drizzle)
+          if [ -n "$drift" ]; then
+            echo "::error::schema.ts differs from the latest migration snapshot. Generate and commit a migration."
+            echo "$drift"
+            exit 1
+          fi
+
       - name: 🔐 Write CI app env files
         run: node scripts/write-ci-app-env.mjs
         env:

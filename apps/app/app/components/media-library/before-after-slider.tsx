@@ -65,9 +65,23 @@ export function BeforeAfterSlider({
 				draggable={false}
 				style={{ mask, WebkitMask: mask }}
 			/>
+			<input
+				type="range"
+				min={0}
+				max={100}
+				value={position}
+				onChange={(event) => {
+					if (frame.current !== null) cancelAnimationFrame(frame.current)
+					frame.current = null
+					setPosition(Number(event.currentTarget.value))
+				}}
+				aria-label={_(msg`Compare before and after`)}
+				className="peer absolute inset-0 size-full cursor-ew-resize opacity-0"
+			/>
+			{/* The range input is invisible: show its keyboard focus on the handle. */}
 			<div
 				aria-hidden
-				className="bg-background pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 shadow-sm"
+				className="bg-background peer-focus-visible:*:ring-ring pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 shadow-sm peer-focus-visible:*:ring-2"
 				style={{ left: `${position}%` }}
 			>
 				<span className="bg-background text-foreground absolute top-1/2 left-1/2 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border shadow-sm">
@@ -80,19 +94,6 @@ export function BeforeAfterSlider({
 			<span className="bg-background/80 text-foreground pointer-events-none absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm">
 				{afterLabel}
 			</span>
-			<input
-				type="range"
-				min={0}
-				max={100}
-				value={position}
-				onChange={(event) => {
-					if (frame.current !== null) cancelAnimationFrame(frame.current)
-					frame.current = null
-					setPosition(Number(event.currentTarget.value))
-				}}
-				aria-label={_(msg`Compare before and after`)}
-				className="absolute inset-0 size-full cursor-ew-resize opacity-0"
-			/>
 		</div>
 	)
 }

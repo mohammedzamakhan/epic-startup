@@ -837,8 +837,18 @@ export async function handlePrintStripeSession(
 		return
 	}
 	await notifyPrintOrder(order.id, 'paid')
-	if (options.later) options.later(() => submitPrintOrder(order.id))
-	else await submitPrintOrder(order.id)
+	if (options.later) {
+		// Stripe already has its answer, so a failure here is not retried by
+		// Stripe: the order stays `paid` and the print-sync sweep submits it.
+		options.later(() =>
+			submitPrintOrder(order.id).catch((error: unknown) => {
+				console.error('Print order submission after the webhook failed', {
+					orderId: order.id,
+					error: error instanceof Error ? error.message : String(error),
+				})
+			}),
+		)
+	} else await submitPrintOrder(order.id)
 }
 
 // ---------------------------------------------------------------------------
