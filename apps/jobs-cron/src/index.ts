@@ -41,9 +41,10 @@ const TENANT_HOURLY_CRON = '0 * * * *'
 // Hourly App job: fetches the status of shipped print orders whose vendor
 // webhook may have been missed.
 const PRINT_SYNC_PATH = '/resources/jobs/print-sync'
-// Workflows sleep at most 365 days; a post due later than that is left to the
-// hourly social-publish sweep.
-const SOCIAL_POST_MAX_LEAD_MS = 365 * 24 * 60 * 60_000
+// Workflows sleep at most 365 days; a day of margin covers clock skew between
+// the App and this Worker. A post due later is left to the hourly
+// social-publish sweep (the App logs the refused wake-up and carries on).
+const SOCIAL_POST_MAX_LEAD_MS = 364 * 24 * 60 * 60_000
 
 async function safeCompareAsync(
 	a: string | null | undefined,

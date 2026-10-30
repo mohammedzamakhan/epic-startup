@@ -35,6 +35,7 @@ import {
 	User,
 } from '@repo/database'
 import { sendEmail, StaffingAlertEmail } from '@repo/email'
+import { logger } from '@repo/observability'
 import { createElement } from 'react'
 import type Stripe from 'stripe'
 import { ENV } from 'varlock/env'
@@ -838,14 +839,16 @@ export async function handlePrintStripeSession(
 	}
 	await notifyPrintOrder(order.id, 'paid')
 	if (options.later) {
-		// Stripe already has its answer, so a failure here is not retried by
-		// Stripe: the order stays `paid` and the print-sync sweep submits it.
+		// Stripe already has its answer, so it never retries a failure here.
+		// An order that never got claimed stays `paid` and the print-sync sweep
+		// submits it; one that failed after its claim is `held`
+		// (`submission_error`) and waits in Admin's print queue.
 		options.later(() =>
 			submitPrintOrder(order.id).catch((error: unknown) => {
-				console.error('Print order submission after the webhook failed', {
-					orderId: order.id,
-					error: error instanceof Error ? error.message : String(error),
-				})
+				logger.error(
+					{ orderId: order.id, err: error },
+					'Print order submission after the webhook failed',
+				)
 			}),
 		)
 	} else await submitPrintOrder(order.id)
@@ -1090,6 +1093,10 @@ async function submitClaimedOrder(
 			return 'done'
 		}
 		// Nothing reached a vendor in this run: safe to retry.
+		logger.error(
+			{ orderId: order.id, err: error },
+			'Print order held: a vendor quote failed',
+		)
 		await hold(order.id, 'vendor_unavailable')
 		return 'done'
 	}

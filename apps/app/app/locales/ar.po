@@ -480,6 +480,10 @@ msgstr "{backupCodesRemaining} رموز غير مستخدمة متبقية"
 msgid "{basePriceLabel} billed annually"
 msgstr "{basePriceLabel} يُفوتر سنوياً"
 
+#: app/components/media-library/before-after-slider.tsx:81
+msgid "{before}% before, {after}% after"
+msgstr "قبل {before}٪، بعد {after}٪"
+
 #: app/routes/_app+/$orgSlug_+/marketing+/print.$designId.tsx:1200
 msgid "{bleed} mm bleed"
 msgstr "هامش قص {bleed} مم"
@@ -1040,9 +1044,13 @@ msgstr "تم تحديد {selectedRoleCount} من الأدوار و{selectedMembe
 msgid "{status}"
 msgstr "{status}"
 
-#: app/components/social/social-calendar.tsx:120
+#: app/components/social/social-calendar.tsx:130
 msgid "{status}, {at}, {platforms}: {text}"
 msgstr "{status}، {at}، {platforms}: {text}"
+
+#: app/components/social/social-calendar.tsx:128
+msgid "{status}, {platforms}: {text}"
+msgstr "{status}، {platforms}: {text}"
 
 #: app/routes/_app+/$orgSlug_+/marketing+/automations._index.tsx:362
 msgid "{stepCount} steps"
@@ -4982,7 +4990,7 @@ msgstr "التواصل"
 msgid "Community"
 msgstr "المجتمع"
 
-#: app/components/media-library/before-after-slider.tsx:78
+#: app/components/media-library/before-after-slider.tsx:80
 msgid "Compare before and after"
 msgstr "مقارنة قبل وبعد"
 
@@ -9347,9 +9355,9 @@ msgstr "تمت إضافة الصورة إلى مكتبة الوسائط"
 msgid "Image link copied"
 msgstr "تم نسخ رابط الصورة"
 
-#: app/components/social/social-calendar.tsx:119
-#: app/components/social/social-calendar.tsx:201
-#: app/components/social/social-calendar.tsx:251
+#: app/components/social/social-calendar.tsx:124
+#: app/components/social/social-calendar.tsx:213
+#: app/components/social/social-calendar.tsx:263
 msgid "Image post"
 msgstr "منشور بصورة"
 
@@ -11694,7 +11702,7 @@ msgstr "رمز سري جديد لـ {scopeName}"
 msgid "New post"
 msgstr "منشور جديد"
 
-#: app/components/social/social-calendar.tsx:167
+#: app/components/social/social-calendar.tsx:177
 msgid "New post on {label}"
 msgstr "منشور جديد في {label}"
 
@@ -11955,7 +11963,7 @@ msgstr "لا يوجد محتوى بعد"
 msgid "No custom roles created yet."
 msgstr "لم يتم إنشاء أدوار مخصصة بعد."
 
-#: app/components/social/social-calendar.tsx:257
+#: app/components/social/social-calendar.tsx:269
 msgid "No date"
 msgstr "بلا تاريخ"
 

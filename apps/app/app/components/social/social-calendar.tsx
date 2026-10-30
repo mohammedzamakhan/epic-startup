@@ -51,6 +51,9 @@ const STATUS_ICON: Record<
 	failed: { icon: 'circle-x', className: 'text-destructive' },
 }
 
+/** How much of a post's text its calendar link name carries. */
+const LABEL_TEXT_MAX = 80
+
 function StatusDot({ status }: { status: SocialPostStatus }) {
 	const { icon, className } = STATUS_ICON[status]
 	return (
@@ -112,11 +115,18 @@ export function SocialCalendar({
 	})
 	function postLabel(post: CalendarPost) {
 		const status = _(SOCIAL_POST_STATUS_LABELS[post.status])
-		const at = time.format(new Date(post.at!))
 		const platforms = post.platforms
 			.map((platform) => _(SOCIAL_PLATFORM_LABELS[platform]))
 			.join(', ')
-		const text = post.body || _(msg`Image post`)
+		// The full text stays in the link's title; the name keeps it short.
+		const body = post.body.trim()
+		const text = !body
+			? _(msg`Image post`)
+			: body.length > LABEL_TEXT_MAX
+				? `${body.slice(0, LABEL_TEXT_MAX).trimEnd()}…`
+				: body
+		if (!post.at) return _(msg`${status}, ${platforms}: ${text}`)
+		const at = time.format(new Date(post.at))
 		return _(msg`${status}, ${at}, ${platforms}: ${text}`)
 	}
 
@@ -182,12 +192,14 @@ export function SocialCalendar({
 											aria-label={postLabel(post)}
 										>
 											<StatusDot status={post.status} />
-											<time
-												dateTime={post.at ?? undefined}
-												className="hidden tabular-nums md:inline"
-											>
-												{time.format(new Date(post.at!))}
-											</time>
+											{post.at ? (
+												<time
+													dateTime={post.at}
+													className="hidden tabular-nums md:inline"
+												>
+													{time.format(new Date(post.at))}
+												</time>
+											) : null}
 											<span className="flex shrink-0 gap-0.5">
 												{post.platforms.map((platform) => (
 													<SocialPlatformIcon

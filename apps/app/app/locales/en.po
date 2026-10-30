@@ -482,6 +482,10 @@ msgstr ""
 msgid "{basePriceLabel} billed annually"
 msgstr ""
 
+#: app/components/media-library/before-after-slider.tsx:81
+msgid "{before}% before, {after}% after"
+msgstr "{before}% before, {after}% after"
+
 #: app/routes/_app+/$orgSlug_+/marketing+/print.$designId.tsx:1200
 msgid "{bleed} mm bleed"
 msgstr "{bleed} mm bleed"
@@ -1042,9 +1046,13 @@ msgstr "{selectedRoleCount} roles and {selectedMemberCount} people selected"
 msgid "{status}"
 msgstr ""
 
-#: app/components/social/social-calendar.tsx:120
+#: app/components/social/social-calendar.tsx:130
 msgid "{status}, {at}, {platforms}: {text}"
 msgstr "{status}, {at}, {platforms}: {text}"
+
+#: app/components/social/social-calendar.tsx:128
+msgid "{status}, {platforms}: {text}"
+msgstr "{status}, {platforms}: {text}"
 
 #: app/routes/_app+/$orgSlug_+/marketing+/automations._index.tsx:362
 msgid "{stepCount} steps"
@@ -4984,7 +4992,7 @@ msgstr "Communication"
 msgid "Community"
 msgstr "Community"
 
-#: app/components/media-library/before-after-slider.tsx:78
+#: app/components/media-library/before-after-slider.tsx:80
 msgid "Compare before and after"
 msgstr "Compare before and after"
 
@@ -9349,9 +9357,9 @@ msgstr "Image added to your media library"
 msgid "Image link copied"
 msgstr "Image link copied"
 
-#: app/components/social/social-calendar.tsx:119
-#: app/components/social/social-calendar.tsx:201
-#: app/components/social/social-calendar.tsx:251
+#: app/components/social/social-calendar.tsx:124
+#: app/components/social/social-calendar.tsx:213
+#: app/components/social/social-calendar.tsx:263
 msgid "Image post"
 msgstr "Image post"
 
@@ -11696,7 +11704,7 @@ msgstr "New PIN for {scopeName}"
 msgid "New post"
 msgstr "New post"
 
-#: app/components/social/social-calendar.tsx:167
+#: app/components/social/social-calendar.tsx:177
 msgid "New post on {label}"
 msgstr "New post on {label}"
 
@@ -11957,7 +11965,7 @@ msgstr "No content yet"
 msgid "No custom roles created yet."
 msgstr "No custom roles created yet."
 
-#: app/components/social/social-calendar.tsx:257
+#: app/components/social/social-calendar.tsx:269
 msgid "No date"
 msgstr "No date"
 
