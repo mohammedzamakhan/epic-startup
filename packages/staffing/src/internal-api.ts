@@ -141,5 +141,5 @@ export const staffExportFileSchema = z
 		includes: z.object({ pay: z.boolean(), private: z.boolean() }),
 		staff: z.array(z.record(z.string(), z.unknown())),
 	})
-	.passthrough()
+	.loose()
 export type StaffExportFile = z.infer<typeof staffExportFileSchema>

@@ -36,9 +36,7 @@ type ScopedPhrasePatch = {
 	phrases: unknown[]
 }
 
-const ScopedPhraseKeysSchema = z.array(
-	z.object({ key: z.string() }).passthrough(),
-)
+const ScopedPhraseKeysSchema = z.array(z.object({ key: z.string() }).loose())
 
 function parseScopedPhrasePatch(
 	raw: unknown,

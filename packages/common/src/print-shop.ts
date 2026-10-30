@@ -485,7 +485,7 @@ export function createPrintCatalog(
 
 	const qrTargetSchema = z
 		.object({ kind: z.string().min(1).max(40) })
-		.passthrough()
+		.loose()
 		.superRefine((value, ctx) => {
 			const spec = targets[value.kind]
 			const parsed = spec?.schema.safeParse(value)
