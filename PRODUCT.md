@@ -20,8 +20,8 @@ decision must respect the split:
   two-factor, or passkeys, and run the business: website, shop, customers,
   marketing, team chat, reports, members and roles, billing.
 - **End customers**: the customers of each tenant organization. They never use
-  the operator app. They use the organization's published website, its shop,
-  and the native customer apps, signing in with phone-number OTP only.
+  the operator app. They use the organization's published website, its shop, and
+  the customer app, signing in with phone-number OTP only.
 - **Platform staff**: the operator of the deployed platform. They use the admin
   console to oversee tenants, users, SSO, audit logs, GDPR requests, feature
   flags, and platform-wide marketing.
@@ -32,9 +32,9 @@ A production-ready, full-stack, multi-tenant SaaS template. Its job is to take a
 startup idea from clone to launched product without rebuilding the platform
 layer: authentication, organizations and permissions, website building and
 publishing, storefronts, shop and payments, customer identity, marketing,
-scheduled jobs, and admin tooling all work out of the box,
-so the founder only builds the vertical. Success means a branded clone deploys
-and sells, and the template stays reusable for the next idea.
+scheduled jobs, and admin tooling all work out of the box, so the founder only
+builds the vertical. Success means a branded clone deploys and sells, and the
+template stays reusable for the next idea.
 
 ## Positioning
 
@@ -51,15 +51,14 @@ region destroys the old tenant database instead of migrating it across borders.
 - Monorepo: npm workspaces + Turborepo. Node 22.18.0 and npm 10.9.0, pinned with
   Volta. macOS and Linux, arm64 and x64.
 - Surfaces: operator app, admin console, marketing site, tenant storefronts,
-  documentation site, operator mobile companion, native customer apps (iOS and
+  documentation site, operator mobile companion, Expo customer app (iOS and
   Android), regional customer-data API, scheduled-jobs worker, email template
   preview, database studio, browser extension.
 - One command (`npm run dev`) starts every service behind a local HTTPS proxy on
   `{brand-slug}.test` hostnames, including both regional data nodes.
 - Setup applies the downstream brand and renames the template's identity,
-  including native app bundle ids, package ids, configuration prefixes, and
-  Keychain/Keystore service names, so a fresh clone carries no trace of the
-  template brand.
+  including the customer app's bundle and package ids, domains, and display
+  name, so a fresh clone carries no trace of the template brand.
 - Deploy targets: Cloudflare Workers with D1, KV, R2, and Durable Objects
   (operator app, admin, marketing site, storefronts, and jobs worker). The US
   tenant API runs on a Worker with one SQLite-backed Durable Object per
@@ -116,8 +115,9 @@ Hard constraints (durable):
   locale-prefixed storefronts in six locales with right-to-left support, and
   literal-hex colors in email (email clients render neither oklch nor CSS
   variables).
-- The native customer apps have a committed byte budget; the Android app stays
-  framework-only to keep it.
+- The Expo customer app (`apps/customer`) keeps its session in
+  `expo-secure-store` and talks only browser-direct to the regional tenant API;
+  it never proxies customer data through the US App.
 
 ## Brand Commitments
 

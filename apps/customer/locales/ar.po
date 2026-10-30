@@ -1,0 +1,215 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-01-22 00:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: ar\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: components/auth/login-screen.tsx:25
+msgid "+1 555 000 0000"
+msgstr "+1 555 000 0000"
+
+#: components/auth/connect-site-screen.tsx:24
+msgid "acme or acme.example.com"
+msgstr "acme أو acme.example.com"
+
+#: components/auth/connect-site-screen.tsx:37
+msgid "Connect"
+msgstr "اتصال"
+
+#: components/auth/connect-site-screen.tsx:19
+msgid "Connect to your site"
+msgstr "اتصل بموقعك"
+
+#: components/auth/complete-name-screen.tsx:38
+msgid "Continue"
+msgstr "متابعة"
+
+#: components/profile/profile-screen.tsx:91
+msgid "Email"
+msgstr "البريد الإلكتروني"
+
+#: lib/i18n/app-error-message.ts:27
+msgid "Enter a valid email address."
+msgstr "أدخل عنوان بريد إلكتروني صالحًا."
+
+#: lib/i18n/app-error-message.ts:19
+msgid "Enter a valid phone number."
+msgstr "أدخل رقم هاتف صالحًا."
+
+#: components/auth/verify-screen.tsx:27
+msgid "Enter your code"
+msgstr "أدخل الرمز"
+
+#: lib/i18n/app-error-message.ts:23
+msgid "Enter your name."
+msgstr "أدخل اسمك."
+
+#: components/auth/login-screen.tsx:21
+msgid "Enter your phone number. We'll send a verification code."
+msgstr "أدخل رقم هاتفك. سنرسل إليك رمز تحقق."
+
+#: components/auth/connect-site-screen.tsx:20
+msgid "Enter your site address to load its branding."
+msgstr "أدخل عنوان موقعك لتحميل هويته."
+
+#: components/auth/complete-name-screen.tsx:26
+#: components/profile/profile-screen.tsx:83
+msgid "Jane Doe"
+msgstr "سارة أحمد"
+
+#: components/profile/profile-screen.tsx:149
+msgid "Language"
+msgstr "اللغة"
+
+#: components/shell/announcement-banner.tsx:40
+msgid "Learn more"
+msgstr "اعرف المزيد"
+
+#: components/profile/profile-screen.tsx:63
+msgid "Loading your profile…"
+msgstr "جارٍ تحميل ملفك الشخصي…"
+
+#: components/shell/app-gate.tsx:23
+msgid "Loading…"
+msgstr "جارٍ التحميل…"
+
+#: components/auth/complete-name-screen.tsx:25
+#: components/profile/profile-screen.tsx:82
+msgid "Name"
+msgstr "الاسم"
+
+#: lib/i18n/app-error-message.ts:33
+msgid "Network error. Please try again."
+msgstr "خطأ في الشبكة. يرجى المحاولة مرة أخرى."
+
+#: components/auth/login-screen.tsx:24
+#: components/profile/profile-screen.tsx:102
+msgid "Phone number"
+msgstr "رقم الهاتف"
+
+#: app/(tabs)/_layout.tsx:39
+msgid "Profile"
+msgstr "الملف الشخصي"
+
+#: components/profile/profile-screen.tsx:110
+msgid "Profile saved."
+msgstr "تم حفظ الملف الشخصي."
+
+#: components/profile/profile-screen.tsx:114
+msgid "Save changes"
+msgstr "حفظ التغييرات"
+
+#: components/auth/verify-screen.tsx:59
+msgid "Send a new code"
+msgstr "إرسال رمز جديد"
+
+#: components/auth/login-screen.tsx:37
+msgid "Send code"
+msgstr "إرسال الرمز"
+
+#: components/auth/login-screen.tsx:20
+msgid "Sign in"
+msgstr "تسجيل الدخول"
+
+#: components/profile/profile-screen.tsx:121
+msgid "Sign out"
+msgstr "تسجيل الخروج"
+
+#: components/auth/connect-site-screen.tsx:23
+msgid "Site address"
+msgstr "عنوان الموقع"
+
+#: lib/i18n/app-error-message.ts:41
+msgid "Something went wrong. Please try again."
+msgstr "حدث خطأ ما. يرجى المحاولة مرة أخرى."
+
+#: components/profile/profile-screen.tsx:139
+msgid "System default"
+msgstr "افتراضي النظام"
+
+#: components/auth/complete-name-screen.tsx:23
+msgid "Tell us what to call you."
+msgstr "أخبرنا بالاسم الذي نناديك به."
+
+#: lib/i18n/app-error-message.ts:21
+msgid "That code isn't right or has expired. Try again."
+msgstr "هذا الرمز غير صحيح أو منتهي الصلاحية. حاول مرة أخرى."
+
+#: lib/i18n/app-error-message.ts:25
+msgid "That name is too long."
+msgstr "هذا الاسم طويل جدًا."
+
+#: lib/i18n/app-error-message.ts:36
+msgid "The service is unavailable right now. Please try again later."
+msgstr "الخدمة غير متاحة حاليًا. يرجى المحاولة لاحقًا."
+
+#: lib/i18n/app-error-message.ts:17
+msgid "This site isn't available in this app yet."
+msgstr "هذا الموقع غير متاح في هذا التطبيق بعد."
+
+#: lib/i18n/app-error-message.ts:31
+msgid "Too many attempts. Please try again later."
+msgstr "محاولات كثيرة جدًا. يرجى المحاولة لاحقًا."
+
+#: components/auth/site-unavailable-screen.tsx:26
+#: components/ui/error-message.tsx:28
+msgid "Try again"
+msgstr "حاول مرة أخرى"
+
+#: components/profile/profile-screen.tsx:79
+msgid "Update your basic details below."
+msgstr "حدّث بياناتك الأساسية أدناه."
+
+#: components/auth/verify-screen.tsx:67
+msgid "Use a different number"
+msgstr "استخدم رقمًا آخر"
+
+#: components/auth/site-unavailable-screen.tsx:34
+#: components/profile/profile-screen.tsx:125
+msgid "Use a different site"
+msgstr "استخدم موقعًا آخر"
+
+#: components/auth/verify-screen.tsx:31
+msgid "Verification code"
+msgstr "رمز التحقق"
+
+#: components/auth/verify-screen.tsx:49
+msgid "Verify"
+msgstr "تحقق"
+
+#: lib/i18n/app-error-message.ts:14
+msgid "We couldn't find that site. Check the address and try again."
+msgstr "لم نتمكن من العثور على هذا الموقع. تحقق من العنوان وحاول مرة أخرى."
+
+#: components/auth/verify-screen.tsx:28
+msgid "We sent a 6-digit code to {phone}."
+msgstr "أرسلنا رمزًا من 6 أرقام إلى {phone}."
+
+#: components/auth/verify-screen.tsx:45
+msgid "We sent you a new code."
+msgstr "أرسلنا إليك رمزًا جديدًا."
+
+#: components/auth/complete-name-screen.tsx:23
+msgid "Your name"
+msgstr "اسمك"
+
+#: components/profile/profile-screen.tsx:105
+msgid "Your phone number can't be changed here."
+msgstr "لا يمكن تغيير رقم هاتفك هنا."
+
+#: components/profile/profile-screen.tsx:77
+msgid "Your profile"
+msgstr "ملفك الشخصي"
+
+#: lib/i18n/app-error-message.ts:29
+msgid "Your session ended. Please sign in again."
+msgstr "انتهت جلستك. يُرجى تسجيل الدخول مرة أخرى."
