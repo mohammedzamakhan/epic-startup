@@ -1,0 +1,215 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-01-22 00:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: fr\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: components/auth/login-screen.tsx:25
+msgid "+1 555 000 0000"
+msgstr "+1 555 000 0000"
+
+#: components/auth/connect-site-screen.tsx:24
+msgid "acme or acme.example.com"
+msgstr "acme ou acme.example.com"
+
+#: components/auth/connect-site-screen.tsx:37
+msgid "Connect"
+msgstr "Se connecter"
+
+#: components/auth/connect-site-screen.tsx:19
+msgid "Connect to your site"
+msgstr "Connectez-vous à votre site"
+
+#: components/auth/complete-name-screen.tsx:38
+msgid "Continue"
+msgstr "Continuer"
+
+#: components/profile/profile-screen.tsx:91
+msgid "Email"
+msgstr "E-mail"
+
+#: lib/i18n/app-error-message.ts:27
+msgid "Enter a valid email address."
+msgstr "Saisissez une adresse e-mail valide."
+
+#: lib/i18n/app-error-message.ts:19
+msgid "Enter a valid phone number."
+msgstr "Saisissez un numéro de téléphone valide."
+
+#: components/auth/verify-screen.tsx:27
+msgid "Enter your code"
+msgstr "Saisissez votre code"
+
+#: lib/i18n/app-error-message.ts:23
+msgid "Enter your name."
+msgstr "Saisissez votre nom."
+
+#: components/auth/login-screen.tsx:21
+msgid "Enter your phone number. We'll send a verification code."
+msgstr "Saisissez votre numéro de téléphone. Nous vous enverrons un code de vérification."
+
+#: components/auth/connect-site-screen.tsx:20
+msgid "Enter your site address to load its branding."
+msgstr "Saisissez l'adresse de votre site pour charger son image de marque."
+
+#: components/auth/complete-name-screen.tsx:26
+#: components/profile/profile-screen.tsx:83
+msgid "Jane Doe"
+msgstr "Marie Dupont"
+
+#: components/profile/profile-screen.tsx:149
+msgid "Language"
+msgstr "Langue"
+
+#: components/shell/announcement-banner.tsx:40
+msgid "Learn more"
+msgstr "En savoir plus"
+
+#: components/profile/profile-screen.tsx:63
+msgid "Loading your profile…"
+msgstr "Chargement de votre profil…"
+
+#: components/shell/app-gate.tsx:23
+msgid "Loading…"
+msgstr "Chargement…"
+
+#: components/auth/complete-name-screen.tsx:25
+#: components/profile/profile-screen.tsx:82
+msgid "Name"
+msgstr "Nom"
+
+#: lib/i18n/app-error-message.ts:33
+msgid "Network error. Please try again."
+msgstr "Erreur réseau. Veuillez réessayer."
+
+#: components/auth/login-screen.tsx:24
+#: components/profile/profile-screen.tsx:102
+msgid "Phone number"
+msgstr "Numéro de téléphone"
+
+#: app/(tabs)/_layout.tsx:39
+msgid "Profile"
+msgstr "Profil"
+
+#: components/profile/profile-screen.tsx:110
+msgid "Profile saved."
+msgstr "Profil enregistré."
+
+#: components/profile/profile-screen.tsx:114
+msgid "Save changes"
+msgstr "Enregistrer les modifications"
+
+#: components/auth/verify-screen.tsx:59
+msgid "Send a new code"
+msgstr "Envoyer un nouveau code"
+
+#: components/auth/login-screen.tsx:37
+msgid "Send code"
+msgstr "Envoyer le code"
+
+#: components/auth/login-screen.tsx:20
+msgid "Sign in"
+msgstr "Connexion"
+
+#: components/profile/profile-screen.tsx:121
+msgid "Sign out"
+msgstr "Se déconnecter"
+
+#: components/auth/connect-site-screen.tsx:23
+msgid "Site address"
+msgstr "Adresse du site"
+
+#: lib/i18n/app-error-message.ts:41
+msgid "Something went wrong. Please try again."
+msgstr "Une erreur s'est produite. Veuillez réessayer."
+
+#: components/profile/profile-screen.tsx:139
+msgid "System default"
+msgstr "Par défaut du système"
+
+#: components/auth/complete-name-screen.tsx:23
+msgid "Tell us what to call you."
+msgstr "Dites-nous comment vous appeler."
+
+#: lib/i18n/app-error-message.ts:21
+msgid "That code isn't right or has expired. Try again."
+msgstr "Ce code est incorrect ou a expiré. Réessayez."
+
+#: lib/i18n/app-error-message.ts:25
+msgid "That name is too long."
+msgstr "Ce nom est trop long."
+
+#: lib/i18n/app-error-message.ts:36
+msgid "The service is unavailable right now. Please try again later."
+msgstr "Le service est indisponible pour le moment. Veuillez réessayer plus tard."
+
+#: lib/i18n/app-error-message.ts:17
+msgid "This site isn't available in this app yet."
+msgstr "Ce site n'est pas encore disponible dans cette application."
+
+#: lib/i18n/app-error-message.ts:31
+msgid "Too many attempts. Please try again later."
+msgstr "Trop de tentatives. Veuillez réessayer plus tard."
+
+#: components/auth/site-unavailable-screen.tsx:26
+#: components/ui/error-message.tsx:28
+msgid "Try again"
+msgstr "Réessayer"
+
+#: components/profile/profile-screen.tsx:79
+msgid "Update your basic details below."
+msgstr "Mettez à jour vos informations ci-dessous."
+
+#: components/auth/verify-screen.tsx:67
+msgid "Use a different number"
+msgstr "Utiliser un autre numéro"
+
+#: components/auth/site-unavailable-screen.tsx:34
+#: components/profile/profile-screen.tsx:125
+msgid "Use a different site"
+msgstr "Utiliser un autre site"
+
+#: components/auth/verify-screen.tsx:31
+msgid "Verification code"
+msgstr "Code de vérification"
+
+#: components/auth/verify-screen.tsx:49
+msgid "Verify"
+msgstr "Vérifier"
+
+#: lib/i18n/app-error-message.ts:14
+msgid "We couldn't find that site. Check the address and try again."
+msgstr "Nous n'avons pas trouvé ce site. Vérifiez l'adresse et réessayez."
+
+#: components/auth/verify-screen.tsx:28
+msgid "We sent a 6-digit code to {phone}."
+msgstr "Nous avons envoyé un code à 6 chiffres au {phone}."
+
+#: components/auth/verify-screen.tsx:45
+msgid "We sent you a new code."
+msgstr "Nous vous avons envoyé un nouveau code."
+
+#: components/auth/complete-name-screen.tsx:23
+msgid "Your name"
+msgstr "Votre nom"
+
+#: components/profile/profile-screen.tsx:105
+msgid "Your phone number can't be changed here."
+msgstr "Votre numéro de téléphone ne peut pas être modifié ici."
+
+#: components/profile/profile-screen.tsx:77
+msgid "Your profile"
+msgstr "Votre profil"
+
+#: lib/i18n/app-error-message.ts:29
+msgid "Your session ended. Please sign in again."
+msgstr "Votre session a expiré. Veuillez vous reconnecter."

@@ -6,7 +6,6 @@
 		"orientation": "portrait",
 		"icon": "./assets/icon.png",
 		"userInterfaceStyle": "light",
-		"newArchEnabled": true,
 		"scheme": "epic-startup",
 		"splash": {
 			"image": "./assets/splash-icon.png",
@@ -22,7 +21,6 @@
 				"foregroundImage": "./assets/adaptive-icon.png",
 				"backgroundColor": "#ffffff"
 			},
-			"edgeToEdgeEnabled": true,
 			"predictiveBackGestureEnabled": false,
 			"package": "com.epicstartup.mobile"
 		},
@@ -30,10 +28,15 @@
 			"favicon": "./assets/favicon.png",
 			"bundler": "metro"
 		},
-		"plugins": ["expo-router", "expo-localization"],
+		"plugins": [
+			"expo-router",
+			"expo-localization",
+			"expo-secure-store",
+			"expo-status-bar",
+			"expo-web-browser"
+		],
 		"experiments": {
-			"typedRoutes": true,
-			"reactCanary": true
+			"typedRoutes": true
 		},
 		"linking": {
 			"prefixes": ["epic-startup://", "https://epic-startup.com"],

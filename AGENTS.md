@@ -824,15 +824,13 @@ npm install <pkg> -w <workspace>             # Add a dependency, then review pac
   Riyadh)
 - `apps/voice-agent` - LiveKit worker that answers phone-agent calls (US only);
   loads config from App and logs calls through tenant-api
-- `apps/ios` - Tenant customer iOS app (SwiftUI + `TenantKit` Swift package):
-  branded shell, phone-OTP sign-in, and profile, reusing the published org
-  branding and the regional tenant-api. Keychain session; no PII proxy. Swift
-  tasks are opt-in (`npm run ios:test -w ios`) so Linux CI stays green
-- `apps/android` - Tenant customer Android app (Kotlin, framework views only: no
-  AndroidX/Compose/OkHttp — see its README for the size budget): same branded
-  shell, phone-OTP sign-in, and profile as iOS, with the session in the Android
-  Keystore. Opt-in via `npm run android:* -w android`; the Android toolchain is
-  installed by `.agents/setup`
+- `apps/customer` - Tenant customer app (Expo, iOS and Android): branded shell
+  from the published org theme, connect-to-site or white-label binding, phone
+  OTP sign-in, profile and language, all browser-direct to the regional
+  tenant-api (no PII proxy). Session in `expo-secure-store`, excluded from
+  backups. Jest tests run in normal CI; white-label builds come from
+  `tenants/<slug>.json` (`npm run tenant -w customer -- --tenant <slug>`).
+  `apps/mobile` is the separate operator app
 
 **Staff module (hiring, scheduling, staff management, time clock):**
 

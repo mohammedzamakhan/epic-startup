@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, type ViewProps, StatusBar, Platform } from 'react-native'
+import { View, type ViewProps, StatusBar } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 interface ScreenProps extends ViewProps {
@@ -20,12 +20,8 @@ const Screen: React.FC<ScreenProps> = ({
 }) => {
 	return (
 		<>
-			<StatusBar
-				barStyle={statusBarStyle}
-				backgroundColor={
-					Platform.OS === 'android' ? backgroundColor : undefined
-				}
-			/>
+			{/* Edge to edge on both platforms: the screen color shows behind the bar. */}
+			<StatusBar barStyle={statusBarStyle} />
 			<View
 				className={`flex-1 ${className ?? ''}`}
 				style={backgroundColor ? { backgroundColor } : undefined}
