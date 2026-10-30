@@ -270,6 +270,8 @@ const DEFAULT_BRAND_NAME = 'Epic Startup'
 const DEFAULT_BRAND_SLUG = 'epic-startup'
 const DEFAULT_BRAND_ID = 'epicstartup'
 const DEFAULT_BRAND_DOMAIN = 'epic-startup.com'
+// A text search for the template's domain in file contents, not a URL check.
+const DEFAULT_BRAND_DOMAIN_RE = new RegExp(escapeRegExp(DEFAULT_BRAND_DOMAIN))
 const PROTECTED_SLUG_RE =
 	/packageJson\[['"']epic-startup['"']\]|epic-startup field/g
 
@@ -767,7 +769,7 @@ function fileHasUnprotectedBrandTokens(content, brandInfo) {
 		(brandInfo.slug !== DEFAULT_BRAND_SLUG &&
 			withoutGithub.includes(DEFAULT_BRAND_SLUG)) ||
 		(brandInfo.domain !== DEFAULT_BRAND_DOMAIN &&
-			withoutGithub.includes(DEFAULT_BRAND_DOMAIN))
+			DEFAULT_BRAND_DOMAIN_RE.test(withoutGithub))
 	)
 }
 
