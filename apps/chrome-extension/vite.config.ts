@@ -69,6 +69,10 @@ export default defineConfig(() => {
 				},
 			},
 		},
+		// Dev prebundling uses the same default targets, so raise them too.
+		optimizeDeps: {
+			esbuildOptions: { target: 'es2022' },
+		},
 		server: {
 			port: 5173,
 			strictPort: true,
