@@ -87,8 +87,13 @@ export class TenantApiClient {
 		return decodeResponse(response, publicOrganizationSchema, path)
 	}
 
-	async sendCode(phone: string): Promise<void> {
-		await this.#perform(this.#boundPost('/auth/send-code', { phone }))
+	async sendCode(phone: string, turnstileToken?: string): Promise<void> {
+		await this.#perform(
+			this.#boundPost('/auth/send-code', {
+				phone,
+				...(turnstileToken ? { turnstileToken } : {}),
+			}),
+		)
 	}
 
 	async verify(phone: string, code: string): Promise<VerifyResult> {

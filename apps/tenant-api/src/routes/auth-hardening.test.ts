@@ -83,6 +83,22 @@ describe('customer auth hardening', () => {
 		expect(await db.select().from(customers).all()).toHaveLength(0)
 	})
 
+	it('burns a code after one wrong guess', async () => {
+		const db = await getTenantDb(orgId)
+		await db.insert(customers).values({
+			name: 'Otp Customer',
+			phone,
+			phoneVerificationCode: hmacHash('123456'),
+			phoneVerificationExpiresAt: new Date(Date.now() + 60_000),
+		})
+		const wrong = await post(app, '/auth/verify', { phone, code: '000000' })
+		expect(wrong.status).toBe(400)
+		const right = await post(app, '/auth/verify', { phone, code: '123456' })
+		expect(right.status).toBe(400)
+		const [row] = await db.select().from(customers)
+		expect(row?.phoneVerificationCode).toBeNull()
+	})
+
 	it('consumes a verification code only once', async () => {
 		const db = await getTenantDb(orgId)
 		await db.insert(customers).values({

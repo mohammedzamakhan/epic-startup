@@ -2,7 +2,10 @@ import * as AuthSession from 'expo-auth-session'
 import Constants from 'expo-constants'
 import * as Crypto from 'expo-crypto'
 import * as Linking from 'expo-linking'
+import * as SecureStore from 'expo-secure-store'
 import { Platform } from 'react-native'
+
+const OAUTH_PENDING_KEY = 'oauth_pending'
 
 export interface OAuthProvider {
 	name: string
@@ -94,20 +97,43 @@ export class OAuthService {
 			}
 
 			// Create the authorization request
+			const oauthState = state || this.generateState()
 			const request = new AuthSession.AuthRequest({
 				clientId: provider.clientId,
 				scopes: provider.scopes,
 				redirectUri: this.config.redirectUri,
 				responseType: AuthSession.ResponseType.Code,
-				state: state || this.generateState(),
+				state: oauthState,
 				extraParams: provider.additionalParameters,
 				usePKCE: true,
 			})
+
+			await SecureStore.setItemAsync(
+				OAUTH_PENDING_KEY,
+				JSON.stringify({
+					state: oauthState,
+					codeVerifier: request.codeVerifier ?? null,
+				}),
+			)
 
 			// Start the authentication session
 			const result = await request.promptAsync(discovery)
 
 			if (result.type === 'success') {
+				if (result.params.state !== oauthState) {
+					return {
+						success: false,
+						error: 'state_mismatch',
+						errorDescription: 'OAuth state did not match this device',
+					}
+				}
+				await SecureStore.setItemAsync(
+					OAUTH_PENDING_KEY,
+					JSON.stringify({
+						state: oauthState,
+						codeVerifier: request.codeVerifier ?? null,
+					}),
+				)
 				return {
 					success: true,
 					code: result.params.code,
@@ -155,10 +181,30 @@ export class OAuthService {
 			}
 
 			if (queryParams?.code) {
+				const stored = await SecureStore.getItemAsync(OAUTH_PENDING_KEY)
+				const pending = stored
+					? (JSON.parse(stored) as {
+							state?: string
+							codeVerifier?: string | null
+						})
+					: null
+				if (
+					!pending?.state ||
+					pending.state !== queryParams.state ||
+					typeof queryParams.state !== 'string'
+				) {
+					return {
+						success: false,
+						error: 'state_mismatch',
+						errorDescription: 'OAuth state did not match this device',
+					}
+				}
+				await SecureStore.deleteItemAsync(OAUTH_PENDING_KEY)
 				return {
 					success: true,
 					code: queryParams.code as string,
-					state: queryParams.state as string,
+					state: queryParams.state,
+					codeVerifier: pending.codeVerifier ?? undefined,
 				}
 			}
 

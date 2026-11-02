@@ -664,9 +664,30 @@ export async function recordShopOrder(order: ShopOrderUpsert) {
 	return upsertShopOrder(tenantDb, order, customerId)
 }
 
+/**
+ * A Connect webhook is signed by Stripe, but the org id is whatever the
+ * payer put in session metadata. The event's account must be that org's
+ * connected account, or a stranger's checkout can mark a victim's order paid.
+ */
+async function connectAccountOwnsOrganization(
+	orgId: string,
+	connectAccountId: string | null | undefined,
+) {
+	if (!connectAccountId) return false
+	const [organization] = await db
+		.select({
+			stripeConnectAccountId: OrganizationTable.stripeConnectAccountId,
+		})
+		.from(OrganizationTable)
+		.where(eq(OrganizationTable.id, orgId))
+		.limit(1)
+	return organization?.stripeConnectAccountId === connectAccountId
+}
+
 export async function recordShopOrderFromConnectWebhook(
 	event: unknown,
 	eventType: string,
+	connectAccountId?: string | null,
 ) {
 	const commerce = getShopCommerce()
 
@@ -675,6 +696,14 @@ export async function recordShopOrderFromConnectWebhook(
 			event as Parameters<ShopCommerce['mapConnectCheckoutSessionToOrder']>[0],
 		)
 		if (!order) return null
+		if (
+			!(await connectAccountOwnsOrganization(order.orgId, connectAccountId))
+		) {
+			console.warn(
+				'Ignored shop webhook: Stripe account does not match the organization',
+			)
+			return null
+		}
 		return recordShopOrder(order)
 	}
 
@@ -683,6 +712,14 @@ export async function recordShopOrderFromConnectWebhook(
 			event as Parameters<ShopCommerce['mapConnectPaymentIntentToOrder']>[0],
 		)
 		if (!order) return null
+		if (
+			!(await connectAccountOwnsOrganization(order.orgId, connectAccountId))
+		) {
+			console.warn(
+				'Ignored shop webhook: Stripe account does not match the organization',
+			)
+			return null
+		}
 		const orderId = await recordShopOrder(order)
 
 		if (order.customerIdFromMetadata && order.status === 'paid') {

@@ -210,6 +210,10 @@ export async function logout(
 	})
 }
 
+/** Not a credential. Present only so a missing user still pays for a compare. */
+const DUMMY_PASSWORD_HASH =
+	'$2b$12$JrR2l.yVMi3rPPaJAlFwc..Srh.m5cp6X6swi.kVv43PgP15xE5fi'
+
 export async function getPasswordHash(password: string) {
 	const hash = await bcrypt.hash(password, 12)
 	return hash
@@ -227,7 +231,10 @@ export async function verifyUserPassword(
 		.where(userWhere(where))
 		.limit(1)
 
+	// A missing account still runs a compare so the response time does not
+	// reveal whether the identifier exists.
 	if (!userWithPassword || !userWithPassword.hash) {
+		await bcrypt.compare(password, DUMMY_PASSWORD_HASH)
 		return null
 	}
 
