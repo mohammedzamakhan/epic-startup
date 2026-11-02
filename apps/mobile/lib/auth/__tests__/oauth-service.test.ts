@@ -241,6 +241,9 @@ describe('OAuthService', () => {
 		it('rejects a callback whose state was not started on this device', async () => {
 			jest.mocked(SecureStore.getItemAsync).mockResolvedValue(null)
 			mockLinking.parse.mockReturnValue({
+				scheme: 'epicnotes',
+				hostname: 'auth',
+				path: 'callback',
 				queryParams: { code: 'test-auth-code', state: 'other-state' },
 			} as Linking.ParsedURL)
 
@@ -276,6 +279,9 @@ describe('OAuthService', () => {
 
 		it('should handle invalid callback', async () => {
 			mockLinking.parse.mockReturnValue({
+				scheme: 'epicnotes',
+				hostname: 'auth',
+				path: 'callback',
 				queryParams: {},
 			} as Linking.ParsedURL)
 
