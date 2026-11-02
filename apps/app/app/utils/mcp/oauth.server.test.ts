@@ -7,6 +7,7 @@ import {
 	MCPAuthorization,
 	MCPRefreshToken,
 	Organization,
+	Session,
 	User,
 	UserOrganization,
 } from '@repo/database'
@@ -1356,5 +1357,84 @@ describe('pending authorization codes can be revoked', () => {
 				TEST_CODE_VERIFIER,
 			),
 		).rejects.toThrow()
+	})
+})
+
+describe('session-bound authorization codes', () => {
+	const redirectUri = 'http://localhost:3000/callback'
+
+	async function seedBound() {
+		const id = Math.random().toString(36).slice(2, 10)
+		const [user] = await db
+			.insert(User)
+			.values({
+				id: `u-${id}`,
+				email: `${id}@example.com`,
+				username: `user-${id}`,
+				name: 'Bound',
+			})
+			.returning()
+		const [org] = await db
+			.insert(Organization)
+			.values({ id: `o-${id}`, name: `Org ${id}`, slug: `org-${id}` })
+			.returning()
+		await db.insert(Session).values({
+			userId: user!.id,
+			expirationDate: new Date(Date.now() + 86_400_000),
+			createdAt: new Date(Date.now() - 1000),
+		})
+		const code = await createAuthorizationCodeRaw({
+			...TEST_PKCE_CHALLENGE,
+			clientId: 'bound-client',
+			userId: user!.id,
+			organizationId: org!.id,
+			clientName: 'bound',
+			redirectUri,
+			bindToSession: true,
+		})
+		return { user: user!, code }
+	}
+
+	it('redeems while the approving session is still live', async () => {
+		const { code } = await seedBound()
+		expect(
+			await exchangeAuthorizationCodeRaw(
+				code,
+				redirectUri,
+				'bound-client',
+				TEST_CODE_VERIFIER,
+			),
+		).not.toBeNull()
+	})
+
+	it('is void once every session is deleted, as a password reset does', async () => {
+		const { user, code } = await seedBound()
+		await db.delete(Session).where(eq(Session.userId, user.id))
+		expect(
+			await exchangeAuthorizationCodeRaw(
+				code,
+				redirectUri,
+				'bound-client',
+				TEST_CODE_VERIFIER,
+			),
+		).toBeNull()
+	})
+
+	it('is not satisfied by a session created after the code was issued', async () => {
+		const { user, code } = await seedBound()
+		await db.delete(Session).where(eq(Session.userId, user.id))
+		await db.insert(Session).values({
+			userId: user.id,
+			expirationDate: new Date(Date.now() + 86_400_000),
+			createdAt: new Date(Date.now() + 5_000),
+		})
+		expect(
+			await exchangeAuthorizationCodeRaw(
+				code,
+				redirectUri,
+				'bound-client',
+				TEST_CODE_VERIFIER,
+			),
+		).toBeNull()
 	})
 })

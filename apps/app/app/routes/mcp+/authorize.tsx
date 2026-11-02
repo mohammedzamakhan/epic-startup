@@ -228,6 +228,7 @@ export async function action({ request }: ActionFunctionArgs) {
 			redirectUri: redirectUri as string,
 			codeChallenge: codeChallenge as string | undefined,
 			codeChallengeMethod: codeChallengeMethod as string | undefined,
+			bindToSession: true,
 		})
 
 		// Log authorization approval

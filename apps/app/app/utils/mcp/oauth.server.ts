@@ -2,7 +2,11 @@ import crypto from 'node:crypto'
 import { auditService, AuditAction } from '@repo/audit'
 import { isCloudflareWorkerRuntime } from '@repo/common'
 import {
+	and,
 	db,
+	gt,
+	lte,
+	Session,
 	eq,
 	MCPAccessToken,
 	MCPAuthorization,
@@ -213,6 +217,8 @@ const authorizationCodeCache = new Map<
 		expiresAt: number
 		codeChallenge?: string
 		codeChallengeMethod?: string
+		issuedAt: number
+		bindToSession: boolean
 	}
 >()
 
@@ -410,6 +416,7 @@ export async function createAuthorizationCode({
 	redirectUri,
 	codeChallenge,
 	codeChallengeMethod,
+	bindToSession = false,
 }: {
 	userId: string
 	organizationId: string
@@ -418,6 +425,13 @@ export async function createAuthorizationCode({
 	redirectUri: string
 	codeChallenge?: string
 	codeChallengeMethod?: string
+	/**
+	 * Tie redemption to the sign-in that approved it: the code is only good while
+	 * a session of this user that already existed at issue time is still live.
+	 * Password reset deletes every session, so it voids pending codes in the
+	 * database, on any isolate and even for a redemption already in flight.
+	 */
+	bindToSession?: boolean
 }): Promise<string> {
 	const code = generateToken()
 	const codeHash = hashToken(code)
@@ -432,6 +446,8 @@ export async function createAuthorizationCode({
 		expiresAt: Date.now() + AUTHORIZATION_CODE_EXPIRATION,
 		codeChallenge,
 		codeChallengeMethod,
+		issuedAt: Date.now(),
+		bindToSession,
 	})
 
 	return code
@@ -514,6 +530,21 @@ export async function exchangeAuthorizationCode(
 		.digest('base64url')
 	if (computedChallenge !== authData.codeChallenge) {
 		return null // PKCE verification failed
+	}
+
+	if (authData.bindToSession) {
+		const [session] = await db
+			.select({ id: Session.id })
+			.from(Session)
+			.where(
+				and(
+					eq(Session.userId, authData.userId),
+					lte(Session.createdAt, new Date(authData.issuedAt)),
+					gt(Session.expirationDate, new Date()),
+				),
+			)
+			.limit(1)
+		if (!session) return null
 	}
 
 	// Create authorization record
