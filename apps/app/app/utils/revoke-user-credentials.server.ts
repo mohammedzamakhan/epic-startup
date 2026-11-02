@@ -23,8 +23,9 @@ export async function revokeUserCredentials(options: {
 	revokePendingMcpCodes?: boolean
 }) {
 	const now = new Date()
-	const batch = [
-		db
+
+	await db.transaction(async (tx) => {
+		await tx
 			.update(RefreshToken)
 			.set({ revoked: true })
 			.where(
@@ -32,12 +33,12 @@ export async function revokeUserCredentials(options: {
 					eq(RefreshToken.userId, options.userId),
 					eq(RefreshToken.revoked, false),
 				),
-			),
-		db
+			)
+		await tx
 			.update(MCPAuthorization)
 			.set({ isActive: false })
-			.where(eq(MCPAuthorization.userId, options.userId)),
-		db
+			.where(eq(MCPAuthorization.userId, options.userId))
+		await tx
 			.update(ApiKey)
 			.set({ expiresAt: now })
 			.where(
@@ -45,25 +46,21 @@ export async function revokeUserCredentials(options: {
 					eq(ApiKey.userId, options.userId),
 					or(isNull(ApiKey.expiresAt), gt(ApiKey.expiresAt, now)),
 				),
-			),
-	]
+			)
 
-	if (options.exceptSessionId) {
-		batch.push(
-			db
+		if (options.exceptSessionId) {
+			await tx
 				.delete(Session)
 				.where(
 					and(
 						eq(Session.userId, options.userId),
 						ne(Session.id, options.exceptSessionId),
 					),
-				),
-		)
-	} else {
-		batch.push(db.delete(Session).where(eq(Session.userId, options.userId)))
-	}
-
-	await db.batch(batch)
+				)
+		} else {
+			await tx.delete(Session).where(eq(Session.userId, options.userId))
+		}
+	})
 
 	if (options.revokePendingMcpCodes !== false) {
 		revokePendingAuthorizationCodes(options.userId)
