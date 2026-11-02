@@ -210,9 +210,13 @@ export async function logout(
 	})
 }
 
-/** Not a credential. Present only so a missing user still pays for a compare. */
-const DUMMY_PASSWORD_HASH =
-	'$2b$12$JrR2l.yVMi3rPPaJAlFwc..Srh.m5cp6X6swi.kVv43PgP15xE5fi'
+/**
+ * A cost-12 hash of a fixed string, started when this module loads. A missing
+ * account compares against it so login timing does not reveal whether the
+ * identifier exists. It is not a credential, and it is not stored as a hash
+ * literal.
+ */
+const dummyPasswordHash = bcrypt.hash('timing-equalization-placeholder', 12)
 
 export async function getPasswordHash(password: string) {
 	const hash = await bcrypt.hash(password, 12)
@@ -234,7 +238,7 @@ export async function verifyUserPassword(
 	// A missing account still runs a compare so the response time does not
 	// reveal whether the identifier exists.
 	if (!userWithPassword || !userWithPassword.hash) {
-		await bcrypt.compare(password, DUMMY_PASSWORD_HASH)
+		await bcrypt.compare(password, await dummyPasswordHash)
 		return null
 	}
 
