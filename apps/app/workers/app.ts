@@ -19,6 +19,35 @@ const cloudflareContext = createContext<{
 	ctx: ExecutionContext
 }>()
 
+// Same list as the strongest tier in server/index.ts, plus token refresh.
+const CREDENTIAL_PATHS = [
+	'/login',
+	'/signup',
+	'/verify',
+	'/reset-password',
+	'/resources/login',
+	'/resources/verify',
+	'/api/auth/refresh',
+]
+
+async function rateLimitCredentialRoutes(request: Request) {
+	// Playwright runs many fast logins from one address.
+	if (!import.meta.env.PROD || process.env.PLAYWRIGHT_TEST_BASE_URL) return null
+	if (request.method === 'GET' || request.method === 'HEAD') return null
+	const { pathname } = new URL(request.url)
+	if (pathname.startsWith('/mcp')) return null
+	if (!CREDENTIAL_PATHS.some((p) => pathname.includes(p))) return null
+
+	const { checkRateLimit, createRateLimitResponse } =
+		await import('../app/utils/rate-limit.server.ts')
+	const ip = request.headers.get('cf-connecting-ip') ?? 'unknown'
+	const result = await checkRateLimit(
+		{ type: 'ip', value: ip },
+		{ scope: 'worker-credential-routes', maxRequests: 10, windowMs: 60_000 },
+	)
+	return result.allowed ? null : createRateLimitResponse(result.resetAt)
+}
+
 type RequestHandler = ReturnType<typeof createRequestHandler>
 
 let requestHandler: RequestHandler | undefined
@@ -66,6 +95,12 @@ export default {
 		// here and forwarded to the organization's Durable Object.
 		const chatResponse = await chatUpgradeModule.handleChatRequest(request)
 		if (chatResponse) return chatResponse
+
+		// The Express server rate-limits credential routes, but this entry does
+		// not run it. Mirror its strictest tier (10/min per client IP) so password
+		// guessing, signup and token refresh are throttled here too.
+		const limited = await rateLimitCredentialRoutes(request)
+		if (limited) return limited
 
 		await linguiModule.ensureLinguiRequestLocale(request)
 

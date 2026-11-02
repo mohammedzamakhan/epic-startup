@@ -249,6 +249,29 @@ export class SSOAuthService {
 				)
 			}
 
+			// An identity provider is only authoritative for the domains its
+			// organization owns. Never let one tenant's IdP sign in as, or enroll,
+			// an account that already exists elsewhere unless the IdP verified the
+			// email and the address is in the organization's domain allowlist.
+			if (!existingMembership) {
+				const allowedDomains = (
+					((config as any).allowedEmailDomains as string | null) ?? ''
+				)
+					.split(',')
+					.map((d) => d.trim().toLowerCase())
+					.filter(Boolean)
+				const emailDomain = email.split('@')[1]?.toLowerCase()
+				if (
+					userInfo.email_verified !== true ||
+					!emailDomain ||
+					!allowedDomains.includes(emailDomain)
+				) {
+					throw new Error(
+						'This account already exists and cannot be linked by this organization. Ask an administrator to invite you.',
+					)
+				}
+			}
+
 			// Update existing user with SSO attributes
 			return this.updateUserFromSSO(existingUser.id, userInfo, config)
 		}
@@ -591,7 +614,15 @@ export class SSOAuthService {
 					validationResult.errorCode ===
 						IDTokenValidationErrorCode.INVALID_ISSUER ||
 					validationResult.errorCode ===
-						IDTokenValidationErrorCode.INVALID_AUDIENCE
+						IDTokenValidationErrorCode.INVALID_AUDIENCE ||
+					// A replayed or stale token must not sign anyone in: nonce
+					// and time-window failures are as fatal as a bad signature.
+					validationResult.errorCode ===
+						IDTokenValidationErrorCode.INVALID_NONCE ||
+					validationResult.errorCode ===
+						IDTokenValidationErrorCode.EXPIRED_TOKEN ||
+					validationResult.errorCode ===
+						IDTokenValidationErrorCode.TOKEN_NOT_YET_VALID
 				) {
 					throw new Error(
 						`ID token validation failed: ${validationResult.error}. This may indicate a security issue.`,

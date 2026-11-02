@@ -1,4 +1,5 @@
 import { invariantResponse } from '@epic-web/invariant'
+import { authorizeRegisteredObject } from '#app/utils/media-access.server.ts'
 import {
 	getSignedGetRequestInfoAsync,
 	getSignedHeadRequestInfoAsync,
@@ -31,7 +32,12 @@ function validateObjectKey(objectKey: string | null) {
 export async function loader({ request }: Route.LoaderArgs) {
 	const url = new URL(request.url)
 	const objectKey = validateObjectKey(url.searchParams.get('objectKey'))
-	const organizationId = url.searchParams.get('organizationId') ?? undefined
+	// Only registered library assets are served; public ones are open (site
+	// visitors, media transforms), private ones need organization membership.
+	// The storage scope comes from the registered asset, never the query.
+	const access = await authorizeRegisteredObject(request, objectKey)
+	invariantResponse(access, 'Not found', { status: 404 })
+	const organizationId = access.organizationId ?? undefined
 	const method = request.method === 'HEAD' ? 'HEAD' : 'GET'
 
 	const { url: storageUrl, headers: signedHeaders } =
@@ -58,7 +64,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 		}
 	}
 	responseHeaders.set('Accept-Ranges', 'bytes')
-	responseHeaders.set('Cache-Control', 'private, max-age=3600')
+	responseHeaders.set(
+		'Cache-Control',
+		access.isPublic ? 'public, max-age=3600' : 'private, max-age=3600',
+	)
+	responseHeaders.set('X-Content-Type-Options', 'nosniff')
 	responseHeaders.set('Access-Control-Allow-Origin', '*')
 
 	if (method === 'HEAD') {

@@ -219,13 +219,27 @@ export async function resolveOrgId(
 	return null
 }
 
+/**
+ * Server-to-server paths authenticate with a shared token inside the handler,
+ * and can arrive before the control plane lists a new organization (provision).
+ */
+function isTokenAuthenticatedPath(pathname: string) {
+	return pathname.startsWith('/internal/') || pathname.startsWith('/api/')
+}
+
 export async function assertOrgOnUsNode(
 	orgId: string,
 	env: TenantApiWorkerEnv,
+	pathname = '',
 ): Promise<Response | null> {
 	const organization = await findActiveOrganizationById(orgId)
 	if (!organization) {
-		if (env.TENANT_API_RUNTIME === 'workers') {
+		// An unauthenticated caller must not be able to mint a Durable Object (and
+		// a fresh in-memory rate-limit budget) by naming an unknown organization.
+		if (
+			env.TENANT_API_RUNTIME === 'workers' &&
+			isTokenAuthenticatedPath(pathname)
+		) {
 			return null
 		}
 		return Response.json({ error: 'Organization not found' }, { status: 404 })

@@ -9,6 +9,7 @@ import {
 	and,
 	db,
 	eq,
+	MCPClient,
 	Organization,
 	User,
 	UserOrganization,
@@ -56,8 +57,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
 	const url = new URL(request.url)
 	// Accept either client_id (standard OAuth) or client_name (MCP-specific)
 	const clientId = url.searchParams.get('client_id')
-	const clientName =
-		url.searchParams.get('client_name') || clientId || 'MCP Client'
+	// The consent screen must show who registered, never a name the link chose.
+	// Without a registered client the name is only a hint and is labeled so.
+	let clientName = 'Unregistered MCP client'
+	if (clientId) {
+		const [registered] = await db
+			.select({ clientName: MCPClient.clientName })
+			.from(MCPClient)
+			.where(eq(MCPClient.clientId, clientId))
+			.limit(1)
+		clientName = registered?.clientName ?? 'Unregistered MCP client'
+	}
 	const redirectUri = url.searchParams.get('redirect_uri')
 	const state = url.searchParams.get('state')
 	const codeChallenge = url.searchParams.get('code_challenge')
@@ -77,6 +87,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
 	invariantResponse(
 		redirectUriValidation.isValid,
 		redirectUriValidation.error || 'Invalid redirect_uri',
+		{ status: 400 },
+	)
+
+	// PKCE (S256) is required: these are public clients with no secret.
+	invariantResponse(
+		codeChallenge && codeChallengeMethod === 'S256',
+		'code_challenge with code_challenge_method=S256 is required',
 		{ status: 400 },
 	)
 
@@ -191,6 +208,14 @@ export async function action({ request }: ActionFunctionArgs) {
 	await userHasOrgAccess(request, organizationId as string)
 
 	if (intent === 'approve') {
+		// PKCE (S256) is mandatory: clients are public, so it is the only proof
+		// that whoever redeems the code is the party that asked for it.
+		invariantResponse(
+			codeChallenge && codeChallengeMethod === 'S256',
+			'code_challenge with code_challenge_method=S256 is required',
+			{ status: 400 },
+		)
+
 		// Generate authorization code (with PKCE parameters if provided)
 		const authCode = await createAuthorizationCode({
 			userId,

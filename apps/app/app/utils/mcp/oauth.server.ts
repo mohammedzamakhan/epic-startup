@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { auditService, AuditAction } from '@repo/audit'
 import { isCloudflareWorkerRuntime } from '@repo/common'
 import {
+	and,
 	db,
 	eq,
 	MCPAccessToken,
@@ -11,6 +12,7 @@ import {
 	ApiKey,
 	Organization,
 	User,
+	UserOrganization,
 } from '@repo/database'
 
 // Token expiration constants
@@ -284,6 +286,30 @@ export async function createAuthorizationWithTokens({
 	}
 }
 
+/**
+ * A credential is only as good as the account behind it: a banned user, or one
+ * removed from the organization, must lose MCP access immediately rather than
+ * when the token or key expires.
+ */
+async function isUserEligibleForOrganization(
+	userId: string,
+	organizationId: string,
+) {
+	const [row] = await db
+		.select({ isBanned: User.isBanned, active: UserOrganization.active })
+		.from(User)
+		.innerJoin(
+			UserOrganization,
+			and(
+				eq(UserOrganization.userId, User.id),
+				eq(UserOrganization.organizationId, organizationId),
+			),
+		)
+		.where(eq(User.id, userId))
+		.limit(1)
+	return Boolean(row && !row.isBanned && row.active)
+}
+
 // Validate access token
 export async function validateAccessToken(accessToken: string) {
 	const tokenHash = hashToken(accessToken)
@@ -316,6 +342,15 @@ export async function validateAccessToken(accessToken: string) {
 		return null
 	}
 
+	if (
+		!(await isUserEligibleForOrganization(
+			accessTokenRecord.authorization.userId,
+			accessTokenRecord.authorization.organizationId,
+		))
+	) {
+		return null
+	}
+
 	return {
 		user: accessTokenRecord.user,
 		organization: accessTokenRecord.organization,
@@ -342,6 +377,15 @@ export async function validateApiKey(apiKey: string) {
 	if (
 		apiKeyRecord.apiKey.expiresAt &&
 		apiKeyRecord.apiKey.expiresAt < new Date()
+	) {
+		return null
+	}
+
+	if (
+		!(await isUserEligibleForOrganization(
+			apiKeyRecord.apiKey.userId,
+			apiKeyRecord.apiKey.organizationId,
+		))
 	) {
 		return null
 	}
@@ -468,14 +512,15 @@ export async function exchangeAuthorizationCode(
 		return null
 	}
 
-	// Verify PKCE if code challenge was provided
+	// The authorize route only issues codes with an S256 challenge. A code
+	// that carries one must be redeemed with the matching verifier; `plain`
+	// is not accepted.
 	if (authData.codeChallenge) {
 		if (!codeVerifier) {
 			return null // code_verifier required but not provided
 		}
 
-		// Default to 'plain' per RFC 7636 when not specified
-		const method = authData.codeChallengeMethod || 'plain'
+		const method = authData.codeChallengeMethod
 
 		// Verify the code_verifier against the code_challenge
 		if (method === 'S256') {
@@ -485,10 +530,6 @@ export async function exchangeAuthorizationCode(
 				.digest('base64url')
 
 			if (computedChallenge !== authData.codeChallenge) {
-				return null // PKCE verification failed
-			}
-		} else if (method === 'plain') {
-			if (codeVerifier !== authData.codeChallenge) {
 				return null // PKCE verification failed
 			}
 		} else {
@@ -553,6 +594,15 @@ export async function refreshAccessToken(refreshToken: string) {
 		refreshTokenRecord.token.revoked ||
 		!refreshTokenRecord.authorization.isActive ||
 		refreshTokenRecord.token.expiresAt < new Date()
+	) {
+		return null
+	}
+
+	if (
+		!(await isUserEligibleForOrganization(
+			refreshTokenRecord.authorization.userId,
+			refreshTokenRecord.authorization.organizationId,
+		))
 	) {
 		return null
 	}

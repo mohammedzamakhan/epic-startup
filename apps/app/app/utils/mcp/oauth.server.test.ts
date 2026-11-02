@@ -8,13 +8,14 @@ import {
 	MCPRefreshToken,
 	Organization,
 	User,
+	UserOrganization,
 } from '@repo/database'
 import * as fc from 'fast-check'
 import { describe, it, expect } from 'vitest'
 import {
 	generateToken,
 	hashToken,
-	createAuthorizationWithTokens,
+	createAuthorizationWithTokens as createAuthorizationWithTokensRaw,
 	validateAccessToken,
 	createAuthorizationCode,
 	exchangeAuthorizationCode,
@@ -23,6 +24,23 @@ import {
 	ACCESS_TOKEN_EXPIRATION,
 	REFRESH_TOKEN_EXPIRATION,
 } from './oauth.server'
+
+// Credentials are only honored for active members, so every authorization in
+// these tests belongs to a member of its organization.
+async function createAuthorizationWithTokens(
+	input: Parameters<typeof createAuthorizationWithTokensRaw>[0],
+) {
+	await db
+		.insert(UserOrganization)
+		.values({
+			userId: input.userId,
+			organizationId: input.organizationId,
+			organizationRoleId: 'org_role_member',
+			active: true,
+		})
+		.onConflictDoNothing()
+	return createAuthorizationWithTokensRaw(input)
+}
 
 function mcpAuthIdsSubquery(userId: string, organizationId: string) {
 	return db
@@ -1183,5 +1201,53 @@ describe('MCP OAuth Service', () => {
 				}
 			})
 		})
+	})
+})
+
+describe('MCP credentials honor account state', () => {
+	async function setup() {
+		const id = `sec${Math.random().toString(36).slice(2, 10)}`
+		const [user] = await db
+			.insert(User)
+			.values({
+				id: `u-${id}`,
+				email: `${id}@example.com`,
+				username: `user-${id}`,
+				name: 'Sec Test',
+			})
+			.returning()
+		const [org] = await db
+			.insert(Organization)
+			.values({ id: `o-${id}`, name: `Org ${id}`, slug: `org-${id}` })
+			.returning()
+		const auth = await createAuthorizationWithTokens({
+			userId: user!.id,
+			organizationId: org!.id,
+			clientName: 'sec-client',
+		})
+		return { user: user!, org: org!, auth }
+	}
+
+	it('rejects access and refresh tokens after the user is banned', async () => {
+		const { user, auth } = await setup()
+		expect(await validateAccessToken(auth.accessToken)).not.toBeNull()
+		await db.update(User).set({ isBanned: true }).where(eq(User.id, user.id))
+		expect(await validateAccessToken(auth.accessToken)).toBeNull()
+		expect(await refreshAccessToken(auth.refreshToken)).toBeNull()
+	})
+
+	it('rejects tokens after the member is deactivated or removed', async () => {
+		const { user, org, auth } = await setup()
+		await db
+			.update(UserOrganization)
+			.set({ active: false })
+			.where(
+				and(
+					eq(UserOrganization.userId, user.id),
+					eq(UserOrganization.organizationId, org.id),
+				),
+			)
+		expect(await validateAccessToken(auth.accessToken)).toBeNull()
+		expect(await refreshAccessToken(auth.refreshToken)).toBeNull()
 	})
 })

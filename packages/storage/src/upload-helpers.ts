@@ -66,6 +66,27 @@ function sanitizeAndExtractExtension(filename: string): string {
 }
 
 /**
+ * Validate that the bytes are a real raster image and return a copy of the
+ * file with the detected MIME type, so a client cannot store HTML or SVG under
+ * an image extension and have it served back as active content.
+ */
+async function toValidatedRasterFile(file: File | FileUpload) {
+	const buffer = await file.arrayBuffer()
+	const detected = detectRasterImage(buffer)
+	if (!detected) {
+		throw new Error(
+			'Invalid image content: only JPEG, PNG, GIF, WebP, and AVIF are supported',
+		)
+	}
+	return {
+		file: new File([buffer], file.name || `image.${detected.extension}`, {
+			type: detected.mimeType,
+		}),
+		extension: detected.extension,
+	}
+}
+
+/**
  * Upload a profile image for a user
  */
 export async function uploadProfileImage(
@@ -74,12 +95,12 @@ export async function uploadProfileImage(
 	options: UploadOptions,
 	organizationId?: string,
 ) {
+	const validated = await toValidatedRasterFile(file)
 	const fileId = createId()
-	const fileExtension = sanitizeAndExtractExtension(file.name)
 	const timestamp = Date.now()
-	const key = `users/${userId}/profile-images/${timestamp}-${fileId}.${fileExtension}`
+	const key = `users/${userId}/profile-images/${timestamp}-${fileId}.${validated.extension}`
 	const config = await options.getConfig(organizationId)
-	return uploadToStorage(file, key, config)
+	return uploadToStorage(validated.file, key, config)
 }
 
 /**
@@ -90,12 +111,12 @@ export async function uploadOrganizationImage(
 	file: File | FileUpload,
 	options: UploadOptions,
 ) {
+	const validated = await toValidatedRasterFile(file)
 	const fileId = createId()
-	const fileExtension = sanitizeAndExtractExtension(file.name)
 	const timestamp = Date.now()
-	const key = `org/${organizationId}/logo/${timestamp}-${fileId}.${fileExtension}`
+	const key = `org/${organizationId}/logo/${timestamp}-${fileId}.${validated.extension}`
 	const config = await options.getConfig(organizationId)
-	return uploadToStorage(file, key, config)
+	return uploadToStorage(validated.file, key, config)
 }
 
 export type UploadedMediaResult = {

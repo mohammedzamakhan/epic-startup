@@ -9,7 +9,7 @@ import {
 } from '@repo/auth'
 import { useIsPending } from '@repo/common'
 import { getPageTitle } from '@repo/config/brand'
-import { db, eq, Session, User } from '@repo/database'
+import { ApiKey, db, eq, MCPAuthorization, Session, User } from '@repo/database'
 import {
 	Card,
 	CardContent,
@@ -29,6 +29,7 @@ import {
 } from '#app/components/forms.tsx'
 
 import { resetUserPassword } from '#app/utils/auth.server.ts'
+import { revokeAllRefreshTokens } from '#app/utils/jwt.server.ts'
 import { type Route } from './+types/reset-password.ts'
 
 export const handle: SEOHandle = {
@@ -90,6 +91,13 @@ export async function action({ request }: Route.ActionArgs) {
 		.limit(1)
 	if (user) {
 		await db.delete(Session).where(eq(Session.userId, user.id))
+		// A reset must also end every other credential an attacker may hold.
+		await revokeAllRefreshTokens(user.id)
+		await db
+			.update(MCPAuthorization)
+			.set({ isActive: false })
+			.where(eq(MCPAuthorization.userId, user.id))
+		await db.delete(ApiKey).where(eq(ApiKey.userId, user.id))
 	}
 	const verifySession = await verifySessionStorage.getSession(
 		request.headers.get('cookie'),

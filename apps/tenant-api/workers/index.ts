@@ -254,7 +254,7 @@ export default {
 		) {
 			const orgId = await resolveOrgId(request, env)
 			if (orgId) {
-				const regionDenied = await assertOrgOnUsNode(orgId, env)
+				const regionDenied = await assertOrgOnUsNode(orgId, env, url.pathname)
 				if (regionDenied) return regionDenied
 				return forwardToOrg(request, env, orgId)
 			}
@@ -264,7 +264,11 @@ export default {
 		if (url.pathname === '/api/staff/tick' && request.method === 'POST') {
 			const tickOrgId = await resolveOrgId(request, env)
 			if (tickOrgId) {
-				const regionDenied = await assertOrgOnUsNode(tickOrgId, env)
+				const regionDenied = await assertOrgOnUsNode(
+					tickOrgId,
+					env,
+					url.pathname,
+				)
 				if (regionDenied) return regionDenied
 				return forwardToOrg(request, env, tickOrgId)
 			}
@@ -296,7 +300,7 @@ export default {
 			return forwardToOrg(request, env, orgId)
 		}
 
-		const regionDenied = await assertOrgOnUsNode(orgId, env)
+		const regionDenied = await assertOrgOnUsNode(orgId, env, url.pathname)
 		if (regionDenied) return regionDenied
 
 		return forwardToOrg(request, env, orgId)

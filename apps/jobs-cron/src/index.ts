@@ -70,6 +70,10 @@ async function safeCompareAsync(
 }
 
 async function requireInternalAuth(request: Request, env: Env) {
+	// A missing or short secret must not make `Bearer undefined` a valid token.
+	if (!env.INTERNAL_COMMAND_TOKEN || env.INTERNAL_COMMAND_TOKEN.length < 16) {
+		return new Response('Unauthorized', { status: 401 })
+	}
 	const authHeader = request.headers.get('Authorization')
 	const isAuthorized = await safeCompareAsync(
 		authHeader,
@@ -263,6 +267,20 @@ export default {
 					},
 					{ status: 400 },
 				)
+			}
+
+			// The workflow sends INTERNAL_COMMAND_TOKEN to this URL, so it must be one
+			// of the configured regional nodes, never an arbitrary caller-chosen host.
+			if (body.tenantApiUrl) {
+				const allowed = [env.TENANT_API_URL, env.TENANT_API_URL_KSA]
+					.filter((u): u is string => Boolean(u))
+					.map((u) => u.replace(/\/$/, ''))
+				if (!allowed.includes(String(body.tenantApiUrl).replace(/\/$/, ''))) {
+					return Response.json(
+						{ error: 'tenantApiUrl is not a configured tenant-api node' },
+						{ status: 400 },
+					)
+				}
 			}
 
 			const runId = body.runId || body.journeyInstanceId || crypto.randomUUID()

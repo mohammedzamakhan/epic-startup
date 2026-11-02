@@ -11,6 +11,10 @@ import {
 import { ssrfSafeFetch, validateInstanceUrlWithDns } from '@repo/security'
 import { isValidRasterBytes } from '@repo/storage'
 import { drainOnCancel } from '#app/utils/drain-on-cancel.server.ts'
+import {
+	isPublicMediaAsset,
+	requireOrganizationMember,
+} from '#app/utils/media-access.server.ts'
 import { verifyMediaSignature } from '#app/utils/media-signing.server.ts'
 import {
 	getSignedGetRequestInfoAsync,
@@ -120,20 +124,6 @@ async function streamStoredVideo(
 	})
 }
 
-const PUBLIC_MEDIA_SOURCES = new Set([
-	'organization-logo',
-	'site-icon',
-	'website-seo',
-	'website-asset',
-])
-
-/** Platform-scoped assets and organization branding assets are public. */
-function isPublicMediaAsset(asset: { storageScope: string; source: string }) {
-	return (
-		asset.storageScope === 'platform' || PUBLIC_MEDIA_SOURCES.has(asset.source)
-	)
-}
-
 /**
  * Media that is not public (membership-authorized library assets, signed
  * capability URLs, direct object keys, stored videos, external images) must not
@@ -148,7 +138,23 @@ function getImageResponseHeaders(cacheable: boolean) {
 	)
 	headers.set('Access-Control-Allow-Origin', '*')
 	headers.set('Cross-Origin-Resource-Policy', 'cross-origin')
+	headers.set('X-Content-Type-Options', 'nosniff')
+	headers.set('Content-Security-Policy', "default-src 'none'; sandbox")
 	return headers
+}
+
+/**
+ * Stored objects are user-controlled: a client chooses the MIME type at upload
+ * time, so only known raster types may be served back from this origin.
+ */
+function assertServableStoredType(
+	objectKey: string | null,
+	mimeType: string | undefined,
+) {
+	if (!objectKey) return
+	if (!mimeType || !ALLOWED_RASTER_MIME_TYPES.has(mimeType)) {
+		throw new Response('Unsupported Media Type', { status: 415 })
+	}
 }
 
 async function fetchExternalImage(
@@ -324,6 +330,7 @@ async function getCloudflareImageResponse(
 			await upstream.body?.cancel()
 			const rawContentType = transformed.headers.get('content-type')
 			const mimeType = rawContentType?.split(';')[0]?.trim().toLowerCase()
+			assertServableStoredType(objectKey, mimeType)
 			const headers = getImageResponseHeaders(cacheable)
 			if (mimeType) headers.set('Content-Type', mimeType)
 			return new Response(transformed.body, { headers, status: 200 })
@@ -337,6 +344,7 @@ async function getCloudflareImageResponse(
 
 	const rawContentType = upstream.headers.get('content-type')
 	const mimeType = rawContentType?.split(';')[0]?.trim().toLowerCase()
+	assertServableStoredType(objectKey, mimeType)
 	const headers = getImageResponseHeaders(cacheable)
 	if (mimeType) headers.set('Content-Type', mimeType)
 	return new Response(upstream.body, { headers, status: 200 })
@@ -447,6 +455,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 			.limit(1)
 		cacheable = asset ? isPublicMediaAsset(asset) : false
 
+		if (asset && cacheable) {
+			organizationId =
+				asset.storageScope === 'organization' ? asset.organizationId : null
+		}
 		if (asset && !cacheable) {
 			const userId = await getUserId(request)
 			invariantResponse(userId, 'Unauthorized', { status: 401 })
@@ -465,6 +477,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 			organizationId =
 				asset.storageScope === 'organization' ? asset.organizationId : null
+		} else if (!asset && organizationId) {
+			// Unregistered key (e.g. an upload preview before save): the query's
+			// organization picks which bucket and credentials sign the read, so
+			// only that organization's members may use it.
+			await requireOrganizationMember(request, organizationId)
 		}
 	} else if (src && !URL.canParse(src)) {
 		// Local static assets served from `/public` or the client build.
