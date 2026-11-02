@@ -2,7 +2,7 @@
 
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {
 	createMemoryRouter,
@@ -161,7 +161,7 @@ describe('RoleAccessForm errors', () => {
 		)
 		expect(name).toHaveAttribute('aria-invalid', 'true')
 		expect(name).toHaveAccessibleDescription(message.textContent!)
-		expect(name).toHaveFocus()
+		await waitFor(() => expect(name).toHaveFocus())
 		expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 	})
 
@@ -178,7 +178,7 @@ describe('RoleAccessForm errors', () => {
 		const message = await screen.findByText(
 			'One or more selected access options are not available for custom roles.',
 		)
-		expect(message).toHaveFocus()
+		await waitFor(() => expect(message).toHaveFocus())
 		expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 		expect(screen.getByLabelText(/^Role name/)).not.toHaveAttribute(
 			'aria-invalid',

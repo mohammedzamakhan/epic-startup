@@ -1,8 +1,10 @@
 import closeWithGrace from 'close-with-grace'
 import { setupServer } from 'msw/node'
 import { handlers as githubHandlers } from './github.ts'
+import { handlers as googlePlacesHandlers } from './google-places.ts'
 import { handlers as pwnedPasswordApiHandlers } from './pwned-passwords.ts'
 import { handlers as ociEmailHandlers } from './oci-email.ts'
+import { handlers as posHandlers } from './pos.ts'
 import { handlers as resendHandlers } from './resend.ts'
 import { handlers as stripeHandlers } from './stripe.ts'
 import { handlers as tenantApiHandlers } from './tenant-api.ts'
@@ -11,9 +13,11 @@ import { handlers as tigrisHandlers } from './tigris.ts'
 export const server = setupServer(
 	...stripeHandlers, // Put Stripe handlers first so they take precedence
 	...tenantApiHandlers,
+	...googlePlacesHandlers,
 	...resendHandlers,
 	...ociEmailHandlers,
 	...githubHandlers,
+	...posHandlers,
 	...tigrisHandlers,
 	...pwnedPasswordApiHandlers,
 )
@@ -40,6 +44,15 @@ const bypassUrls = [
 server.listen({
 	onUnhandledRequest(request, print) {
 		const url = request.url
+
+		// Staff and regional API tests stub `fetch` with these hosts; afterEach
+		// restores MSW's fetch while React may still flush one in-flight call.
+		try {
+			const { hostname } = new URL(url)
+			if (hostname.endsWith('.tenant.test')) return
+		} catch {
+			// Relative URLs are handled by the bypass list below.
+		}
 
 		// Check if this request should be bypassed entirely
 		if (bypassUrls.some((pattern) => url.includes(pattern))) {

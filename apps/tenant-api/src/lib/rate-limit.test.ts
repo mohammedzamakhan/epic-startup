@@ -4,6 +4,7 @@ import {
 	rateLimitByKey,
 	resetRateLimits,
 	resolveClientIp,
+	resolveRateLimitIp,
 } from './rate-limit.ts'
 
 describe('getGlobalSendMax', () => {
@@ -107,5 +108,20 @@ describe('resolveClientIp', () => {
 
 	it('falls back to unknown', () => {
 		expect(resolveClientIp(ctx({}))).toBe('unknown')
+	})
+})
+
+describe('resolveRateLimitIp', () => {
+	const ctx = (headers: Record<string, string>) =>
+		({
+			req: {
+				header: (name: string) => headers[name.toLowerCase()],
+			},
+		}) as unknown as import('hono').Context
+
+	it('buckets IPv6 clients by /64', () => {
+		const headers = { 'cf-connecting-ip': '2001:db8:1:2:3:4:5:6' }
+		expect(resolveClientIp(ctx(headers))).toBe('2001:db8:1:2:3:4:5:6')
+		expect(resolveRateLimitIp(ctx(headers))).toBe('2001:db8:1:2::/64')
 	})
 })
