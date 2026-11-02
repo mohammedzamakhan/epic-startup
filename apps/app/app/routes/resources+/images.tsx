@@ -532,7 +532,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 				}
 				return {
 					type: 'data',
-					data: new Uint8Array(bytes),
+					// ReadableStream, not Uint8Array: openimg uses Readable.from() which
+					// iterates typed arrays byte-by-byte and breaks Sharp.
+					data: new Blob([bytes]).stream(),
 					cacheKey: objectKey,
 				}
 			}
@@ -563,7 +565,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 				}
 				return {
 					type: 'data',
-					data: new Uint8Array(bytes),
+					data: new Blob([bytes]).stream(),
 					cacheKey: src,
 				}
 			}

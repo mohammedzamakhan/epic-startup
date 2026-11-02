@@ -327,7 +327,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 				}
 				return {
 					type: 'data',
-					data: new Uint8Array(bytes),
+					data: new Blob([bytes]).stream(),
 					cacheKey: objectKey,
 				}
 			}
@@ -356,7 +356,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 				}
 				return {
 					type: 'data',
-					data: new Uint8Array(bytes),
+					data: new Blob([bytes]).stream(),
 					cacheKey: src,
 				}
 			}
