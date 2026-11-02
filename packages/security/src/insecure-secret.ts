@@ -18,13 +18,27 @@ export function isInsecureSecret(value: string) {
 	return INSECURE_SECRET_MARKERS.some((marker) => lower.includes(marker))
 }
 
+function isLocalHostname(hostname: string) {
+	return (
+		hostname === 'localhost' ||
+		hostname === '127.0.0.1' ||
+		hostname === '[::1]' ||
+		hostname.endsWith('.localhost') ||
+		hostname.endsWith('.test')
+	)
+}
+
 function isProductionLike() {
 	if (process.env.NODE_ENV !== 'production') return false
 	// `npm run build` + preview and E2E run a production build on localhost.
-	const baseUrl = process.env.BASE_URL ?? ''
-	return !/(^|\/\/)(localhost|127\.0\.0\.1|\[::1\])|\.test(:|\/|$)|\.localhost/i.test(
-		baseUrl,
-	)
+	// Compare the parsed hostname exactly: a substring test would treat
+	// `https://localhost.evil.com` as local.
+	try {
+		return !isLocalHostname(new URL(process.env.BASE_URL ?? '').hostname)
+	} catch {
+		// Missing or unparseable BASE_URL: not provably local, so enforce.
+		return true
+	}
 }
 
 /**

@@ -59,9 +59,12 @@ function refuse(error: string, status: 400 | 403 | 404 | 413 | 429 | 503) {
 
 async function verifyChallenge(c: Context, token: unknown): Promise<boolean> {
 	const secret = ENV.TURNSTILE_SECRET_KEY ?? ''
-	// No secret configured: the challenge is off only outside production, so a
-	// deploy that forgot the secret refuses submissions instead of going bot-open.
-	if (!isTurnstileConfigured(secret)) return ENV.NODE_ENV !== 'production'
+	// No secret configured: the challenge is off only for an explicit local
+	// NODE_ENV (an unset value counts as production, per AGENTS.md), so a deploy
+	// that forgot the secret refuses submissions instead of going bot-open.
+	if (!isTurnstileConfigured(secret)) {
+		return ENV.NODE_ENV === 'development' || ENV.NODE_ENV === 'test'
+	}
 	if (typeof token !== 'string' || !token.trim()) return false
 	const result = await verifyTurnstileToken({
 		secret,

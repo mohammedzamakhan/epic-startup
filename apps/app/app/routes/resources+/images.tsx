@@ -1,18 +1,13 @@
 import { invariantResponse } from '@epic-web/invariant'
-import { getUserId } from '@repo/auth'
 import { getDomainUrl, isCloudflareWorkerRuntime } from '@repo/common'
-import {
-	and,
-	db,
-	eq,
-	OrganizationMediaAsset,
-	UserOrganization,
-} from '@repo/database'
+import { db, eq, OrganizationMediaAsset } from '@repo/database'
 import { ssrfSafeFetch, validateInstanceUrlWithDns } from '@repo/security'
 import { isValidRasterBytes } from '@repo/storage'
 import { drainOnCancel } from '#app/utils/drain-on-cancel.server.ts'
 import {
+	authorizeRegisteredObject,
 	isPublicMediaAsset,
+	privateOrganizationIdFromObjectKey,
 	requireOrganizationMember,
 } from '#app/utils/media-access.server.ts'
 import { verifyMediaSignature } from '#app/utils/media-signing.server.ts'
@@ -421,20 +416,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 		)
 
 		if (!isPublicMedia && !hasValidSignature) {
-			const userId = await getUserId(request)
-			invariantResponse(userId, 'Unauthorized', { status: 401 })
-
-			const [membership] = await db
-				.select({ userId: UserOrganization.userId })
-				.from(UserOrganization)
-				.where(
-					and(
-						eq(UserOrganization.userId, userId),
-						eq(UserOrganization.organizationId, asset.organizationId),
-					),
-				)
-				.limit(1)
-			invariantResponse(membership, 'Forbidden', { status: 403 })
+			await requireOrganizationMember(request, asset.organizationId)
 		}
 
 		objectKey = asset.objectKey
@@ -443,45 +425,24 @@ export async function loader({ request }: Route.LoaderArgs) {
 	} else if (objectKey) {
 		// A direct object key can point at private note or comment media, so it
 		// is only cacheable when it is a registered public branding asset, and
-		// registered private media still requires organization membership.
-		const [asset] = await db
-			.select({
-				organizationId: OrganizationMediaAsset.organizationId,
-				storageScope: OrganizationMediaAsset.storageScope,
-				source: OrganizationMediaAsset.source,
-			})
-			.from(OrganizationMediaAsset)
-			.where(eq(OrganizationMediaAsset.objectKey, objectKey))
-			.limit(1)
-		cacheable = asset ? isPublicMediaAsset(asset) : false
-
-		if (asset && cacheable) {
-			organizationId =
-				asset.storageScope === 'organization' ? asset.organizationId : null
-		}
-		if (asset && !cacheable) {
-			const userId = await getUserId(request)
-			invariantResponse(userId, 'Unauthorized', { status: 401 })
-
-			const [membership] = await db
-				.select({ userId: UserOrganization.userId })
-				.from(UserOrganization)
-				.where(
-					and(
-						eq(UserOrganization.userId, userId),
-						eq(UserOrganization.organizationId, asset.organizationId),
-					),
-				)
-				.limit(1)
-			invariantResponse(membership, 'Forbidden', { status: 403 })
-
-			organizationId =
-				asset.storageScope === 'organization' ? asset.organizationId : null
-		} else if (!asset && organizationId) {
-			// Unregistered key (e.g. an upload preview before save): the query's
-			// organization picks which bucket and credentials sign the read, so
-			// only that organization's members may use it.
-			await requireOrganizationMember(request, organizationId)
+		// registered private media requires active organization membership.
+		const access = await authorizeRegisteredObject(request, objectKey)
+		if (access) {
+			cacheable = access.isPublic
+			organizationId = access.organizationId
+		} else {
+			// Unregistered key (e.g. an upload preview before save). The owning
+			// organization comes from the key contract, not the query: private
+			// `orgs/<id>/` content needs active membership of that organization.
+			const keyOrganizationId = privateOrganizationIdFromObjectKey(objectKey)
+			if (keyOrganizationId) {
+				await requireOrganizationMember(request, keyOrganizationId)
+				organizationId = keyOrganizationId
+			} else if (organizationId) {
+				// Public branding or avatar key: a query organization picks which
+				// bucket and credentials sign the read, so only its members may use it.
+				await requireOrganizationMember(request, organizationId)
+			}
 		}
 	} else if (src && !URL.canParse(src)) {
 		// Local static assets served from `/public` or the client build.

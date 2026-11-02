@@ -18,3 +18,22 @@ describe('buildSiteThemeCss cssVars hardening', () => {
 		expect(css).not.toContain('evil.example')
 	})
 })
+
+describe('buildSiteThemeCss cssVars edge cases', () => {
+	it('drops a value that smuggles a rule break after a newline', () => {
+		const css = buildSiteThemeCss({
+			...DEFAULT_SITE_THEME,
+			cssVars: { primary: 'red\n}\nbody{display:none' },
+		})
+		expect(css).not.toContain('display:none')
+	})
+
+	it('drops keys that are not plain token names', () => {
+		const css = buildSiteThemeCss({
+			...DEFAULT_SITE_THEME,
+			cssVars: { 'primary: red; --x': 'blue', 'a b': 'blue', '': 'blue' },
+		})
+		expect(css).not.toContain('--primary: red; --x')
+		expect(css).not.toContain('--a b')
+	})
+})

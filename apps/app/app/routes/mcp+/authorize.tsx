@@ -60,6 +60,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 	// The consent screen must show who registered, never a name the link chose.
 	// Without a registered client the name is only a hint and is labeled so.
 	let clientName = 'Unregistered MCP client'
+	let clientRegistered = false
 	if (clientId) {
 		const [registered] = await db
 			.select({ clientName: MCPClient.clientName })
@@ -67,6 +68,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 			.where(eq(MCPClient.clientId, clientId))
 			.limit(1)
 		clientName = registered?.clientName ?? 'Unregistered MCP client'
+		clientRegistered = Boolean(registered)
 	}
 	const redirectUri = url.searchParams.get('redirect_uri')
 	const state = url.searchParams.get('state')
@@ -146,6 +148,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 		user,
 		clientId,
 		clientName,
+		clientRegistered,
 		redirectUri,
 		state,
 		codeChallenge,
@@ -302,6 +305,7 @@ export default function AuthorizePage() {
 		user,
 		clientId,
 		clientName,
+		clientRegistered,
 		redirectUri,
 		state,
 		codeChallenge,
@@ -331,11 +335,33 @@ export default function AuthorizePage() {
 							<Trans>Authorize MCP Client</Trans>
 						</DialogTitle>
 						<DialogDescription>
-							<Trans>
-								{clientName} is requesting access to your organization data
-							</Trans>
+							{clientRegistered ? (
+								<Trans>
+									{clientName} is requesting access to your organization data
+								</Trans>
+							) : (
+								<Trans>
+									An unregistered application is requesting access to your
+									organization data
+								</Trans>
+							)}
 						</DialogDescription>
 					</DialogHeader>
+
+					{clientRegistered ? null : (
+						<div
+							role="alert"
+							className="border-destructive/50 bg-destructive/10 text-destructive flex items-start gap-2 rounded-md border p-3 text-sm"
+						>
+							<Icon name="alert-triangle" className="mt-0.5 h-4 w-4" />
+							<p>
+								<Trans>
+									This application did not register with us, so we cannot verify
+									who it is. Only continue if you started this request yourself.
+								</Trans>
+							</p>
+						</div>
+					)}
 
 					<div className="space-y-6">
 						{/* User Info */}

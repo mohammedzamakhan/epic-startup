@@ -19,6 +19,7 @@ function isPrivateIpv4Octets(p1: number, p2: number, p3 = 0): boolean {
 		(p1 === 100 && p2 >= 64 && p2 <= 127) || // 100.64.0.0/10 - CGNAT / cloud VPC
 		(p1 === 192 && p2 === 0 && p3 === 0) || // 192.0.0.0/24 - IETF protocol assignments
 		(p1 === 192 && p2 === 0 && p3 === 2) || // 192.0.2.0/24 - documentation
+		(p1 === 192 && p2 === 88 && p3 === 99) || // 192.88.99.0/24 - deprecated 6to4 relay
 		(p1 === 198 && (p2 === 18 || p2 === 19)) || // 198.18.0.0/15 - benchmarking
 		(p1 === 198 && p2 === 51 && p3 === 100) || // 198.51.100.0/24 - documentation
 		(p1 === 203 && p2 === 0 && p3 === 113) || // 203.0.113.0/24 - documentation
@@ -70,7 +71,8 @@ function parseIpv6(ip: string): number[] | null {
 
 /**
  * Check whether an IP address falls in a private, loopback, link-local,
- * or otherwise non-routable range. IPv6 literals are parsed, so an IPv4
+ * or otherwise non-routable range. Takes an IP literal only: any other string,
+ * including a hostname, is unparseable and so reported as private. IPv6 literals are parsed, so an IPv4
  * address hidden in an IPv4-mapped (`::ffff:a9fe:a9fe`), IPv4-compatible or
  * NAT64 form is checked against the IPv4 ranges. Unparseable input is
  * treated as private (fail closed).
@@ -106,6 +108,8 @@ export function isPrivateIp(ip: string): boolean {
 	if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0)) {
 		return embeddedV4(g[6]!, g[7]!)
 	}
+	// 64:ff9b:1::/48 local-use NAT64 (RFC 8215)
+	if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 1) return true
 	// 2002::/16 6to4 embeds the IPv4 address in groups 1-2
 	if (g[0] === 0x2002) return embeddedV4(g[1]!, g[2]!)
 	return (

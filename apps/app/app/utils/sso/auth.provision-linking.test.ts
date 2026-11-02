@@ -1,5 +1,5 @@
 import { db, Organization, User, UserOrganization } from '@repo/database'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ssoAuthService } from './auth.server.ts'
 
 // Real database (no mocks): a tenant's identity provider must not be able to
@@ -39,6 +39,7 @@ function config(
 
 describe('SSO provisioning never links foreign accounts', () => {
 	it('refuses an existing user who is not a member (default config)', async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 		const { victim, org, id } = await seed()
 		await expect(
 			ssoAuthService.provisionUser(
@@ -48,9 +49,16 @@ describe('SSO provisioning never links foreign accounts', () => {
 		).rejects.toThrow(/cannot be linked/)
 		const memberships = await db.select().from(UserOrganization)
 		expect(memberships.some((m) => m.userId === victim.id)).toBe(false)
+		// The log names the real cause, so an operator can tell an IdP that omits
+		// the claim from a domain that is not allowlisted.
+		expect(warn).toHaveBeenCalledWith(
+			expect.stringContaining('allowedEmailDomains'),
+		)
+		warn.mockRestore()
 	})
 
 	it('refuses when the email is unverified even if the domain is allowed', async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 		const { victim, org, id } = await seed()
 		await expect(
 			ssoAuthService.provisionUser(
@@ -58,6 +66,30 @@ describe('SSO provisioning never links foreign accounts', () => {
 				config(org.id, { allowedEmailDomains: 'other.example' }),
 			),
 		).rejects.toThrow(/cannot be linked/)
+		warn.mockRestore()
+	})
+
+	it('refuses an unverified email and logs that the claim was missing', async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+		const { victim, org, id } = await seed()
+		await expect(
+			ssoAuthService.provisionUser(
+				{ sub: id, email: victim.email } as any,
+				config(org.id, { allowedEmailDomains: 'other.example' }),
+			),
+		).rejects.toThrow(/cannot be linked/)
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining('email_verified'))
+		warn.mockRestore()
+	})
+
+	it('refuses a verified email outside the allowlist', async () => {
+		const { victim, org, id } = await seed()
+		await expect(
+			ssoAuthService.provisionUser(
+				{ sub: id, email: victim.email, email_verified: true } as any,
+				config(org.id, { allowedEmailDomains: 'corp.example' }),
+			),
+		).rejects.toThrow(/not allowed/)
 	})
 
 	it('allows a verified email in the organization domain allowlist', async () => {

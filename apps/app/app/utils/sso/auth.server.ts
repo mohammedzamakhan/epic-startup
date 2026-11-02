@@ -261,6 +261,18 @@ export class SSOAuthService {
 					.map((d) => d.trim().toLowerCase())
 					.filter(Boolean)
 				const emailDomain = email.split('@')[1]?.toLowerCase()
+				// Name the cause in the log, not to the user, so an operator can tell
+				// an IdP that omits `email_verified` (common with Entra ID) from a
+				// domain that is not allowlisted.
+				if (userInfo.email_verified !== true) {
+					console.warn(
+						`SSO link refused for ${config.providerName}: the IdP did not send email_verified=true`,
+					)
+				} else if (!emailDomain || !allowedDomains.includes(emailDomain)) {
+					console.warn(
+						`SSO link refused for ${config.providerName}: email domain is not in the organization's allowedEmailDomains`,
+					)
+				}
 				if (
 					userInfo.email_verified !== true ||
 					!emailDomain ||

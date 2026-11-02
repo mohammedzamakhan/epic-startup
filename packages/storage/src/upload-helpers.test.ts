@@ -24,3 +24,16 @@ describe('image uploads reject non-raster content', () => {
 		expect(getConfig).not.toHaveBeenCalled()
 	})
 })
+
+describe('image uploads are bounded', () => {
+	it('rejects an oversized image before reading it', async () => {
+		const file = new File([new Uint8Array(11 * 1024 * 1024)], 'big.png', {
+			type: 'image/png',
+		})
+		const spy = vi.spyOn(file, 'arrayBuffer')
+		await expect(uploadProfileImage('user1', file, options)).rejects.toThrow(
+			/too large/,
+		)
+		expect(spy).not.toHaveBeenCalled()
+	})
+})

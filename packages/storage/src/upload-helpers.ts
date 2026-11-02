@@ -70,8 +70,17 @@ function sanitizeAndExtractExtension(filename: string): string {
  * file with the detected MIME type, so a client cannot store HTML or SVG under
  * an image extension and have it served back as active content.
  */
+const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024 // 10MB
+
 async function toValidatedRasterFile(file: File | FileUpload) {
+	// Refuse before buffering: arrayBuffer() reads the whole body into memory.
+	if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+		throw new Error('Image is too large: the maximum size is 10MB')
+	}
 	const buffer = await file.arrayBuffer()
+	if (buffer.byteLength > MAX_IMAGE_UPLOAD_BYTES) {
+		throw new Error('Image is too large: the maximum size is 10MB')
+	}
 	const detected = detectRasterImage(buffer)
 	if (!detected) {
 		throw new Error(

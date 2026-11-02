@@ -256,6 +256,8 @@ describe('isPrivateIp IPv6 forms', () => {
 		'fc00::1',
 		'ff02::1',
 		'198.18.0.1',
+		'192.88.99.1',
+		'64:ff9b:1::1',
 		'192.0.0.8',
 		'not-an-ip',
 	])('blocks %s', (ip) => {

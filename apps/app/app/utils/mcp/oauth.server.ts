@@ -2,7 +2,6 @@ import crypto from 'node:crypto'
 import { auditService, AuditAction } from '@repo/audit'
 import { isCloudflareWorkerRuntime } from '@repo/common'
 import {
-	and,
 	db,
 	eq,
 	MCPAccessToken,
@@ -12,8 +11,8 @@ import {
 	ApiKey,
 	Organization,
 	User,
-	UserOrganization,
 } from '@repo/database'
+import { isActiveOrganizationMember } from '#app/utils/org-membership.server.ts'
 
 // Token expiration constants
 export const ACCESS_TOKEN_EXPIRATION = 60 * 60 * 1000 // 1 hour
@@ -286,30 +285,6 @@ export async function createAuthorizationWithTokens({
 	}
 }
 
-/**
- * A credential is only as good as the account behind it: a banned user, or one
- * removed from the organization, must lose MCP access immediately rather than
- * when the token or key expires.
- */
-async function isUserEligibleForOrganization(
-	userId: string,
-	organizationId: string,
-) {
-	const [row] = await db
-		.select({ isBanned: User.isBanned, active: UserOrganization.active })
-		.from(User)
-		.innerJoin(
-			UserOrganization,
-			and(
-				eq(UserOrganization.userId, User.id),
-				eq(UserOrganization.organizationId, organizationId),
-			),
-		)
-		.where(eq(User.id, userId))
-		.limit(1)
-	return Boolean(row && !row.isBanned && row.active)
-}
-
 // Validate access token
 export async function validateAccessToken(accessToken: string) {
 	const tokenHash = hashToken(accessToken)
@@ -343,7 +318,7 @@ export async function validateAccessToken(accessToken: string) {
 	}
 
 	if (
-		!(await isUserEligibleForOrganization(
+		!(await isActiveOrganizationMember(
 			accessTokenRecord.authorization.userId,
 			accessTokenRecord.authorization.organizationId,
 		))
@@ -382,7 +357,7 @@ export async function validateApiKey(apiKey: string) {
 	}
 
 	if (
-		!(await isUserEligibleForOrganization(
+		!(await isActiveOrganizationMember(
 			apiKeyRecord.apiKey.userId,
 			apiKeyRecord.apiKey.organizationId,
 		))
@@ -463,6 +438,17 @@ export async function createAuthorizationCode({
 }
 
 /**
+ * Drop every unredeemed authorization code issued to a user (password reset,
+ * ban). A code obtained before such an event must not turn into a new active
+ * authorization after it.
+ */
+export function revokePendingAuthorizationCodes(userId: string) {
+	for (const [hash, entry] of authorizationCodeCache.entries()) {
+		if (entry.userId === userId) authorizationCodeCache.delete(hash)
+	}
+}
+
+/**
  * Normalize a redirect URI for consistent comparison.
  * Handles trailing slashes and hostname case.
  */
@@ -512,29 +498,22 @@ export async function exchangeAuthorizationCode(
 		return null
 	}
 
-	// The authorize route only issues codes with an S256 challenge. A code
-	// that carries one must be redeemed with the matching verifier; `plain`
-	// is not accepted.
-	if (authData.codeChallenge) {
-		if (!codeVerifier) {
-			return null // code_verifier required but not provided
-		}
-
-		const method = authData.codeChallengeMethod
-
-		// Verify the code_verifier against the code_challenge
-		if (method === 'S256') {
-			const computedChallenge = crypto
-				.createHash('sha256')
-				.update(codeVerifier)
-				.digest('base64url')
-
-			if (computedChallenge !== authData.codeChallenge) {
-				return null // PKCE verification failed
-			}
-		} else {
-			return null // Unsupported code_challenge_method
-		}
+	// Fail closed: clients are public, so PKCE is the only proof that the party
+	// redeeming a code is the one that asked for it. Every code is issued with an
+	// S256 challenge (see the authorize route); `plain` and no-challenge are out.
+	if (
+		!authData.codeChallenge ||
+		authData.codeChallengeMethod !== 'S256' ||
+		!codeVerifier
+	) {
+		return null
+	}
+	const computedChallenge = crypto
+		.createHash('sha256')
+		.update(codeVerifier)
+		.digest('base64url')
+	if (computedChallenge !== authData.codeChallenge) {
+		return null // PKCE verification failed
 	}
 
 	// Create authorization record
@@ -599,7 +578,7 @@ export async function refreshAccessToken(refreshToken: string) {
 	}
 
 	if (
-		!(await isUserEligibleForOrganization(
+		!(await isActiveOrganizationMember(
 			refreshTokenRecord.authorization.userId,
 			refreshTokenRecord.authorization.organizationId,
 		))

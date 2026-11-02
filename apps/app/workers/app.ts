@@ -8,6 +8,7 @@ import {
 	RouterContextProvider,
 } from 'react-router'
 import { executionContext } from '../app/utils/after-response.server.ts'
+import { credentialRateLimitFor } from '../app/utils/credential-routes.ts'
 import { installDevS3Mock } from './dev-s3-mock.ts'
 import { applyWorkerEnv } from './worker-env.ts'
 
@@ -19,31 +20,23 @@ const cloudflareContext = createContext<{
 	ctx: ExecutionContext
 }>()
 
-// Same list as the strongest tier in server/index.ts, plus token refresh.
-const CREDENTIAL_PATHS = [
-	'/login',
-	'/signup',
-	'/verify',
-	'/reset-password',
-	'/resources/login',
-	'/resources/verify',
-	'/api/auth/refresh',
-]
-
 async function rateLimitCredentialRoutes(request: Request) {
 	// Playwright runs many fast logins from one address.
 	if (!import.meta.env.PROD || process.env.PLAYWRIGHT_TEST_BASE_URL) return null
-	if (request.method === 'GET' || request.method === 'HEAD') return null
-	const { pathname } = new URL(request.url)
-	if (pathname.startsWith('/mcp')) return null
-	if (!CREDENTIAL_PATHS.some((p) => pathname.includes(p))) return null
+	const limit = credentialRateLimitFor(
+		request.method,
+		new URL(request.url).pathname,
+	)
+	if (!limit) return null
 
-	const { checkRateLimit, createRateLimitResponse } =
-		await import('../app/utils/rate-limit.server.ts')
-	const ip = request.headers.get('cf-connecting-ip') ?? 'unknown'
+	const [{ checkRateLimit, createRateLimitResponse }, { getClientIp }] =
+		await Promise.all([
+			import('../app/utils/rate-limit.server.ts'),
+			import('@repo/security'),
+		])
 	const result = await checkRateLimit(
-		{ type: 'ip', value: ip },
-		{ scope: 'worker-credential-routes', maxRequests: 10, windowMs: 60_000 },
+		{ type: 'ip', value: getClientIp(request) },
+		limit,
 	)
 	return result.allowed ? null : createRateLimitResponse(result.resetAt)
 }

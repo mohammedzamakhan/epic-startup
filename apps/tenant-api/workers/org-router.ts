@@ -11,7 +11,11 @@ import {
 	resolveOrganizationForBrowserAuth,
 	findActiveOrganizationById,
 } from '../src/lib/origin.ts'
-import { getBearerToken } from '../src/lib/secrets.ts'
+import {
+	getBearerToken,
+	getInternalCommandToken,
+	timingSafeEqualString,
+} from '../src/lib/secrets.ts'
 import type { TenantApiWorkerEnv } from './bindings.ts'
 
 const orgIdBodySchema = z.object({
@@ -220,17 +224,30 @@ export async function resolveOrgId(
 }
 
 /**
- * Server-to-server paths authenticate with a shared token inside the handler,
- * and can arrive before the control plane lists a new organization (provision).
+ * Server-to-server calls may name an organization the control plane does not
+ * list yet (provision arrives first). That is only safe once the caller has
+ * proved it holds the internal token: the handler checks the token, but only
+ * after the Durable Object exists and has run its migrations, so an anonymous
+ * request must never get that far for an unknown organization.
  */
-function isTokenAuthenticatedPath(pathname: string) {
-	return pathname.startsWith('/internal/') || pathname.startsWith('/api/')
+function isAuthenticatedServerCall(request: Request) {
+	const { pathname } = new URL(request.url)
+	if (!pathname.startsWith('/internal/') && !pathname.startsWith('/api/')) {
+		return false
+	}
+	const expected = getInternalCommandToken()
+	const presented = getBearerToken(request.headers.get('Authorization'))
+	return (
+		expected.length >= 16 &&
+		presented.length > 0 &&
+		timingSafeEqualString(presented, expected)
+	)
 }
 
 export async function assertOrgOnUsNode(
 	orgId: string,
 	env: TenantApiWorkerEnv,
-	pathname = '',
+	request?: Request,
 ): Promise<Response | null> {
 	const organization = await findActiveOrganizationById(orgId)
 	if (!organization) {
@@ -238,7 +255,8 @@ export async function assertOrgOnUsNode(
 		// a fresh in-memory rate-limit budget) by naming an unknown organization.
 		if (
 			env.TENANT_API_RUNTIME === 'workers' &&
-			isTokenAuthenticatedPath(pathname)
+			request &&
+			isAuthenticatedServerCall(request)
 		) {
 			return null
 		}

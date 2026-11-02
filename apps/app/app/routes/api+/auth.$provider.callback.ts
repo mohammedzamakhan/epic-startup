@@ -190,15 +190,19 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 				)
 			}
 
+			// An enrolled user must pass the second factor before this provider can
+			// be linked, otherwise an abandoned challenge would still leave a linked
+			// provider that works as a first factor later. They sign in with their
+			// password and code, and link the provider from settings.
+			const challenge = await twoFactorChallenge(existingUser.id)
+			if (challenge) return challenge
+
 			// Connect provider to existing user
 			await db.insert(Connection).values({
 				providerName,
 				providerId: String(profile.id),
 				userId: existingUser.id,
 			})
-
-			const challenge = await twoFactorChallenge(existingUser.id)
-			if (challenge) return challenge
 
 			// Use shared helper to create authenticated session response
 			const response = await createAuthenticatedSessionResponse(

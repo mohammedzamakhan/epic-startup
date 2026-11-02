@@ -12,18 +12,31 @@ import {
 } from '@repo/database'
 import * as fc from 'fast-check'
 import { describe, it, expect } from 'vitest'
+import { TEST_CODE_VERIFIER, TEST_PKCE_CHALLENGE } from '#tests/mcp-pkce.ts'
 import {
 	generateToken,
 	hashToken,
 	createAuthorizationWithTokens as createAuthorizationWithTokensRaw,
 	validateAccessToken,
-	createAuthorizationCode,
-	exchangeAuthorizationCode,
+	createAuthorizationCode as createAuthorizationCodeRaw,
+	exchangeAuthorizationCode as exchangeAuthorizationCodeRaw,
+	revokePendingAuthorizationCodes,
 	refreshAccessToken,
 	revokeAuthorization,
 	ACCESS_TOKEN_EXPIRATION,
 	REFRESH_TOKEN_EXPIRATION,
 } from './oauth.server'
+
+// Authorization codes are only issued with an S256 challenge, so tests do the same.
+const createAuthorizationCode = (
+	args: Parameters<typeof createAuthorizationCodeRaw>[0],
+) => createAuthorizationCodeRaw({ ...TEST_PKCE_CHALLENGE, ...args })
+const exchangeAuthorizationCode = (
+	code: string,
+	redirectUri: string,
+	clientId: string,
+	codeVerifier: string = TEST_CODE_VERIFIER,
+) => exchangeAuthorizationCodeRaw(code, redirectUri, clientId, codeVerifier)
 
 // Credentials are only honored for active members, so every authorization in
 // these tests belongs to a member of its organization.
@@ -1249,5 +1262,99 @@ describe('MCP credentials honor account state', () => {
 			)
 		expect(await validateAccessToken(auth.accessToken)).toBeNull()
 		expect(await refreshAccessToken(auth.refreshToken)).toBeNull()
+	})
+})
+
+describe('authorization code redemption fails closed on PKCE', () => {
+	const redirectUri = 'http://localhost:3000/callback'
+	const base = {
+		clientId: 'pkce-client',
+		userId: 'pkce-user',
+		organizationId: 'pkce-org',
+		clientName: 'pkce',
+		redirectUri,
+	}
+
+	it('rejects a code issued without a challenge, even with a verifier', async () => {
+		const code = await createAuthorizationCodeRaw(base)
+		expect(
+			await exchangeAuthorizationCodeRaw(
+				code,
+				redirectUri,
+				base.clientId,
+				TEST_CODE_VERIFIER,
+			),
+		).toBeNull()
+	})
+
+	it('rejects a plain challenge', async () => {
+		const code = await createAuthorizationCodeRaw({
+			...base,
+			codeChallenge: TEST_CODE_VERIFIER,
+			codeChallengeMethod: 'plain',
+		})
+		expect(
+			await exchangeAuthorizationCodeRaw(
+				code,
+				redirectUri,
+				base.clientId,
+				TEST_CODE_VERIFIER,
+			),
+		).toBeNull()
+	})
+
+	it('rejects a missing or wrong verifier', async () => {
+		for (const verifier of [undefined, 'not-the-verifier']) {
+			const code = await createAuthorizationCodeRaw({
+				...base,
+				...TEST_PKCE_CHALLENGE,
+			})
+			expect(
+				await exchangeAuthorizationCodeRaw(
+					code,
+					redirectUri,
+					base.clientId,
+					verifier,
+				),
+			).toBeNull()
+		}
+	})
+})
+
+describe('pending authorization codes can be revoked', () => {
+	const redirectUri = 'http://localhost:3000/callback'
+
+	it("drops a user's unredeemed codes (password reset) and leaves others alone", async () => {
+		const input = (userId: string) => ({
+			...TEST_PKCE_CHALLENGE,
+			clientId: 'revoke-client',
+			userId,
+			organizationId: 'revoke-org',
+			clientName: 'revoke',
+			redirectUri,
+		})
+		const victimCode = await createAuthorizationCodeRaw(input('victim'))
+		const otherCode = await createAuthorizationCodeRaw(input('someone-else'))
+
+		revokePendingAuthorizationCodes('victim')
+
+		expect(
+			await exchangeAuthorizationCodeRaw(
+				victimCode,
+				redirectUri,
+				'revoke-client',
+				TEST_CODE_VERIFIER,
+			),
+		).toBeNull()
+		// The other user's code was untouched: it fails only on the FK-less
+		// authorization insert, never on lookup (so it was found and consumed).
+		await expect(
+			exchangeAuthorizationCodeRaw(
+				otherCode,
+				redirectUri,
+				'revoke-client',
+				TEST_CODE_VERIFIER,
+			),
+		).rejects.toThrow()
 	})
 })
