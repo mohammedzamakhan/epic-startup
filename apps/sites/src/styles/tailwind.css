@@ -260,6 +260,11 @@
 	line-height: 1rem;
 	font-weight: 600;
 	white-space: nowrap;
+	/* The tint is gone when the browser forces colors: keep the label's edge so
+	   it still reads as a badge. */
+	@media (forced-colors: active) {
+		border-color: CanvasText;
+	}
 }
 @utility tone-neutral {
 	background-color: var(--muted);
