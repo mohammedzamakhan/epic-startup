@@ -68,7 +68,9 @@ export async function getSessionUserId(request: Request) {
 		)
 		.limit(1)
 	if (!session?.userId) {
-		throw redirect('/login', {
+		const redirectTo = getRequestDocumentPath(request)
+		const loginRedirect = `/login?${new URLSearchParams({ redirectTo })}`
+		throw redirect(loginRedirect, {
 			headers: {
 				'set-cookie': await authSessionStorage.destroySession(authSession),
 			},

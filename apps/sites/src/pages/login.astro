@@ -123,6 +123,15 @@ if (!organization) {
 			} else {
 				errorMessage.textContent = tenantErrorMessage(data, errorLabel)
 				errorMessage.classList.remove('hidden')
+				const turnstileWidget = form.querySelector('.cf-turnstile')
+				const turnstileApi = (
+					window as typeof window & {
+						turnstile?: { reset: (element: Element) => void }
+					}
+				).turnstile
+				if (turnstileWidget && turnstileApi) {
+					turnstileApi.reset(turnstileWidget)
+				}
 			}
 		} catch {
 			errorMessage.textContent = networkLabel

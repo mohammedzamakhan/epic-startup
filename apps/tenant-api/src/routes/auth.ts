@@ -58,6 +58,12 @@ const sendCodeSchema = z.object({
 	turnstileToken: z.string().max(2048).optional(),
 })
 
+const NATIVE_CUSTOMER_APP_HEADER = 'x-epic-customer-app'
+
+function isNativeCustomerAppRequest(c: Context) {
+	return c.req.header(NATIVE_CUSTOMER_APP_HEADER)?.toLowerCase() === '1'
+}
+
 async function sendCodeChallengeAccepted(
 	c: Context,
 	token: string | undefined,
@@ -68,7 +74,10 @@ async function sendCodeChallengeAccepted(
 		// bounded by the per-phone cooldown and the send caps.
 		return true
 	}
-	if (!token?.trim()) return false
+	if (!token?.trim()) {
+		// Expo customer app: org binding, Origin, and rate limits; no web widget.
+		return isNativeCustomerAppRequest(c)
+	}
 	const result = await verifyTurnstileToken({
 		secret,
 		token,
@@ -531,6 +540,31 @@ authRoutes.post(
 			})
 		} catch (error) {
 			console.error('SMS sending error:', error)
+			if (existing) {
+				await db
+					.update(customers)
+					.set({
+						phoneVerificationCode: null,
+						phoneVerificationExpiresAt: null,
+					})
+					.where(
+						and(
+							eq(customers.id, existing.id),
+							eq(customers.phoneVerificationCode, hashedCode),
+						),
+					)
+					.run()
+			} else {
+				await db
+					.delete(customers)
+					.where(
+						and(
+							eq(customers.phone, phone),
+							eq(customers.phoneVerificationCode, hashedCode),
+						),
+					)
+					.run()
+			}
 			return c.json({ error: 'Failed to send SMS' }, 500)
 		}
 

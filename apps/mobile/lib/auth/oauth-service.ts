@@ -7,6 +7,29 @@ import { Platform } from 'react-native'
 
 const OAUTH_PENDING_KEY = 'oauth_pending'
 
+async function setOAuthPending(value: string) {
+	if (Platform.OS === 'web') {
+		sessionStorage.setItem(OAUTH_PENDING_KEY, value)
+		return
+	}
+	await SecureStore.setItemAsync(OAUTH_PENDING_KEY, value)
+}
+
+async function getOAuthPending(): Promise<string | null> {
+	if (Platform.OS === 'web') {
+		return sessionStorage.getItem(OAUTH_PENDING_KEY)
+	}
+	return SecureStore.getItemAsync(OAUTH_PENDING_KEY)
+}
+
+async function clearOAuthPending() {
+	if (Platform.OS === 'web') {
+		sessionStorage.removeItem(OAUTH_PENDING_KEY)
+		return
+	}
+	await SecureStore.deleteItemAsync(OAUTH_PENDING_KEY)
+}
+
 export interface OAuthProvider {
 	name: string
 	displayName: string
@@ -108,8 +131,7 @@ export class OAuthService {
 				usePKCE: true,
 			})
 
-			await SecureStore.setItemAsync(
-				OAUTH_PENDING_KEY,
+			await setOAuthPending(
 				JSON.stringify({
 					state: oauthState,
 					codeVerifier: request.codeVerifier ?? null,
@@ -127,8 +149,7 @@ export class OAuthService {
 						errorDescription: 'OAuth state did not match this device',
 					}
 				}
-				await SecureStore.setItemAsync(
-					OAUTH_PENDING_KEY,
+				await setOAuthPending(
 					JSON.stringify({
 						state: oauthState,
 						codeVerifier: request.codeVerifier ?? null,
@@ -181,7 +202,7 @@ export class OAuthService {
 			}
 
 			if (queryParams?.code) {
-				const stored = await SecureStore.getItemAsync(OAUTH_PENDING_KEY)
+				const stored = await getOAuthPending()
 				const pending = stored
 					? (JSON.parse(stored) as {
 							state?: string
@@ -199,7 +220,7 @@ export class OAuthService {
 						errorDescription: 'OAuth state did not match this device',
 					}
 				}
-				await SecureStore.deleteItemAsync(OAUTH_PENDING_KEY)
+				await clearOAuthPending()
 				return {
 					success: true,
 					code: queryParams.code as string,

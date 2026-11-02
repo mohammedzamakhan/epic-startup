@@ -112,6 +112,11 @@ export async function handleStripeCheckout(
 		) {
 			// A success URL can be replayed. Do not replace a different
 			// subscription the organization already has.
+			try {
+				await cleanupDuplicateSubscriptions(deps.stripe, customerId)
+			} catch (error) {
+				console.error('Error cleaning up duplicate subscriptions:', error)
+			}
 			return redirect(`/${current.slug}/dashboard`)
 		}
 
