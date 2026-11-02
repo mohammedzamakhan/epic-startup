@@ -439,8 +439,33 @@ authRoutes.post(
 		if ('error' in loaded) return loaded.error
 		const { db, organization } = loaded
 
+		const existing = await findCustomerByPhone(db, phone)
+
+		if (existing?.phoneVerificationExpiresAt) {
+			const expiresAtMs = new Date(
+				existing.phoneVerificationExpiresAt,
+			).getTime()
+			const sentAt = expiresAtMs - SEND_CODE_TTL_MS
+			if (
+				expiresAtMs > Date.now() &&
+				Date.now() - sentAt < SEND_CODE_COOLDOWN_MS
+			) {
+				return c.json(
+					{
+						error: 'rate_limit_exceeded',
+						error_description: 'Please wait before requesting another code.',
+						retry_after: Math.ceil(
+							(SEND_CODE_COOLDOWN_MS - (Date.now() - sentAt)) / 1000,
+						),
+					},
+					429,
+				)
+			}
+		}
+
 		// Scoped per org so one tenant's customer cannot lock the same number
-		// out of another tenant's sign-in.
+		// out of another tenant's sign-in. Run after the resend cooldown so a
+		// wait response does not consume SMS quota counters.
 		const phoneLimit = rateLimitByKey(
 			'send-code-phone',
 			JSON.stringify([organization.id, phone]),
@@ -472,30 +497,6 @@ authRoutes.post(
 				},
 				429,
 			)
-		}
-
-		const existing = await findCustomerByPhone(db, phone)
-
-		if (existing?.phoneVerificationExpiresAt) {
-			const expiresAtMs = new Date(
-				existing.phoneVerificationExpiresAt,
-			).getTime()
-			const sentAt = expiresAtMs - SEND_CODE_TTL_MS
-			if (
-				expiresAtMs > Date.now() &&
-				Date.now() - sentAt < SEND_CODE_COOLDOWN_MS
-			) {
-				return c.json(
-					{
-						error: 'rate_limit_exceeded',
-						error_description: 'Please wait before requesting another code.',
-						retry_after: Math.ceil(
-							(SEND_CODE_COOLDOWN_MS - (Date.now() - sentAt)) / 1000,
-						),
-					},
-					429,
-				)
-			}
 		}
 
 		const code = crypto.randomInt(100000, 1_000_000).toString()
@@ -608,7 +609,6 @@ authRoutes.post(
 					.update(customers)
 					.set({
 						phoneVerificationCode: null,
-						phoneVerificationExpiresAt: null,
 					})
 					.where(eq(customers.id, customer.id))
 					.run()

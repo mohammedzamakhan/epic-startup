@@ -669,6 +669,63 @@ export async function recordShopOrder(order: ShopOrderUpsert) {
  * payer put in session metadata. The event's account must be that org's
  * connected account, or a stranger's checkout can mark a victim's order paid.
  */
+function connectAccountFromStripeObject(object: unknown): string | undefined {
+	if (!object || typeof object !== 'object') return undefined
+	const record = object as Record<string, unknown>
+	const mock = record.__mock as
+		{ intentData?: { destination?: unknown } } | undefined
+	if (typeof mock?.intentData?.destination === 'string') {
+		return mock.intentData.destination
+	}
+	const transfer = record.transfer_data as { destination?: unknown } | undefined
+	if (typeof transfer?.destination === 'string') {
+		return transfer.destination
+	}
+	const paymentIntent = record.payment_intent
+	if (paymentIntent && typeof paymentIntent === 'object') {
+		return connectAccountFromStripeObject(paymentIntent)
+	}
+	return undefined
+}
+
+async function resolveConnectAccountForShopWebhook(
+	commerce: ShopCommerce,
+	event: unknown,
+	eventType: string,
+	connectAccountFromEvent?: string | null,
+): Promise<string | null | undefined> {
+	if (connectAccountFromEvent) return connectAccountFromEvent
+	const fromObject = connectAccountFromStripeObject(event)
+	if (fromObject) return fromObject
+	if (
+		eventType === 'checkout.session.completed' &&
+		event &&
+		typeof event === 'object'
+	) {
+		const session = event as {
+			payment_intent?: string | { id?: string } | null
+		}
+		const paymentIntentId =
+			typeof session.payment_intent === 'string'
+				? session.payment_intent
+				: session.payment_intent?.id
+		if (paymentIntentId) {
+			try {
+				const paymentIntent =
+					await commerce.retrievePaymentIntent(paymentIntentId)
+				const destination = paymentIntent.transfer_data?.destination
+				if (typeof destination === 'string') return destination
+			} catch (error) {
+				console.error(
+					'Failed to resolve Connect destination from checkout payment intent:',
+					error,
+				)
+			}
+		}
+	}
+	return null
+}
+
 async function connectAccountOwnsOrganization(
 	orgId: string,
 	connectAccountId: string | null | undefined,
@@ -696,8 +753,17 @@ export async function recordShopOrderFromConnectWebhook(
 			event as Parameters<ShopCommerce['mapConnectCheckoutSessionToOrder']>[0],
 		)
 		if (!order) return null
+		const resolvedConnectAccount = await resolveConnectAccountForShopWebhook(
+			commerce,
+			event,
+			eventType,
+			connectAccountId,
+		)
 		if (
-			!(await connectAccountOwnsOrganization(order.orgId, connectAccountId))
+			!(await connectAccountOwnsOrganization(
+				order.orgId,
+				resolvedConnectAccount,
+			))
 		) {
 			console.warn(
 				'Ignored shop webhook: Stripe account does not match the organization',
@@ -712,8 +778,17 @@ export async function recordShopOrderFromConnectWebhook(
 			event as Parameters<ShopCommerce['mapConnectPaymentIntentToOrder']>[0],
 		)
 		if (!order) return null
+		const resolvedConnectAccount = await resolveConnectAccountForShopWebhook(
+			commerce,
+			event,
+			eventType,
+			connectAccountId,
+		)
 		if (
-			!(await connectAccountOwnsOrganization(order.orgId, connectAccountId))
+			!(await connectAccountOwnsOrganization(
+				order.orgId,
+				resolvedConnectAccount,
+			))
 		) {
 			console.warn(
 				'Ignored shop webhook: Stripe account does not match the organization',
