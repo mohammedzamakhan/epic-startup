@@ -218,7 +218,7 @@ const authorizationCodeCache = new Map<
 		codeChallenge?: string
 		codeChallengeMethod?: string
 		issuedAt: number
-		bindToSession: boolean
+		sessionUserId: string | null
 	}
 >()
 
@@ -416,7 +416,7 @@ export async function createAuthorizationCode({
 	redirectUri,
 	codeChallenge,
 	codeChallengeMethod,
-	bindToSession = false,
+	sessionUserId = null,
 }: {
 	userId: string
 	organizationId: string
@@ -427,11 +427,13 @@ export async function createAuthorizationCode({
 	codeChallengeMethod?: string
 	/**
 	 * Tie redemption to the sign-in that approved it: the code is only good while
-	 * a session of this user that already existed at issue time is still live.
-	 * Password reset deletes every session, so it voids pending codes in the
-	 * database, on any isolate and even for a redemption already in flight.
+	 * a session of `sessionUserId` that already existed at issue time is still
+	 * live. This is the real signed-in user, which differs from `userId` when an
+	 * administrator is impersonating. Password reset deletes every session, so it
+	 * voids pending codes in the database, on any isolate and even for a
+	 * redemption already in flight.
 	 */
-	bindToSession?: boolean
+	sessionUserId?: string | null
 }): Promise<string> {
 	const code = generateToken()
 	const codeHash = hashToken(code)
@@ -447,7 +449,7 @@ export async function createAuthorizationCode({
 		codeChallenge,
 		codeChallengeMethod,
 		issuedAt: Date.now(),
-		bindToSession,
+		sessionUserId,
 	})
 
 	return code
@@ -532,13 +534,13 @@ export async function exchangeAuthorizationCode(
 		return null // PKCE verification failed
 	}
 
-	if (authData.bindToSession) {
+	if (authData.sessionUserId) {
 		const [session] = await db
 			.select({ id: Session.id })
 			.from(Session)
 			.where(
 				and(
-					eq(Session.userId, authData.userId),
+					eq(Session.userId, authData.sessionUserId),
 					lte(Session.createdAt, new Date(authData.issuedAt)),
 					gt(Session.expirationDate, new Date()),
 				),

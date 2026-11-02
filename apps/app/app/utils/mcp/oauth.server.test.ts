@@ -1390,9 +1390,9 @@ describe('session-bound authorization codes', () => {
 			organizationId: org!.id,
 			clientName: 'bound',
 			redirectUri,
-			bindToSession: true,
+			sessionUserId: user!.id,
 		})
-		return { user: user!, code }
+		return { user: user!, org: org!, code }
 	}
 
 	it('redeems while the approving session is still live', async () => {
@@ -1431,6 +1431,49 @@ describe('session-bound authorization codes', () => {
 		expect(
 			await exchangeAuthorizationCodeRaw(
 				code,
+				redirectUri,
+				'bound-client',
+				TEST_CODE_VERIFIER,
+			),
+		).toBeNull()
+	})
+
+	it('binds to the signed-in admin, not the impersonated target', async () => {
+		const { user: admin } = await seedBound()
+		const target = await seedBound()
+		// The target has no session of their own; the admin approved the code.
+		await db.delete(Session).where(eq(Session.userId, target.user.id))
+		const code = await createAuthorizationCodeRaw({
+			...TEST_PKCE_CHALLENGE,
+			clientId: 'bound-client',
+			userId: target.user.id,
+			organizationId: target.org.id,
+			clientName: 'bound',
+			redirectUri,
+			sessionUserId: admin.id,
+		})
+		expect(
+			await exchangeAuthorizationCodeRaw(
+				code,
+				redirectUri,
+				'bound-client',
+				TEST_CODE_VERIFIER,
+			),
+		).not.toBeNull()
+		// Once the admin's sessions go (e.g. their password is reset) it is void.
+		const voided = await createAuthorizationCodeRaw({
+			...TEST_PKCE_CHALLENGE,
+			clientId: 'bound-client',
+			userId: target.user.id,
+			organizationId: target.org.id,
+			clientName: 'bound',
+			redirectUri,
+			sessionUserId: admin.id,
+		})
+		await db.delete(Session).where(eq(Session.userId, admin.id))
+		expect(
+			await exchangeAuthorizationCodeRaw(
+				voided,
 				redirectUri,
 				'bound-client',
 				TEST_CODE_VERIFIER,

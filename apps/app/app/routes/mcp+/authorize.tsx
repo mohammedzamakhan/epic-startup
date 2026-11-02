@@ -4,7 +4,7 @@ import {
 	logMCPAuthorizationApproved,
 	logMCPAuthorizationDenied,
 } from '@repo/audit'
-import { getUserId } from '@repo/auth'
+import { getSessionUserId, getUserId } from '@repo/auth'
 import {
 	and,
 	db,
@@ -228,7 +228,8 @@ export async function action({ request }: ActionFunctionArgs) {
 			redirectUri: redirectUri as string,
 			codeChallenge: codeChallenge as string | undefined,
 			codeChallengeMethod: codeChallengeMethod as string | undefined,
-			bindToSession: true,
+			// The real signed-in user (not an impersonation target) owns the session.
+			sessionUserId: (await getSessionUserId(request)) ?? userId,
 		})
 
 		// Log authorization approval
