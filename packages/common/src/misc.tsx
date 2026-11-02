@@ -383,13 +383,22 @@ class DownloadTooLargeError extends Error {}
  * Content-Length is checked first, but a server can lie or omit it, so the
  * stream itself is counted too.
  */
-async function readBodyWithLimit(response: Response, maxBytes: number) {
+async function readBodyWithLimit(
+	response: Response,
+	maxBytes: number,
+): Promise<ArrayBuffer> {
 	const declared = Number(response.headers.get('content-length'))
 	if (Number.isFinite(declared) && declared > maxBytes) {
 		await response.body?.cancel()
 		throw new DownloadTooLargeError(`Download exceeds ${maxBytes} bytes`)
 	}
-	if (!response.body) return new Uint8Array(await response.arrayBuffer())
+	if (!response.body) {
+		const whole = await response.arrayBuffer()
+		if (whole.byteLength > maxBytes) {
+			throw new DownloadTooLargeError(`Download exceeds ${maxBytes} bytes`)
+		}
+		return whole
+	}
 
 	const reader = response.body.getReader()
 	const chunks: Uint8Array[] = []
@@ -410,7 +419,7 @@ async function readBodyWithLimit(response: Response, maxBytes: number) {
 		out.set(chunk, offset)
 		offset += chunk.byteLength
 	}
-	return out
+	return out.buffer as ArrayBuffer
 }
 
 export async function downloadFile(
@@ -426,7 +435,7 @@ export async function downloadFile(
 		}
 		const contentType = response.headers.get('content-type') ?? 'image/jpg'
 		const bytes = await readBodyWithLimit(response, maxBytes)
-		const blob = new Blob([bytes as BlobPart], { type: contentType })
+		const blob = new Blob([bytes], { type: contentType })
 		const file = new File([blob], 'downloaded-file', {
 			type: contentType,
 		})
