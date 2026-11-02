@@ -4,7 +4,7 @@ import {
 	logMCPAuthorizationApproved,
 	logMCPAuthorizationDenied,
 } from '@repo/audit'
-import { getSessionUserId, getUserId } from '@repo/auth'
+import { getSessionUserId } from '@repo/auth'
 import {
 	and,
 	db,
@@ -101,8 +101,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 	// Note: state is optional but recommended for CSRF protection
 
-	// Check if user has an active session
-	const userId = await getUserId(request)
+	// MCP access is always granted to the real signed-in user. An administrator
+	// impersonating someone must not mint persistent client tokens as them: the
+	// code is bound to the session that approves it, and the target has none.
+	const userId = await getSessionUserId(request)
 	if (!userId) {
 		// Redirect to login with return URL
 		const loginUrl = new URL('/login', request.url)
@@ -162,7 +164,7 @@ export async function action({ request }: ActionFunctionArgs) {
 		status: 405,
 	})
 
-	const userId = await getUserId(request)
+	const userId = await getSessionUserId(request)
 	invariantResponse(userId, 'User not authenticated', { status: 401 })
 
 	// Check rate limit for authorization endpoint (10 per hour per user)
@@ -228,8 +230,7 @@ export async function action({ request }: ActionFunctionArgs) {
 			redirectUri: redirectUri as string,
 			codeChallenge: codeChallenge as string | undefined,
 			codeChallengeMethod: codeChallengeMethod as string | undefined,
-			// The real signed-in user (not an impersonation target) owns the session.
-			sessionUserId: (await getSessionUserId(request)) ?? userId,
+			sessionUserId: userId,
 		})
 
 		// Log authorization approval
