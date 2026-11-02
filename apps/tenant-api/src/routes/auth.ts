@@ -616,6 +616,11 @@ authRoutes.post(
 			return c.json({ error: 'Invalid or expired code' }, 400)
 		}
 
+		const storedVerificationCode = customer.phoneVerificationCode
+		if (!storedVerificationCode) {
+			return c.json({ error: 'Invalid or expired code' }, 400)
+		}
+
 		// Consume the code atomically so two concurrent requests presenting the
 		// same OTP cannot both mint a session.
 		const [consumed] = await db
@@ -628,7 +633,7 @@ authRoutes.post(
 			.where(
 				and(
 					eq(customers.id, customer.id),
-					eq(customers.phoneVerificationCode, customer.phoneVerificationCode),
+					eq(customers.phoneVerificationCode, storedVerificationCode),
 				),
 			)
 			.returning({ id: customers.id })
