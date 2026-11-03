@@ -1613,8 +1613,8 @@ msgstr "acme"
 msgid "Acme Inc."
 msgstr "شركة Acme"
 
-#: app/routes/_app+/$orgSlug_+/index.tsx:191
-#: app/routes/_app+/$orgSlug_+/index.tsx:215
+#: app/routes/_app+/$orgSlug_+/index.tsx:193
+#: app/routes/_app+/$orgSlug_+/index.tsx:217
 msgid "Across your organization"
 msgstr "على مستوى مؤسستك"
 
@@ -1991,7 +1991,7 @@ msgstr "أضف الاسم والبريد الإلكتروني والخيارات
 msgid "Add new page"
 msgstr "إضافة صفحة جديدة"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:481
+#: ../../packages/ai/src/components/ai-chat.tsx:483
 msgid "Add next steps"
 msgstr "إضافة الخطوات التالية"
 
@@ -2213,7 +2213,7 @@ msgstr "تُضاف عند الدفع"
 msgid "Added by a manager"
 msgstr "أضافها مدير"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:179
+#: ../../packages/ai/src/components/ai-chat.tsx:181
 msgid "Added section"
 msgstr "تمت إضافة القسم"
 
@@ -2225,7 +2225,7 @@ msgstr "تُضاف للموظفين الجدد"
 msgid "Added to the workplace."
 msgstr "تمت الإضافة إلى مكان العمل."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:178
+#: ../../packages/ai/src/components/ai-chat.tsx:180
 msgid "Adding section"
 msgstr "إضافة قسم"
 
@@ -2984,7 +2984,7 @@ msgstr "كما سُجّلت"
 msgid "Ask a teammate to cover it"
 msgstr "اطلب من زميل تغطيتها"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:823
+#: ../../packages/ai/src/components/ai-chat.tsx:824
 msgid "Ask about this note, or tell me where you'd like to go."
 msgstr "اسأل عن هذه الملاحظة أو أخبرني أين ترغب في الذهاب."
 
@@ -2996,7 +2996,7 @@ msgstr "اسأل الذكاء الاصطناعي"
 msgid "Ask an administrator to add training rules."
 msgstr "اطلب من أحد المسؤولين إضافة قواعد التدريب."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:825
+#: ../../packages/ai/src/components/ai-chat.tsx:826
 msgid "Ask anything…"
 msgstr "اسأل أي شيء…"
 
@@ -3013,7 +3013,7 @@ msgstr "اطلب تغييرًا"
 msgid "Ask for a rating"
 msgstr "طلب تقييم"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:287
+#: ../../packages/ai/src/components/ai-chat.tsx:289
 msgid "Ask me to try again or choose a different destination."
 msgstr "اطلب مني المحاولة مرة أخرى أو اختر وجهة مختلفة."
 
@@ -3021,8 +3021,8 @@ msgstr "اطلب مني المحاولة مرة أخرى أو اختر وجهة 
 msgid "Ask someone who can approve time cards to reopen it."
 msgstr "اطلب ممن يستطيع الموافقة على بطاقات الدوام إعادة فتحها."
 
-#: app/components/home-prompt.tsx:233
-#: app/components/home-prompt.tsx:335
+#: app/components/home-prompt.tsx:257
+#: app/components/home-prompt.tsx:356
 msgid "Ask the assistant"
 msgstr "اسأل المساعد"
 
@@ -3046,7 +3046,7 @@ msgstr "الملف"
 msgid "Assign"
 msgstr "تعيين"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:492
+#: ../../packages/ai/src/components/ai-chat.tsx:494
 msgid "Assign responsibilities"
 msgstr "تعيين المسؤوليات"
 
@@ -3058,10 +3058,10 @@ msgstr "تعليمات المساعد"
 #~ msgid "Assistant paused"
 #~ msgstr "المساعد متوقف مؤقتًا"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:1115
-#: ../../packages/ai/src/components/ai-chat.tsx:1116
-#: app/components/home-prompt.tsx:324
-#: app/components/home-prompt.tsx:325
+#: ../../packages/ai/src/components/ai-chat.tsx:1099
+#: ../../packages/ai/src/components/ai-chat.tsx:1100
+#: app/components/home-prompt.tsx:345
+#: app/components/home-prompt.tsx:346
 msgid "Attach an image"
 msgstr "إرفاق صورة"
 
@@ -3202,7 +3202,7 @@ msgstr "متاح في ذلك الوقت"
 msgid "Available Tools"
 msgstr "الأدوات المتاحة"
 
-#: app/routes/_app+/$orgSlug_+/index.tsx:194
+#: app/routes/_app+/$orgSlug_+/index.tsx:196
 msgid "Avg per day"
 msgstr "المتوسط اليومي"
 
@@ -3428,7 +3428,7 @@ msgstr "الاستراحة {number}"
 msgid "Break deducted"
 msgstr "استراحة مخصومة"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:493
+#: ../../packages/ai/src/components/ai-chat.tsx:495
 msgid "Break down complex tasks"
 msgstr "تقسيم المهام المعقدة"
 
@@ -3544,7 +3544,7 @@ msgstr "البناء"
 msgid "Build a branded HTML email with blocks."
 msgstr "أنشئ بريدًا HTML بعلامتك التجارية باستخدام الكتل."
 
-#: app/components/home-prompt.tsx:30
+#: app/components/home-prompt.tsx:32
 msgid "Build a landing page"
 msgstr "أنشئ صفحة هبوط"
 
@@ -5364,7 +5364,7 @@ msgstr "متعاقد"
 msgid "Contrast"
 msgstr "التباين"
 
-#: app/routes/_app+/$orgSlug_+/index.tsx:213
+#: app/routes/_app+/$orgSlug_+/index.tsx:215
 msgid "Contributors"
 msgstr "المساهمون"
 
@@ -5440,7 +5440,7 @@ msgstr "نسخ أسبوع…"
 msgid "Copy All"
 msgstr "نسخ الكل"
 
-#: ../../packages/ai/src/components/ai-elements/code-block.tsx:146
+#: ../../packages/ai/src/components/ai-elements/code-block.tsx:145
 msgid "Copy code"
 msgstr "نسخ الكود"
 
@@ -5615,7 +5615,7 @@ msgstr "تعذّر تحميل الأصوات"
 msgid "Couldn't mute your microphone. Try again."
 msgstr "تعذّر كتم الميكروفون. حاول مرة أخرى."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:285
+#: ../../packages/ai/src/components/ai-chat.tsx:287
 msgid "Couldn't open {routeTitle}"
 msgstr "تعذر فتح {routeTitle}"
 
@@ -5680,7 +5680,7 @@ msgstr "أنشئ قناة لبدء التواصل مع فريقك. يمكنك ق
 msgid "Create a custom role to assign specific permissions to teammates."
 msgstr "أنشئ دورًا مخصصًا لتعيين صلاحيات محددة للزملاء."
 
-#: app/components/home-prompt.tsx:31
+#: app/components/home-prompt.tsx:33
 msgid "Create a landing page for my business with a hero, a few feature sections, an FAQ, and a contact section."
 msgstr "أنشئ صفحة هبوط لنشاطي التجاري تتضمن قسمًا رئيسيًا وبضعة أقسام للمزايا وقسمًا للأسئلة الشائعة وقسمًا للتواصل."
 
@@ -5700,7 +5700,7 @@ msgstr "إنشاء كلمة مرور"
 msgid "Create a password to secure your account"
 msgstr "أنشئ كلمة مرور لحماية حسابك"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:504
+#: ../../packages/ai/src/components/ai-chat.tsx:506
 msgid "Create a plan"
 msgstr "إنشاء خطة"
 
@@ -5719,7 +5719,7 @@ msgstr "أنشئ دورًا جاهزًا للأشخاص الذين يديرون 
 msgid "Create account"
 msgstr "إنشاء حساب"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:452
+#: ../../packages/ai/src/components/ai-chat.tsx:454
 msgid "Create action items"
 msgstr "إنشاء عناصر العمل"
 
@@ -5769,7 +5769,7 @@ msgstr "أنشئ إعلانات شريطية لموقع مؤسستك العام.
 msgid "Create broadcast"
 msgstr "إنشاء بث"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:479
+#: ../../packages/ai/src/components/ai-chat.tsx:481
 msgid "Create bullet points"
 msgstr "إنشاء نقاط تعداد"
 
@@ -5911,11 +5911,11 @@ msgstr "تم الإنشاء {createdDate}"
 msgid "Created By"
 msgstr "أنشأه"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:175
+#: ../../packages/ai/src/components/ai-chat.tsx:177
 msgid "Created page"
 msgstr "تم إنشاء الصفحة"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:174
+#: ../../packages/ai/src/components/ai-chat.tsx:176
 msgid "Creating page"
 msgstr "إنشاء الصفحة"
 
@@ -6878,8 +6878,8 @@ msgstr "عدم الإعادة"
 msgid "Don't retry"
 msgstr "عدم إعادة المحاولة"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:193
-#: ../../packages/ai/src/components/ai-chat.tsx:240
+#: ../../packages/ai/src/components/ai-chat.tsx:195
+#: ../../packages/ai/src/components/ai-chat.tsx:242
 #: app/components/dashboard/dashboard-edit-toolbar.tsx:101
 #: app/components/hiring/applicant-labels.ts:41
 #: app/components/hiring/hire-dialog.tsx:156
@@ -7015,7 +7015,7 @@ msgstr "تم حفظ المسودة · الإصدار v{publishedVersion} منش�
 msgid "Draft saved."
 msgstr "تم حفظ المسودة."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:459
+#: ../../packages/ai/src/components/ai-chat.tsx:461
 msgid "Draft something for me"
 msgstr "اكتب مسودة لي"
 
@@ -8380,7 +8380,7 @@ msgstr "تصفية حسب مكان العمل"
 msgid "Find and reuse images uploaded across notes, comments, your website, and organization settings."
 msgstr "البحث عن الصور وإعادة استخدامها عبر الملاحظات والتعليقات وموقع الويب وإعدادات المؤسسة."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:453
+#: ../../packages/ai/src/components/ai-chat.tsx:455
 msgid "Find potential issues"
 msgstr "العثور على المشكلات المحتملة"
 
@@ -8723,11 +8723,11 @@ msgstr "احصل على المساعدة"
 msgid "Get in touch"
 msgstr "تواصل معنا"
 
-#: app/components/home-prompt.tsx:60
+#: app/components/home-prompt.tsx:62
 msgid "Get set up"
 msgstr "ابدأ الإعداد"
 
-#: app/components/home-prompt.tsx:334
+#: app/components/home-prompt.tsx:355
 msgid "Get something done"
 msgstr "أنجز شيئًا"
 
@@ -8755,7 +8755,7 @@ msgstr "التخلي عن {when}"
 msgid "Give feedback"
 msgstr "إرسال ملاحظات"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:512
+#: ../../packages/ai/src/components/ai-chat.tsx:514
 msgid "Give me examples"
 msgstr "أعطني أمثلة"
 
@@ -8784,7 +8784,7 @@ msgstr "امنح الزوار مساحة لمشاركة تعليقاتهم."
 msgid "Give your group a name"
 msgstr "أدخل اسمًا لمجموعتك"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:308
+#: ../../packages/ai/src/components/ai-chat.tsx:310
 msgid "Go there"
 msgstr "الانتقال إلى هناك"
 
@@ -8968,15 +8968,15 @@ msgstr "العنوان الرئيسي"
 msgid "Health card"
 msgstr "البطاقة الصحية"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:458
+#: ../../packages/ai/src/components/ai-chat.tsx:460
 msgid "Help me get started"
 msgstr "ساعدني في البدء"
 
-#: app/components/home-prompt.tsx:61
+#: app/components/home-prompt.tsx:63
 msgid "Help me get started. What should I set up first for my organization?"
 msgstr "ساعدني على البدء. ما الذي يجب أن أعدّه أولًا لمؤسستي؟"
 
-#: app/components/home-prompt.tsx:49
+#: app/components/home-prompt.tsx:51
 msgid "Help me plan a marketing email to my customers: suggest a subject line, an outline, and a call to action."
 msgstr "ساعدني في التخطيط لرسالة تسويقية إلى عملائي: اقترح عنوانًا للرسالة ومخططًا لمحتواها ودعوة لاتخاذ إجراء."
 
@@ -9044,7 +9044,7 @@ msgstr "مرحبًا {name}"
 msgid "Hi {personName}, enter your PIN"
 msgstr "مرحبًا {personName}، أدخل رقمك السري"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:819
+#: ../../packages/ai/src/components/ai-chat.tsx:820
 msgid "Hi, {userName}"
 msgstr "مرحباً، {userName}"
 
@@ -9277,11 +9277,11 @@ msgstr "كيف تصل المكالمات إلى الوكيل"
 msgid "How can I help you today?"
 msgstr "كيف يمكنني مساعدتك اليوم؟"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:819
+#: ../../packages/ai/src/components/ai-chat.tsx:820
 msgid "How can I help?"
 msgstr "كيف يمكنني مساعدتك؟"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:514
+#: ../../packages/ai/src/components/ai-chat.tsx:516
 msgid "How can I implement this?"
 msgstr "كيف يمكنني تنفيذ هذا؟"
 
@@ -9351,7 +9351,7 @@ msgstr "لقد نسخت المفتاح"
 msgid "ID"
 msgstr "المعرّف"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:505
+#: ../../packages/ai/src/components/ai-chat.tsx:507
 msgid "Identify risks"
 msgstr "تحديد المخاطر"
 
@@ -9726,7 +9726,7 @@ msgstr "دعوة عضو"
 msgid "Invite members"
 msgstr "دعوة أعضاء"
 
-#: app/components/home-prompt.tsx:54
+#: app/components/home-prompt.tsx:56
 msgid "Invite my team"
 msgstr "ادعُ فريقي"
 
@@ -10155,7 +10155,7 @@ msgid "Last {days} days"
 msgstr "آخر {days} يوم"
 
 #: app/components/notes-chart.tsx:63
-#: app/routes/_app+/$orgSlug_+/index.tsx:197
+#: app/routes/_app+/$orgSlug_+/index.tsx:199
 msgid "Last {daysShown} days"
 msgstr "آخر {daysShown} يوم"
 
@@ -10822,7 +10822,7 @@ msgstr "مكان العمل الرئيسي"
 msgid "Make a test call"
 msgstr "إجراء مكالمة تجريبية"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:478
+#: ../../packages/ai/src/components/ai-chat.tsx:480
 msgid "Make it more detailed"
 msgstr "اجعلها أكثر تفصيلاً"
 
@@ -11858,7 +11858,7 @@ msgid "No active subscription"
 msgstr "لا يوجد اشتراك نشط"
 
 #: app/components/note/activity-log.tsx:207
-#: app/routes/_app+/$orgSlug_+/index.tsx:197
+#: app/routes/_app+/$orgSlug_+/index.tsx:199
 msgid "No activity yet"
 msgstr "لا يوجد نشاط بعد"
 
@@ -12691,7 +12691,7 @@ msgstr "لست أنا"
 msgid "Not notified"
 msgstr "لم يُبلَّغوا"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:317
+#: ../../packages/ai/src/components/ai-chat.tsx:319
 msgid "Not now"
 msgstr "ليس الآن"
 
@@ -12848,7 +12848,7 @@ msgstr "ملاحظات للذكاء الاصطناعي"
 msgid "Notes help you capture thoughts, meeting minutes, or anything important for your organization. Get started by creating your first note."
 msgstr "تساعدك الملاحظات على تسجيل الأفكار ومحاضر الاجتماعات أو أي شيء مهم لمنظمتك. ابدأ بإنشاء ملاحظتك الأولى."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:824
+#: ../../packages/ai/src/components/ai-chat.tsx:825
 msgid "Notes, navigation, and your site — just ask."
 msgstr "المالملاحظات والتنقل وموقعك — فقط اسأل."
 
@@ -13132,7 +13132,7 @@ msgstr "بمجرد ربط عميل الذكاء الاصطناعي باستخد�
 msgid "One date"
 msgstr "تاريخ واحد"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:958
+#: ../../packages/ai/src/components/ai-chat.tsx:959
 msgid "One moment…"
 msgstr "لحظة واحدة…"
 
@@ -13292,7 +13292,7 @@ msgstr "فتح"
 msgid "Open {day} as a day"
 msgstr "فتح {day} كيوم"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:298
+#: ../../packages/ai/src/components/ai-chat.tsx:300
 msgid "Open {routeTitle}?"
 msgstr "هل تريد فتح {routeTitle}؟"
 
@@ -13374,7 +13374,7 @@ msgstr "فتح القائمة"
 msgid "Open mock payments dashboard"
 msgstr "فتح لوحة المدفوعات التجريبية"
 
-#: app/components/home-prompt.tsx:42
+#: app/components/home-prompt.tsx:44
 msgid "Open my reports"
 msgstr "افتح تقاريري"
 
@@ -13508,7 +13508,7 @@ msgstr "فُتِح {0}"
 msgid "Opened {openedAt}"
 msgstr "فُتح في {openedAt}"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:274
+#: ../../packages/ai/src/components/ai-chat.tsx:276
 msgid "Opened {routeTitle}"
 msgstr "تم فتح {routeTitle}"
 
@@ -14522,7 +14522,7 @@ msgstr "عادي"
 msgid "Plaintext Fallback (Optional)"
 msgstr "نص عادي احتياطي (اختياري)"
 
-#: app/components/home-prompt.tsx:48
+#: app/components/home-prompt.tsx:50
 msgid "Plan a customer email"
 msgstr "خطّط لرسالة إلى العملاء"
 
@@ -15002,7 +15002,7 @@ msgstr "قيد الطباعة"
 msgid "Prints"
 msgstr "المطبوعات"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:490
+#: ../../packages/ai/src/components/ai-chat.tsx:492
 msgid "Prioritize these tasks"
 msgstr "تحديد أولوية هذه المهام"
 
@@ -15285,7 +15285,7 @@ msgstr "أسئلة حول الفوترة؟"
 msgid "Questions are optional. A short yes or no on weekends or experience saves you reading every application."
 msgstr "الأسئلة اختيارية. سؤال قصير بنعم أو لا عن العمل في عطلة نهاية الأسبوع أو الخبرة يوفّر عليك قراءة كل طلب."
 
-#: app/components/home-prompt.tsx:423
+#: app/components/home-prompt.tsx:437
 msgid "Questions you ask will show up here."
 msgstr "ستظهر هنا الأسئلة التي تطرحها."
 
@@ -15347,7 +15347,7 @@ msgstr "قراءة الوثائق"
 msgid "Read organization details, verified domain, and storage status."
 msgstr "قراءة تفاصيل المنظمة والنطاق الموثّق وحالة التخزين."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:171
+#: ../../packages/ai/src/components/ai-chat.tsx:173
 msgid "Read page details"
 msgstr "تمت قراءة تفاصيل الصفحة"
 
@@ -15367,7 +15367,7 @@ msgstr "قراءة فقط"
 msgid "Read-only access to organization notes"
 msgstr "وصول للقراءة فقط إلى ملاحظات المؤسسة"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:170
+#: ../../packages/ai/src/components/ai-chat.tsx:172
 msgid "Reading page details"
 msgstr "قراءة تفاصيل الصفحة"
 
@@ -15395,7 +15395,7 @@ msgstr "السبب: {reason}"
 msgid "Receives tips"
 msgstr "يتلقى الإكراميات"
 
-#: app/components/home-prompt.tsx:417
+#: app/components/home-prompt.tsx:431
 msgid "Recent"
 msgstr "الأخيرة"
 
@@ -15686,6 +15686,11 @@ msgstr "الإزالة غير منشورة"
 msgid "Remove"
 msgstr "إزالة"
 
+#. placeholder {0}: attachment.name
+#: ../../packages/ai/src/components/chat-attachment-list.tsx:33
+msgid "Remove {0}"
+msgstr "إزالة {0}"
+
 #: app/components/staff/labor-policy-editor.tsx:1368
 msgid "Remove {date}"
 msgstr "إزالة {date}"
@@ -15762,8 +15767,6 @@ msgstr "إزالة من {name}؟"
 msgid "Remove from workplace"
 msgstr "إزالة من مكان العمل"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:1055
-#: app/components/home-prompt.tsx:289
 #: app/components/note/comment-image-preview.tsx:81
 #: app/components/note/comment-input.tsx:340
 #: app/components/note/comment-input.tsx:456
@@ -15873,7 +15876,7 @@ msgstr "تمت الإزالة"
 msgid "Removed from {name}."
 msgstr "تمت الإزالة من {name}."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:187
+#: ../../packages/ai/src/components/ai-chat.tsx:189
 msgid "Removed section"
 msgstr "تمت إزالة القسم"
 
@@ -15881,7 +15884,7 @@ msgstr "تمت إزالة القسم"
 msgid "Removed tablets ({removedCount})"
 msgstr "الأجهزة المُزالة ({removedCount})"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:186
+#: ../../packages/ai/src/components/ai-chat.tsx:188
 msgid "Removing section"
 msgstr "إزالة القسم"
 
@@ -17307,8 +17310,8 @@ msgstr "لدى الأعضاء المحددين صلاحية الوصول الم�
 msgid "Sell one product on your public site. The platform keeps {SHOP_PLATFORM_FEE_PERCENT}% and the rest is paid out to you."
 msgstr "قم ببيع منتج واحد على موقعك العام. تحتفظ المنصة بنسبة {SHOP_PLATFORM_FEE_PERCENT}% ويتم دفع الباقي لك."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:1149
-#: app/components/home-prompt.tsx:359
+#: ../../packages/ai/src/components/ai-chat.tsx:1133
+#: app/components/home-prompt.tsx:373
 #: app/components/my-schedule/availability-sheet.tsx:203
 msgid "Send"
 msgstr "إرسال"
@@ -17503,7 +17506,7 @@ msgstr "حدد يومًا واحدًا على الأقل."
 msgid "Set clock-out"
 msgstr "تحديد الانصراف"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:491
+#: ../../packages/ai/src/components/ai-chat.tsx:493
 msgid "Set deadlines"
 msgstr "تعيين المواعيد النهائية"
 
@@ -17831,7 +17834,7 @@ msgstr "عرض الطلبات"
 msgid "Show result {position}"
 msgstr "عرض النتيجة {position}"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:502
+#: ../../packages/ai/src/components/ai-chat.tsx:504
 msgid "Show specific examples"
 msgstr "أرني أمثلة محددة"
 
@@ -18067,8 +18070,8 @@ msgstr "بعض الحقول تختلف بالفعل عن اللغة الافتر
 msgid "Some fields are already translated"
 msgstr "بعض الحقول مترجمة بالفعل"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:1066
-#: app/components/home-prompt.tsx:301
+#: ../../packages/ai/src/components/ai-chat.tsx:1050
+#: app/components/home-prompt.tsx:322
 msgid "Some images couldn't be added. Use PNG, JPEG, WebP or GIF under 10 MB, up to 4 per message."
 msgstr "تعذّرت إضافة بعض الصور. استخدم صور PNG أو JPEG أو WebP أو GIF بحجم أقل من 10 ميغابايت، وبحد أقصى 4 صور في الرسالة."
 
@@ -18141,7 +18144,7 @@ msgstr "حدث خطأ ما. حاول مرة أخرى."
 msgid "Something went wrong. Reload the page and try again."
 msgstr "حدث خطأ ما. أعد تحميل الصفحة وحاول مرة أخرى."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:235
+#: ../../packages/ai/src/components/ai-chat.tsx:237
 #: app/components/hiring/job-editor.tsx:486
 #: app/utils/staffing/staff-errors.ts:51
 msgid "Something went wrong. Try again."
@@ -18455,7 +18458,7 @@ msgstr "الحالة"
 msgid "Stay"
 msgstr "البقاء"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:273
+#: ../../packages/ai/src/components/ai-chat.tsx:275
 msgid "Stayed on current page"
 msgstr "تم البقاء في الصفحة الحالية"
 
@@ -18480,7 +18483,7 @@ msgstr "الخطوات"
 msgid "Still clocked in"
 msgstr "ما زال في الدوام"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:1149
+#: ../../packages/ai/src/components/ai-chat.tsx:1133
 msgid "Stop"
 msgstr "إيقاف"
 
@@ -18620,23 +18623,23 @@ msgstr "نجاح"
 msgid "Success message"
 msgstr "رسالة النجاح"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:451
+#: ../../packages/ai/src/components/ai-chat.tsx:453
 msgid "Suggest improvements"
 msgstr "اقتراح تحسينات"
 
-#: app/components/home-prompt.tsx:416
+#: app/components/home-prompt.tsx:430
 msgid "Suggestions"
 msgstr "الاقتراحات"
 
-#: app/components/home-prompt.tsx:37
+#: app/components/home-prompt.tsx:39
 msgid "Summarize my most recent notes and list the action items I should follow up on."
 msgstr "لخّص أحدث ملاحظاتي واذكر المهام التي يجب أن أتابعها."
 
-#: app/components/home-prompt.tsx:36
+#: app/components/home-prompt.tsx:38
 msgid "Summarize my notes"
 msgstr "لخّص ملاحظاتي"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:449
+#: ../../packages/ai/src/components/ai-chat.tsx:451
 msgid "Summarize this note"
 msgstr "تلخيص هذه الملاحظة"
 
@@ -18762,15 +18765,15 @@ msgstr "تلقي رسالة"
 msgid "Take a voicemail"
 msgstr "تلقي بريد صوتي"
 
-#: app/components/home-prompt.tsx:43
+#: app/components/home-prompt.tsx:45
 msgid "Take me to my reports and walk me through what to look at first."
 msgstr "خذني إلى تقاريري وأرشدني إلى ما يجب أن أنظر إليه أولًا."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:457
+#: ../../packages/ai/src/components/ai-chat.tsx:459
 msgid "Take me to settings"
 msgstr "الانتقال إلى الإعدادات"
 
-#: app/components/home-prompt.tsx:55
+#: app/components/home-prompt.tsx:57
 msgid "Take me to the page where I can invite team members to my organization."
 msgstr "خذني إلى الصفحة التي يمكنني منها دعوة أعضاء الفريق إلى مؤسستي."
 
@@ -18896,7 +18899,7 @@ msgstr "عرّفه بنشاطك التجاري"
 msgid "Tell managers when someone has not clocked in"
 msgstr "إبلاغ المديرين عندما لا يسجّل أحدهم حضوره"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:511
+#: ../../packages/ai/src/components/ai-chat.tsx:513
 msgid "Tell me more"
 msgstr "أخبرني المزيد"
 
@@ -19396,11 +19399,11 @@ msgstr "سينتهي صلاحية مفتاح API في هذا التاريخ. ا�
 msgid "The applicant is told the time and details you enter here."
 msgstr "يُبلَّغ المتقدّم بالوقت والتفاصيل التي تدخلها هنا."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:978
+#: ../../packages/ai/src/components/ai-chat.tsx:979
 msgid "The assistant couldn't reply. Check your connection and try again."
 msgstr "تعذّر على المساعد الرد. تحقّق من اتصالك وحاول مرة أخرى."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:983
+#: ../../packages/ai/src/components/ai-chat.tsx:984
 msgid "The assistant couldn't reply. Try again."
 msgstr "تعذّر على المساعد الرد. حاول مرة أخرى."
 
@@ -20970,7 +20973,7 @@ msgstr "المجموع {totalText} من 100"
 msgid "Total before sales tax"
 msgstr "الإجمالي قبل ضريبة المبيعات"
 
-#: app/routes/_app+/$orgSlug_+/index.tsx:189
+#: app/routes/_app+/$orgSlug_+/index.tsx:191
 msgid "Total notes"
 msgstr "إجمالي الملاحظات"
 
@@ -21095,7 +21098,7 @@ msgstr "ترجمة الكل"
 msgid "Transport"
 msgstr "المواصلات"
 
-#: app/routes/_app+/$orgSlug_+/index.tsx:201
+#: app/routes/_app+/$orgSlug_+/index.tsx:203
 msgid "Trend"
 msgstr "الاتجاه"
 
@@ -21181,7 +21184,7 @@ msgstr "جرّب مصطلح بحث مختلفًا."
 msgid "Try adjusting your search or filter."
 msgstr "جرّب تعديل البحث أو الفلتر."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:994
+#: ../../packages/ai/src/components/ai-chat.tsx:995
 #: app/components/ai/global-ai-panel.tsx:86
 #: app/components/chat/chat-view.tsx:680
 #: app/components/hiring/applicants-page.tsx:397
@@ -21217,8 +21220,8 @@ msgstr "حاول لاحقًا أو اسأل مديرك."
 msgid "Try again later. Downloads still work."
 msgstr "حاول لاحقًا. التنزيلات ما زالت تعمل."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:1131
-#: ../../packages/ai/src/components/ai-chat.tsx:1132
+#: ../../packages/ai/src/components/ai-chat.tsx:1115
+#: ../../packages/ai/src/components/ai-chat.tsx:1116
 msgid "Try another answer"
 msgstr "جرب إجابة أخرى"
 
@@ -21639,7 +21642,7 @@ msgstr "تم التحديث {updated}"
 msgid "Updated from Canva"
 msgstr "تم التحديث من Canva"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:183
+#: ../../packages/ai/src/components/ai-chat.tsx:185
 msgid "Updated section"
 msgstr "تم تحديث القسم"
 
@@ -21647,7 +21650,7 @@ msgstr "تم تحديث القسم"
 msgid "Updates as you edit"
 msgstr "يتحدّث أثناء التعديل"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:182
+#: ../../packages/ai/src/components/ai-chat.tsx:184
 msgid "Updating section"
 msgstr "تحديث القسم"
 
@@ -22230,7 +22233,7 @@ msgstr "تم حفظ البريد الصوتي"
 msgid "Voicemails, callback requests, missed transfers, complaints, and low ratings stay open on the Calls page until someone marks them complete."
 msgstr "تبقى رسائل البريد الصوتي وطلبات معاودة الاتصال والتحويلات الفائتة والشكاوى والتقييمات المنخفضة مفتوحة في صفحة المكالمات حتى يضع أحدهم علامة عليها بأنها مكتملة."
 
-#: app/routes/_app+/$orgSlug_+/index.tsx:210
+#: app/routes/_app+/$orgSlug_+/index.tsx:212
 msgid "Vs prior period"
 msgstr "مقارنة بالفترة السابقة"
 
@@ -22678,7 +22681,7 @@ msgstr "ما يقرؤه المتقدمون"
 msgid "What applicants see, like \"Evening line cook\"."
 msgstr "ما يراه المتقدمون، مثل \"طاهٍ مسائي\"."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:450
+#: ../../packages/ai/src/components/ai-chat.tsx:452
 msgid "What are the key points?"
 msgstr "ما هي النقاط الرئيسية؟"
 
@@ -22686,7 +22689,7 @@ msgstr "ما هي النقاط الرئيسية؟"
 #~ msgid "What callers hear before anything else, and when the assistant can't answer."
 #~ msgstr "ما يسمعه المتصلون قبل أي شيء آخر، وعندما لا يستطيع المساعد الإجابة."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:456
+#: ../../packages/ai/src/components/ai-chat.tsx:458
 msgid "What can you help me with?"
 msgstr "بماذا يمكنك مساعدتي؟"
 
@@ -22703,7 +22706,7 @@ msgstr "ماذا تريد أن تسأل؟"
 msgid "What does it pay?"
 msgstr "كم الأجر؟"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:513
+#: ../../packages/ai/src/components/ai-chat.tsx:515
 msgid "What else should I know?"
 msgstr "ماذا يجب أن أعرف أيضاً؟"
 
@@ -22764,7 +22767,7 @@ msgstr "ما يجب فعله عندما يسيء الوكيل فهم المتص�
 msgid "What to print"
 msgstr "ما الذي تريد طباعته"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:503
+#: ../../packages/ai/src/components/ai-chat.tsx:505
 msgid "What tools can help?"
 msgstr "ما الأدوات التي يمكن أن تساعد؟"
 
@@ -22784,7 +22787,7 @@ msgstr "ماذا تريد أن تشارك؟"
 msgid "What your hours cost against your sales, the sales you enter, and how tips divide."
 msgstr "كم تكلّفك ساعات العمل مقابل مبيعاتك، والمبيعات التي تُدخلها، وكيف تُقسَّم الإكراميات."
 
-#: ../../packages/ai/src/components/ai-chat.tsx:480
+#: ../../packages/ai/src/components/ai-chat.tsx:482
 msgid "What's missing?"
 msgstr "ما الذي ينقص؟"
 
@@ -23089,7 +23092,7 @@ msgstr "التحقق من سير العمل"
 msgid "Working"
 msgstr "يعمل"
 
-#: ../../packages/ai/src/components/ai-chat.tsx:193
+#: ../../packages/ai/src/components/ai-chat.tsx:195
 msgid "Working on it"
 msgstr "جارٍ العمل على ذلك"
 

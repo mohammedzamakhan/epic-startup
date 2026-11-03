@@ -2,10 +2,11 @@
 
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HomePrompt } from './home-prompt.tsx'
+import { stubImageDecoding } from './test-image-decoding.ts'
 
 const ask = vi.fn()
 
@@ -13,8 +14,17 @@ vi.mock('#app/components/ai/ai-panel-context.tsx', () => ({
 	useAIPanel: () => ({ ask }),
 }))
 
+let currentUserId: string | undefined = 'user-1'
+vi.mock('react-router', async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	useRouteLoaderData: () =>
+		currentUserId ? { user: { id: currentUserId } } : { user: null },
+}))
+
 beforeEach(() => {
 	ask.mockClear()
+	currentUserId = 'user-1'
+	stubImageDecoding()
 	i18n.load('en', {})
 	i18n.activate('en')
 	window.localStorage?.clear?.()
@@ -106,7 +116,9 @@ describe('HomePrompt', () => {
 		})
 		const fileInput = document.querySelector('input[type="file"]')
 		await user.upload(fileInput as HTMLInputElement, file)
-		expect(await screen.findByRole('img', { name: 'plan.png' })).toBeTruthy()
+		expect(
+			await screen.findByRole('button', { name: 'Remove plan.png' }),
+		).toBeTruthy()
 		await user.type(input, 'What is this?{Enter}')
 		expect(ask).toHaveBeenCalledTimes(1)
 		const [text, files] = ask.mock.calls[0] as [string, Array<{ name: string }>]
@@ -123,9 +135,9 @@ describe('HomePrompt', () => {
 			document.querySelector('input[type="file"]') as HTMLInputElement,
 			file,
 		)
-		await screen.findByRole('img', { name: 'a.png' })
-		await user.click(screen.getByRole('button', { name: 'Remove image' }))
-		expect(screen.queryByRole('img', { name: 'a.png' })).toBeNull()
+		await screen.findByRole('button', { name: 'Remove a.png' })
+		await user.click(screen.getByRole('button', { name: 'Remove a.png' }))
+		expect(screen.queryByRole('button', { name: 'Remove a.png' })).toBeNull()
 
 		await user.upload(
 			document.querySelector('input[type="file"]') as HTMLInputElement,
@@ -153,5 +165,58 @@ describe('HomePrompt', () => {
 		await waitFor(() => expect(screen.queryByText('Suggestions')).toBeNull())
 		await user.keyboard('{ArrowDown}')
 		expect(screen.getByText('Suggestions')).toBeTruthy()
+	})
+
+	it('keeps recent questions per user and drops the old shared key', async () => {
+		const store = new Map<string, string>([['home-prompt-recent', '["old"]']])
+		Object.defineProperty(window, 'localStorage', {
+			configurable: true,
+			value: {
+				getItem: (key: string) => store.get(key) ?? null,
+				setItem: (key: string, value: string) => void store.set(key, value),
+				removeItem: (key: string) => void store.delete(key),
+				clear: () => store.clear(),
+			},
+		})
+		const { user, input } = setup()
+		await user.type(input, 'Open my reports{Enter}')
+		expect(store.has('home-prompt-recent')).toBe(false)
+		expect(JSON.parse(store.get('home-prompt-recent:user-1') ?? '[]')).toEqual([
+			'Open my reports',
+		])
+	})
+
+	it('keeps nothing when nobody is signed in', async () => {
+		currentUserId = undefined
+		const setItem = vi.fn()
+		Object.defineProperty(window, 'localStorage', {
+			configurable: true,
+			value: { getItem: () => null, setItem, removeItem: vi.fn() },
+		})
+		const { user, input } = setup()
+		await user.type(input, 'Open my reports{Enter}')
+		expect(setItem).not.toHaveBeenCalled()
+	})
+
+	it('lights a suggestion row that takes keyboard focus', async () => {
+		const { user, input } = setup()
+		await user.click(input)
+		const row = screen.getByRole('button', { name: /Summarize my notes/ })
+		row.focus()
+		await waitFor(() => expect(row.getAttribute('data-active')).toBe('true'))
+	})
+
+	it('reports an image dropped because the limit was already reached', async () => {
+		const { user } = setup()
+		const files = [1, 2, 3, 4, 5].map(
+			(n) =>
+				new File([new Uint8Array([n])], `p${n}.png`, { type: 'image/png' }),
+		)
+		const fileInput = document.querySelector('input[type="file"]')
+		fireEvent.change(fileInput as HTMLInputElement, { target: { files } })
+		await screen.findByRole('button', { name: 'Remove p1.png' })
+		expect(screen.getAllByRole('button', { name: /^Remove / })).toHaveLength(4)
+		expect(await screen.findByRole('status')).toBeTruthy()
+		void user
 	})
 })

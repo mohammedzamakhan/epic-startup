@@ -265,6 +265,56 @@ describe('handleChat', () => {
 		}
 	})
 
+	it('refuses data that is not base64 or whose bytes are not the declared type', async () => {
+		for (const part of [
+			// Not base64.
+			{
+				type: 'file',
+				mediaType: 'image/jpeg',
+				url: 'data:image/jpeg;base64,not base64!!',
+			},
+			// Valid base64 of plain text (no JPEG signature).
+			{
+				type: 'file',
+				mediaType: 'image/jpeg',
+				url: 'data:image/jpeg;base64,aGVsbG8gd29ybGQ=',
+			},
+			// A JPEG body declared as PNG.
+			{
+				type: 'file',
+				mediaType: 'image/png',
+				url: 'data:image/png;base64,/9j/4AAQ',
+			},
+		]) {
+			const request = new Request('http://localhost/api/ai/chat', {
+				method: 'POST',
+				body: JSON.stringify({
+					messages: [{ id: 'm', role: 'user', parts: [part] }],
+				}),
+			})
+			const createChatStream = vi.fn(() => streamResult())
+			const response = await handleChat(
+				{ request, params: {} } as any,
+				baseDeps({ createChatStream }),
+			)
+			expect((response as Response).status).toBe(400)
+			expect(createChatStream).not.toHaveBeenCalled()
+		}
+	})
+
+	it('refuses a request that declares a body larger than the limit before reading it', async () => {
+		const request = new Request('http://localhost/api/ai/chat', {
+			method: 'POST',
+			headers: { 'content-length': '41000000' },
+			body: JSON.stringify({ messages: [] }),
+		})
+		const response = await handleChat(
+			{ request, params: {} } as any,
+			baseDeps(),
+		)
+		expect((response as Response).status).toBe(413)
+	})
+
 	it('drops everything but the known fields from an accepted image', async () => {
 		const request = new Request('http://localhost/api/ai/chat', {
 			method: 'POST',

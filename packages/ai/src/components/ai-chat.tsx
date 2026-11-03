@@ -29,11 +29,12 @@ import { Loader } from './ai-elements/loader.js'
 import { Message, MessageContent } from './ai-elements/message.js'
 import {
 	ACCEPTED_IMAGE_TYPES,
-	fileToAttachment,
 	keepRecentImages,
 	MAX_ATTACHMENTS,
 	type ChatAttachment,
 } from './chat-attachments.js'
+import { ChatAttachmentList } from './chat-attachment-list.js'
+import { useChatAttachments } from './use-chat-attachments.js'
 import { Response } from './ai-elements/response.js'
 import { Suggestions, Suggestion } from './ai-elements/suggestion.js'
 import { brand } from '@repo/config/brand'
@@ -586,9 +587,15 @@ export function AIChat({
 	onPendingMessageSent,
 }: AIChatProps) {
 	const [input, setInput] = useState('')
-	const [attachments, setAttachments] = useState<ChatAttachment[]>([])
-	const [attachmentError, setAttachmentError] = useState(false)
-	const [resizing, setResizing] = useState(0)
+	const {
+		attachments,
+		error: attachmentError,
+		resizing,
+		addFiles,
+		remove: removeAttachment,
+		clear: clearAttachments,
+		onPaste: handlePaste,
+	} = useChatAttachments()
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const pageIdRef = useRef(pageId)
@@ -784,39 +791,12 @@ export function AIChat({
 		void regenerate()
 	}
 
-	const addFiles = async (files: File[]) => {
-		const room = MAX_ATTACHMENTS - attachments.length
-		setResizing((count) => count + 1)
-		const results = await Promise.all(
-			files.slice(0, Math.max(0, room)).map(fileToAttachment),
-		).finally(() => setResizing((count) => count - 1))
-		const added = results.filter(
-			(result): result is ChatAttachment => result !== null,
-		)
-		setAttachmentError(added.length < files.length)
-		if (added.length > 0) {
-			setAttachments((current) =>
-				[...current, ...added].slice(0, MAX_ATTACHMENTS),
-			)
-		}
-	}
-
-	const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-		const images = Array.from(e.clipboardData.files).filter((file) =>
-			file.type.startsWith('image/'),
-		)
-		if (images.length === 0) return
-		e.preventDefault()
-		void addFiles(images)
-	}
-
 	const handleFormSubmit = (e: React.FormEvent) => {
 		e.preventDefault()
 		if (canSend) {
 			sendUserMessage(input, attachments)
 			setInput('')
-			setAttachments([])
-			setAttachmentError(false)
+			clearAttachments()
 			setShowFollowUpSuggestions(false)
 			if (textareaRef.current) {
 				textareaRef.current.style.height = 'auto'
@@ -1057,31 +1037,14 @@ export function AIChat({
 							isBusy && 'opacity-95',
 						)}
 					>
-						{attachments.length > 0 ? (
-							<ul className="flex flex-wrap gap-2 px-1 pt-2">
-								{attachments.map((attachment) => (
-									<li key={attachment.id} className="group/thumb relative">
-										<img
-											src={attachment.url}
-											alt={attachment.name}
-											className="border-border size-14 rounded-lg border object-cover"
-										/>
-										<button
-											type="button"
-											onClick={() =>
-												setAttachments((current) =>
-													current.filter((item) => item.id !== attachment.id),
-												)
-											}
-											aria-label={_(t`Remove image`)}
-											className="bg-foreground text-background focus-visible:ring-primary/40 absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full opacity-0 transition-opacity duration-80 group-focus-within/thumb:opacity-100 group-hover/thumb:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
-										>
-											<Icon name="x" className="size-3" />
-										</button>
-									</li>
-								))}
-							</ul>
-						) : null}
+						<ChatAttachmentList
+							attachments={attachments}
+							onRemove={(id) => {
+								removeAttachment(id)
+								// Keep focus in the composer instead of dropping it to the page.
+								textareaRef.current?.focus()
+							}}
+						/>
 						{attachmentError ? (
 							<p role="status" className="text-destructive px-1 pt-1.5 text-xs">
 								<Trans>

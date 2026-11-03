@@ -4,6 +4,7 @@ import {
 	fileToAttachment,
 	keepRecentImages,
 	IMAGE_HISTORY_MESSAGES,
+	OMITTED_IMAGE_TEXT,
 } from '@repo/ai/chat-attachments'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -15,16 +16,21 @@ afterEach(() => {
 const file = (type = 'image/png', size = 4) =>
 	new File([new Uint8Array(size)], 'photo', { type })
 
+const canvasCalls: string[] = []
+
 function stubCanvas(urlFor: (quality: number) => string) {
+	canvasCalls.length = 0
 	vi.stubGlobal(
 		'createImageBitmap',
 		vi.fn(async () => ({ width: 4000, height: 3000, close: vi.fn() })),
 	)
 	const toDataURL = vi.fn((_type: string, quality: number) => urlFor(quality))
 	vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
-		fillRect: vi.fn(),
-		drawImage: vi.fn(),
-		set fillStyle(_value: string) {},
+		fillRect: vi.fn(() => canvasCalls.push('fillRect')),
+		drawImage: vi.fn(() => canvasCalls.push('drawImage')),
+		set fillStyle(value: string) {
+			canvasCalls.push(`fillStyle:${value}`)
+		},
 	} as unknown as CanvasRenderingContext2D)
 	vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(
 		toDataURL as never,
@@ -39,6 +45,22 @@ describe('fileToAttachment', () => {
 		expect(attachment?.mediaType).toBe('image/jpeg')
 		expect(attachment?.url).toBe('data:image/jpeg;base64,AAAA')
 		expect(toDataURL).toHaveBeenCalledWith('image/jpeg', 0.85)
+		// Transparent pixels would turn black in a JPEG, so white goes down first.
+		expect(canvasCalls).toEqual(['fillStyle:#ffffff', 'fillRect', 'drawImage'])
+	})
+
+	it('asks the browser to apply the photo orientation', async () => {
+		stubCanvas(() => 'data:image/jpeg;base64,AAAA')
+		await fileToAttachment(file('image/jpeg'))
+		expect(createImageBitmap).toHaveBeenCalledWith(expect.any(File), {
+			imageOrientation: 'from-image',
+		})
+	})
+
+	it('attaches nothing, rather than the original bytes, when the browser cannot decode', async () => {
+		// The original would carry its EXIF metadata, GPS location included.
+		vi.stubGlobal('createImageBitmap', undefined)
+		expect(await fileToAttachment(file('image/jpeg'))).toBeNull()
 	})
 
 	it('retries smaller until the result fits under the server cap', async () => {
@@ -81,13 +103,17 @@ describe('keepRecentImages', () => {
 		expect(result.map((m) => m.parts.length)).toEqual([1, 2, 1, 2])
 	})
 
-	it('drops a message left with no parts, and strips everything at keep 0', () => {
+	it('keeps an image-only turn as a placeholder, so its reply keeps its question', () => {
 		const messages = [
 			{ id: 'a', parts: [image] },
 			{ id: 'b', parts: [image, text] },
 		]
-		expect(keepRecentImages(messages, 0).map((m) => m.id)).toEqual(['b'])
-		expect(keepRecentImages(messages, 0)[0]?.parts).toEqual([text])
+		const stripped = keepRecentImages(messages, 0)
+		expect(stripped.map((m) => m.id)).toEqual(['a', 'b'])
+		expect(stripped[0]?.parts).toEqual([
+			{ type: 'text', text: OMITTED_IMAGE_TEXT },
+		])
+		expect(stripped[1]?.parts).toEqual([text])
 	})
 
 	it('does not change a conversation without images', () => {

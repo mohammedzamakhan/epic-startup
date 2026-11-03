@@ -504,6 +504,7 @@ function SidebarMenu({
 	const containerRef = React.useRef<HTMLDivElement>(null)
 	const hover = useFluidHover(containerRef, {
 		axis: 'y',
+		nearest: true,
 		isItemDisabled: isMenuRowDisabled,
 	})
 	const { registerItem } = hover

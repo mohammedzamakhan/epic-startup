@@ -73,6 +73,37 @@ describe('FluidHoverScope', () => {
 		).toBe(false)
 	})
 
+	it('runs a caller mouse handler without losing hover tracking', () => {
+		const onMouseLeave = vi.fn()
+		const { container } = render(
+			<FluidHoverScope onMouseLeave={onMouseLeave}>
+				<Row>One</Row>
+			</FluidHoverScope>,
+		)
+		const scope = container.querySelector('[data-slot="fluid-hover-scope"]')
+		if (!scope) throw new Error('scope not found')
+		fireEvent.mouseLeave(scope)
+		expect(onMouseLeave).toHaveBeenCalledTimes(1)
+	})
+
+	it('registers the new element when a row is replaced by another node', () => {
+		const { rerender } = render(
+			<FluidHoverScope>
+				<Row key="a">One</Row>
+			</FluidHoverScope>,
+		)
+		// A list that re-creates a row (cmdk does when filtering) mounts a new node.
+		rerender(
+			<FluidHoverScope>
+				<Row key="b">One</Row>
+			</FluidHoverScope>,
+		)
+		fireEvent.focus(screen.getByText('One'))
+		expect(
+			screen.getByText('One').hasAttribute('data-fluid-hover-active'),
+		).toBe(true)
+	})
+
 	it('lights the row that takes keyboard focus', () => {
 		render(
 			<FluidHoverScope>

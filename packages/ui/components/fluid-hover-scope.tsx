@@ -37,6 +37,10 @@ function FluidHoverScope({
 	highlightClassName,
 	follow,
 	onFocus,
+	onMouseMove,
+	onMouseEnter,
+	onMouseLeave,
+	onClick,
 	...props
 }: React.ComponentProps<'div'> & {
 	/** Merged onto the highlight. Defaults to the popup row fill. */
@@ -123,7 +127,24 @@ function FluidHoverScope({
 				// so it sits above the popup's own background and behind the rows.
 				className={cn('relative isolate', className)}
 				onFocus={follow ? onFocus : handleFocus}
-				{...(follow ? null : hover.handlers)}
+				// The caller's handlers run first, then the hook's (as with onFocus), so
+				// neither replaces the other.
+				onMouseMove={(event) => {
+					onMouseMove?.(event)
+					if (!follow) hover.handlers.onMouseMove(event)
+				}}
+				onMouseEnter={(event) => {
+					onMouseEnter?.(event)
+					if (!follow) hover.handlers.onMouseEnter()
+				}}
+				onMouseLeave={(event) => {
+					onMouseLeave?.(event)
+					if (!follow) hover.handlers.onMouseLeave()
+				}}
+				onClick={(event) => {
+					onClick?.(event)
+					if (!follow) hover.handlers.onClick(event)
+				}}
 				{...props}
 			>
 				<FluidHoverHighlight
@@ -151,20 +172,21 @@ function useFluidHoverItemRef<T extends HTMLElement>(
 	enabled = true,
 ) {
 	const scope = React.useContext(FluidHoverScopeContext)
-	const elementRef = React.useRef<T | null>(null)
+	// Held in state, not a ref: a list that replaces a row's DOM node (cmdk does
+	// when a filtered row comes back) must register the new node.
+	const [element, setElement] = React.useState<T | null>(null)
 	const ref = React.useCallback(
 		(node: T | null) => {
-			elementRef.current = node
+			setElement(node)
 			assignRef(externalRef, node)
 		},
 		[externalRef],
 	)
 
 	useIsoLayoutEffect(() => {
-		const element = elementRef.current
 		if (!scope || !enabled || !element) return
 		return scope.register(element)
-	}, [scope, enabled])
+	}, [scope, enabled, element])
 
 	return { ref, inScope: Boolean(scope) && enabled }
 }

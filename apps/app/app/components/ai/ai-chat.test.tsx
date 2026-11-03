@@ -6,6 +6,7 @@ import { AIChat } from '@repo/ai'
 import { render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { stubImageDecoding } from '../test-image-decoding.ts'
 
 function uiMessageStreamResponse(text: string) {
 	return sseResponse([
@@ -269,6 +270,7 @@ test('sends a question handed over from outside once, then reports it sent', asy
 })
 
 test('attaches an image and sends it with the message', async () => {
+	stubImageDecoding()
 	const fetchMock = vi
 		.fn<typeof fetch>()
 		.mockResolvedValue(uiMessageStreamResponse('It is a cat.'))
@@ -289,7 +291,7 @@ test('attaches an image and sends it with the message', async () => {
 	await user.upload(input as HTMLInputElement, file)
 
 	expect(
-		await screen.findByRole('img', { name: 'cat.png' }),
+		await screen.findByRole('button', { name: 'Remove cat.png' }),
 	).toBeInTheDocument()
 	// A picture alone is enough to send.
 	await user.click(screen.getByRole('button', { name: 'Send' }))
@@ -306,6 +308,7 @@ test('attaches an image and sends it with the message', async () => {
 })
 
 test('removes an attached image before sending', async () => {
+	stubImageDecoding()
 	vi.stubGlobal('fetch', vi.fn<typeof fetch>())
 	const user = userEvent.setup()
 	const { container } = render(
@@ -320,9 +323,11 @@ test('removes an attached image before sending', async () => {
 		container.querySelector('input[type="file"]') as HTMLInputElement,
 		file,
 	)
-	await screen.findByRole('img', { name: 'a.png' })
-	await user.click(screen.getByRole('button', { name: 'Remove image' }))
-	expect(screen.queryByRole('img', { name: 'a.png' })).not.toBeInTheDocument()
+	await screen.findByRole('button', { name: 'Remove a.png' })
+	await user.click(screen.getByRole('button', { name: 'Remove a.png' }))
+	expect(
+		screen.queryByRole('button', { name: 'Remove a.png' }),
+	).not.toBeInTheDocument()
 })
 
 test('refuses a file that is not an image', async () => {

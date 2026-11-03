@@ -30,6 +30,13 @@ describe('isValidReactionEmoji', () => {
 		expect(isValidReactionEmoji('1️⃣')).toBe(true)
 	})
 
+	it('rejects a skin tone on something that does not take one, and a lone tone', () => {
+		expect(isValidReactionEmoji('\u2764\u{1F3FD}')).toBe(false)
+		expect(isValidReactionEmoji('\u2764\uFE0F\u{1F3FD}')).toBe(false)
+		expect(isValidReactionEmoji('\u{1F3FD}')).toBe(false)
+		expect(isValidReactionEmoji('\u{1F44D}\u{1F3FD}')).toBe(true)
+	})
+
 	it('still rejects free text, spaces and a lone selector', () => {
 		expect(isValidReactionEmoji('ok')).toBe(false)
 		expect(isValidReactionEmoji('👍 👍')).toBe(false)

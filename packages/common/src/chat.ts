@@ -45,10 +45,12 @@ const messageId = z.number().int().positive()
 const messageBody = z.string().max(CHAT_LIMITS.bodyMax)
 
 /**
- * One pictograph, with the optional emoji-presentation selector (U+FE0F) that
- * makes ❤️ or ☺️ draw as colour emoji, and an optional skin tone (👍🏽).
+ * One pictograph: a character that takes a skin tone with its tone (👍🏽), or
+ * any pictograph with the optional emoji-presentation selector (U+FE0F) that
+ * makes ❤️ or ☺️ draw as colour emoji. A tone after a heart (❤🏽) is malformed.
  */
-const PICTOGRAPH = '\\p{Extended_Pictographic}[\\uFE0F\\p{Emoji_Modifier}]?'
+const PICTOGRAPH =
+	'(?:\\p{Emoji_Modifier_Base}\\p{Emoji_Modifier}|\\p{Extended_Pictographic}\\uFE0F?)'
 const REACTION_EMOJI = new RegExp(
 	`^(?:${PICTOGRAPH}(?:\\u200D${PICTOGRAPH})*|\\p{Regional_Indicator}|[0-9#*]\\uFE0F?\\u20E3)+$`,
 	'u',

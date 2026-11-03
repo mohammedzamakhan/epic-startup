@@ -1,11 +1,11 @@
 import { msg } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
+import { ChatAttachmentList } from '@repo/ai/chat-attachment-list'
 import {
 	ACCEPTED_IMAGE_TYPES,
-	fileToAttachment,
 	MAX_ATTACHMENTS,
-	type ChatAttachment,
 } from '@repo/ai/chat-attachments'
+import { useChatAttachments } from '@repo/ai/use-chat-attachments'
 import { cn } from '@repo/ui'
 import {
 	FluidHoverScope,
@@ -15,7 +15,9 @@ import { Icon, type IconName } from '@repo/ui/icon'
 import { spring } from '@repo/ui/springs'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useId, useRef, useState } from 'react'
+import { useRouteLoaderData } from 'react-router'
 import { useAIPanel } from '#app/components/ai/ai-panel-context.tsx'
+import { type loader as rootLoader } from '#app/root.tsx'
 
 /**
  * The home page prompt. One bar that rotates through things the assistant can
@@ -67,14 +69,21 @@ const SUGGESTIONS = [
 	prompt: ReturnType<typeof msg>
 }[]
 
-const RECENT_KEY = 'home-prompt-recent'
+// Recent questions are private to whoever typed them. localStorage is shared
+// by every account on this browser, so the key carries the user's id, and a
+// signed-out or unknown user keeps nothing.
+const LEGACY_RECENT_KEY = 'home-prompt-recent'
+const recentKey = (userId: string) => `${LEGACY_RECENT_KEY}:${userId}`
 const MAX_RECENT = 5
 const ROTATE_MS = 4000
 
-function readRecent(): string[] {
+function readRecent(userId: string | undefined): string[] {
+	if (!userId) return []
 	try {
+		// An earlier version used one key for everyone; drop it.
+		window.localStorage.removeItem(LEGACY_RECENT_KEY)
 		const parsed: unknown = JSON.parse(
-			window.localStorage.getItem(RECENT_KEY) ?? '[]',
+			window.localStorage.getItem(recentKey(userId)) ?? '[]',
 		)
 		return Array.isArray(parsed)
 			? parsed.filter((item): item is string => typeof item === 'string')
@@ -84,9 +93,10 @@ function readRecent(): string[] {
 	}
 }
 
-function writeRecent(list: string[]) {
+function writeRecent(userId: string | undefined, list: string[]) {
+	if (!userId) return
 	try {
-		window.localStorage.setItem(RECENT_KEY, JSON.stringify(list))
+		window.localStorage.setItem(recentKey(userId), JSON.stringify(list))
 	} catch {
 		// localStorage may be unavailable; recents just won't persist.
 	}
@@ -107,17 +117,24 @@ export function HomePrompt({ className }: { className?: string }) {
 	const [activeIndex, setActiveIndex] = useState(-1)
 	const [headlineIndex, setHeadlineIndex] = useState(0)
 	const [recent, setRecent] = useState<string[]>([])
-	const [attachments, setAttachments] = useState<ChatAttachment[]>([])
-	const [attachmentError, setAttachmentError] = useState(false)
+	const userId = useRouteLoaderData<typeof rootLoader>('root')?.user?.id
+	const {
+		attachments,
+		error: attachmentError,
+		resizing,
+		addFiles,
+		remove: removeAttachment,
+		clear: clearAttachments,
+		onPaste,
+	} = useChatAttachments()
 	const [multiline, setMultiline] = useState(false)
-	const [resizing, setResizing] = useState(0)
 	const [headlinePaused, setHeadlinePaused] = useState(false)
 	const reduceMotion = useReducedMotion() ?? false
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
 	useEffect(() => {
-		setRecent(readRecent())
-	}, [])
+		setRecent(readRecent(userId))
+	}, [userId])
 
 	// Rotate the headline only while the bar is idle. It also stops while the
 	// pointer or keyboard is on it (so it never swaps out from under someone
@@ -165,23 +182,6 @@ export function HomePrompt({ className }: { className?: string }) {
 		textareaRef.current?.focus()
 	}
 
-	const addFiles = async (files: File[]) => {
-		const room = MAX_ATTACHMENTS - attachments.length
-		setResizing((count) => count + 1)
-		const results = await Promise.all(
-			files.slice(0, Math.max(0, room)).map(fileToAttachment),
-		).finally(() => setResizing((count) => count - 1))
-		const added = results.filter(
-			(result): result is ChatAttachment => result !== null,
-		)
-		setAttachmentError(added.length < files.length)
-		if (added.length > 0) {
-			setAttachments((current) =>
-				[...current, ...added].slice(0, MAX_ATTACHMENTS),
-			)
-		}
-	}
-
 	const submit = () => {
 		const text = value.trim()
 		if (!text && attachments.length === 0) return
@@ -193,12 +193,11 @@ export function HomePrompt({ className }: { className?: string }) {
 				MAX_RECENT,
 			)
 			setRecent(next)
-			writeRecent(next)
+			writeRecent(userId, next)
 		}
 		const files = attachments
 		setValue('')
-		setAttachments([])
-		setAttachmentError(false)
+		clearAttachments()
 		setOpen(false)
 		setActiveIndex(-1)
 		textareaRef.current?.blur()
@@ -253,7 +252,8 @@ export function HomePrompt({ className }: { className?: string }) {
 		resizing === 0 && (value.trim().length > 0 || attachments.length > 0)
 
 	return (
-		<section
+		<div
+			role="group"
 			aria-label={_(msg`Ask the assistant`)}
 			className={cn('mx-auto flex w-full max-w-2xl flex-col gap-3', className)}
 			onBlur={(event) => {
@@ -307,31 +307,15 @@ export function HomePrompt({ className }: { className?: string }) {
 							: 'rounded-full',
 					)}
 				>
-					{attachments.length > 0 ? (
-						<ul className="flex flex-wrap gap-2 px-4 pt-3">
-							{attachments.map((attachment) => (
-								<li key={attachment.id} className="group/thumb relative">
-									<img
-										src={attachment.url}
-										alt={attachment.name}
-										className="border-border size-14 rounded-lg border object-cover"
-									/>
-									<button
-										type="button"
-										onClick={() =>
-											setAttachments((current) =>
-												current.filter((item) => item.id !== attachment.id),
-											)
-										}
-										aria-label={_(msg`Remove image`)}
-										className="bg-foreground text-background focus-visible:ring-ring/50 absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full opacity-0 transition-opacity duration-80 group-focus-within/thumb:opacity-100 group-hover/thumb:opacity-100 focus-visible:ring-3 focus-visible:outline-none"
-									>
-										<Icon name="x" className="size-3" />
-									</button>
-								</li>
-							))}
-						</ul>
-					) : null}
+					<ChatAttachmentList
+						className="flex flex-wrap gap-2 px-4 pt-3"
+						attachments={attachments}
+						onRemove={(id) => {
+							removeAttachment(id)
+							// Keep focus in the composer instead of dropping it to the page.
+							textareaRef.current?.focus()
+						}}
+					/>
 					{attachmentError ? (
 						<p role="status" className="text-destructive px-4 pt-2 text-xs">
 							{_(
@@ -379,14 +363,7 @@ export function HomePrompt({ className }: { className?: string }) {
 							onFocus={() => setOpen(true)}
 							onClick={() => setOpen(true)}
 							onKeyDown={handleKeyDown}
-							onPaste={(event) => {
-								const images = Array.from(event.clipboardData.files).filter(
-									(file) => file.type.startsWith('image/'),
-								)
-								if (images.length === 0) return
-								event.preventDefault()
-								void addFiles(images)
-							}}
+							onPaste={onPaste}
 						/>
 						<AnimatePresence initial={false}>
 							{canSend ? (
@@ -480,7 +457,7 @@ export function HomePrompt({ className }: { className?: string }) {
 					) : null}
 				</AnimatePresence>
 			</div>
-		</section>
+		</div>
 	)
 }
 
@@ -502,6 +479,7 @@ function SuggestionRow({
 			type="button"
 			data-active={active}
 			onMouseMove={onActivate}
+			onFocus={onActivate}
 			onClick={onSelect}
 			className="text-foreground flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm outline-none"
 		>

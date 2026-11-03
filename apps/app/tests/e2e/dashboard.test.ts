@@ -41,7 +41,8 @@ const DEFAULT_HOME_BLOCKS = [
 
 /** The assistant prompt at the top of Home: headline, bar and suggestions. */
 function homePrompt(page: Page) {
-	return page.getByRole('region', { name: 'Ask the assistant' })
+	// A group, not a region: Home's blocks are the regions in <main>.
+	return page.getByRole('group', { name: 'Ask the assistant' })
 }
 
 function homePromptInput(page: Page) {

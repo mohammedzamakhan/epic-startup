@@ -109,16 +109,63 @@ export const MAX_CHAT_IMAGES_PER_MESSAGE = 4
 export const MAX_CHAT_IMAGE_URL_LENGTH = 3_000_000
 
 const INLINE_IMAGE_URL = /^data:(image\/(?:png|jpeg|webp|gif));base64,/
+const BASE64_BODY = /^[A-Za-z0-9+/]*={0,2}$/
+/** Largest request body read at all: the image caps plus room for the text. */
+export const MAX_CHAT_BODY_BYTES = 40_000_000
+
+/** Whether the first bytes of the decoded data are those of the declared type. */
+function hasImageSignature(mediaType: string, base64: string): boolean {
+	let bytes: Uint8Array
+	try {
+		// 24 characters decode to 18 bytes, enough for every signature below.
+		const head = base64.slice(0, 24)
+		bytes = Uint8Array.from(
+			atob(head.padEnd(Math.ceil(head.length / 4) * 4, '=')),
+			(c) => c.charCodeAt(0),
+		)
+	} catch {
+		return false
+	}
+	const at = (index: number) => bytes[index] ?? -1
+	switch (mediaType) {
+		case 'image/png':
+			return (
+				at(0) === 0x89 && at(1) === 0x50 && at(2) === 0x4e && at(3) === 0x47
+			)
+		case 'image/jpeg':
+			return at(0) === 0xff && at(1) === 0xd8 && at(2) === 0xff
+		case 'image/gif':
+			return (
+				at(0) === 0x47 && at(1) === 0x49 && at(2) === 0x46 && at(3) === 0x38
+			)
+		case 'image/webp':
+			return (
+				at(0) === 0x52 &&
+				at(1) === 0x49 &&
+				at(2) === 0x46 &&
+				at(3) === 0x46 &&
+				at(8) === 0x57 &&
+				at(9) === 0x45 &&
+				at(10) === 0x42 &&
+				at(11) === 0x50
+			)
+		default:
+			return false
+	}
+}
 
 /**
  * Checks every file part and returns a refusal for anything that is not a
- * small, inline, base64 PNG/JPEG/WebP/GIF. A remote URL would make the server
- * fetch whatever the client names, and a provider reference would make the
- * model use something other than the bytes that were checked. Accepted parts
- * are rebuilt from the known fields only, so nothing else the client attached
- * reaches the model.
+ * small, inline, base64 PNG/JPEG/WebP/GIF whose bytes match its declared type.
+ * A remote URL would make the server fetch whatever the client names, and a
+ * provider reference would make the model use something other than the bytes
+ * that were checked.
+ *
+ * It also CHANGES `rawMessages`: each accepted part is replaced by one rebuilt
+ * from the known fields only, so nothing else the client attached reaches the
+ * model.
  */
-export function rejectUnsafeAttachments(rawMessages: unknown): Response | null {
+export function sanitizeChatAttachments(rawMessages: unknown): Response | null {
 	if (!Array.isArray(rawMessages)) {
 		return new Response('Invalid messages', { status: 400 })
 	}
@@ -135,8 +182,16 @@ export function rejectUnsafeAttachments(rawMessages: unknown): Response | null {
 			if (!match || typeof mediaType !== 'string' || mediaType !== match[1]) {
 				return new Response('Only images can be attached', { status: 400 })
 			}
-			if ((url as string).length > MAX_CHAT_IMAGE_URL_LENGTH) {
+			const urlText = url as string
+			if (urlText.length > MAX_CHAT_IMAGE_URL_LENGTH) {
 				return new Response('That image is too large', { status: 413 })
+			}
+			const payload = urlText.slice(match[0].length)
+			if (
+				!BASE64_BODY.test(payload) ||
+				!hasImageSignature(mediaType, payload)
+			) {
+				return new Response('Only images can be attached', { status: 400 })
 			}
 			inMessage += 1
 			images += 1
@@ -249,6 +304,12 @@ export async function handleChat(
 	const noteId = url.searchParams.get('noteId')
 	const orgSlug = url.searchParams.get('orgSlug')
 
+	// Refuse an oversized body before it is read into memory.
+	const declaredLength = Number(request.headers.get('content-length'))
+	if (declaredLength > MAX_CHAT_BODY_BYTES) {
+		return new Response('Request too large', { status: 413 })
+	}
+
 	const body = (await request.json()) as {
 		messages: unknown[]
 		pageId?: string | null
@@ -256,7 +317,7 @@ export async function handleChat(
 		params?: unknown
 	}
 	const { messages: rawMessages } = body
-	const attachmentRefusal = rejectUnsafeAttachments(rawMessages)
+	const attachmentRefusal = sanitizeChatAttachments(rawMessages)
 	if (attachmentRefusal) return attachmentRefusal
 	const pageId = url.searchParams.get('pageId') ?? body.pageId ?? null
 

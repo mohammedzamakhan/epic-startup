@@ -94,4 +94,109 @@ describe('FluidSlider', () => {
 		)
 		expect(screen.getByRole('slider', { name: 'Volume' })).toBeTruthy()
 	})
+
+	it('moves to the ends with Home and End', () => {
+		const onChange = vi.fn()
+		render(
+			<FluidSlider
+				variant="scrubber"
+				label="Level"
+				min={0}
+				max={100}
+				value={50}
+				onChange={onChange}
+			/>,
+		)
+		const thumb = screen.getByRole('slider', { name: 'Level' })
+		fireEvent.keyDown(thumb, { key: 'Home' })
+		expect(onChange).toHaveBeenLastCalledWith(0)
+		fireEvent.keyDown(thumb, { key: 'End' })
+		expect(onChange).toHaveBeenLastCalledWith(100)
+	})
+
+	it('reports the formatted value to assistive technology and forwards the description', () => {
+		render(
+			<>
+				<p id="hint">Adjusts the exposure</p>
+				<FluidSlider
+					variant="scrubber"
+					label="Brightness"
+					min={50}
+					max={150}
+					value={120}
+					formatValue={(value) => `${value}%`}
+					aria-describedby="hint"
+					onChange={() => {}}
+				/>
+			</>,
+		)
+		const thumb = screen.getByRole('slider', { name: 'Brightness' })
+		expect(thumb.getAttribute('aria-valuetext')).toBe('120%')
+		expect(thumb.getAttribute('aria-describedby')).toBe('hint')
+	})
+
+	it('runs a caller pointer handler as well as its own', () => {
+		const onChange = vi.fn()
+		const onPointerDown = vi.fn()
+		const { container } = render(
+			<FluidSlider
+				variant="scrubber"
+				label="Level"
+				min={0}
+				max={100}
+				value={0}
+				onPointerDown={onPointerDown}
+				onChange={onChange}
+			/>,
+		)
+		const row = container.querySelector('.cursor-ew-resize.relative')
+		if (!row) throw new Error('row not found')
+		row.getBoundingClientRect = () =>
+			({
+				left: 0,
+				width: 100,
+				top: 0,
+				height: 32,
+				right: 100,
+				bottom: 32,
+			}) as DOMRect
+		fireEvent.pointerDown(row, { clientX: 50, pointerType: 'mouse', button: 0 })
+		expect(onPointerDown).toHaveBeenCalledTimes(1)
+		expect(onChange).toHaveBeenCalledWith(50)
+	})
+
+	it('never offers a pip past the maximum', () => {
+		const onChange = vi.fn()
+		const { container } = render(
+			<FluidSlider
+				variant="pips"
+				label="Steps"
+				min={0}
+				max={10}
+				step={6}
+				value={0}
+				onChange={onChange}
+			/>,
+		)
+		const row = container.querySelector('.cursor-ew-resize.relative')
+		if (!row) throw new Error('row not found')
+		row.getBoundingClientRect = () =>
+			({
+				left: 0,
+				width: 100,
+				top: 0,
+				height: 32,
+				right: 100,
+				bottom: 32,
+			}) as DOMRect
+		fireEvent.pointerDown(row, {
+			clientX: 100,
+			pointerType: 'mouse',
+			button: 0,
+		})
+		expect(onChange).toHaveBeenCalledWith(6)
+		for (const call of onChange.mock.calls) {
+			expect(call[0] as number).toBeLessThanOrEqual(10)
+		}
+	})
 })

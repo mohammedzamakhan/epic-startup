@@ -81,6 +81,11 @@ const FluidSlider = React.forwardRef<HTMLDivElement, FluidSliderProps>(
 			label,
 			'aria-label': ariaLabel,
 			'aria-labelledby': ariaLabelledBy,
+			'aria-describedby': ariaDescribedBy,
+			onPointerDown,
+			onPointerMove,
+			onPointerUp,
+			onPointerCancel,
 			formatValue = String,
 			disabled = false,
 			className,
@@ -96,6 +101,10 @@ const FluidSlider = React.forwardRef<HTMLDivElement, FluidSliderProps>(
 			[reduceMotion],
 		)
 		const containerRef = React.useRef<HTMLDivElement>(null)
+		const thumbRef = React.useRef<HTMLDivElement>(null)
+		// The latest value, for settling the fill when a press ends.
+		const valueRef = React.useRef(value)
+		valueRef.current = value
 		// Row presses and the scrubber's handle strip track their drags apart.
 		const dragging = React.useRef(false)
 		const handleDragging = React.useRef(false)
@@ -140,7 +149,8 @@ const FluidSlider = React.forwardRef<HTMLDivElement, FluidSliderProps>(
 				Array.from(
 					{ length: Math.round((max - min) / step) + 1 },
 					(_, i) => min + i * step,
-				),
+					// A step that does not divide the range would put a pip past max.
+				).filter((pip) => pip <= max),
 			[min, max, step],
 		)
 		const pipCount = pipSteps.length
@@ -293,12 +303,21 @@ const FluidSlider = React.forwardRef<HTMLDivElement, FluidSliderProps>(
 			[variant, pipSteps, pipCount, min, max, step],
 		)
 
+		// A press does not focus anything (it is default-prevented), so move
+		// focus to the real slider and the arrow keys work straight after a click.
+		const focusThumb = () => {
+			const thumb = thumbRef.current
+			const target = thumb?.querySelector('input') ?? thumb
+			target?.focus({ preventScroll: true })
+		}
+
 		const handlePointerDown = React.useCallback(
 			(e: React.PointerEvent<HTMLDivElement>) => {
 				if (disabled) return
 				if (e.pointerType === 'mouse' && e.button !== 0) return
 				e.preventDefault()
 				dragging.current = true
+				focusThumb()
 				setIsPressed(true)
 				// A press anywhere jumps to the snapped value; the fill springs there
 				// on spring.fast.
@@ -353,11 +372,19 @@ const FluidSlider = React.forwardRef<HTMLDivElement, FluidSliderProps>(
 		)
 
 		// No settle step on release: every move already landed on a snapped value.
+		// The parent may keep the old value (a refused or clamped change); the
+		// fill must then go back to it instead of staying where the press put it.
+		const settleFill = React.useCallback(() => {
+			animate(fillPercent, percentOf(valueRef.current, min, max), move)
+			animate(zeroOffset, valueRef.current === min ? zeroTarget : 0, move)
+		}, [fillPercent, zeroOffset, zeroTarget, min, max, move])
+
 		const handlePointerUp = React.useCallback(() => {
 			dragging.current = false
 			setIsPressed(false)
 			setHoverPreview(null)
-		}, [])
+			settleFill()
+		}, [settleFill])
 
 		// Resize handle drag handlers (direct cursor position)
 		// Unlike a row press, grabbing the handle sets the fill from the first
@@ -370,6 +397,7 @@ const FluidSlider = React.forwardRef<HTMLDivElement, FluidSliderProps>(
 				e.preventDefault()
 				e.stopPropagation()
 				handleDragging.current = true
+				focusThumb()
 				setIsPressed(true)
 				const newVal = getValueFromX(e.clientX)
 				onChange(newVal)
@@ -416,7 +444,8 @@ const FluidSlider = React.forwardRef<HTMLDivElement, FluidSliderProps>(
 			handleDragging.current = false
 			setIsPressed(false)
 			setHoverPreview(null)
-		}, [])
+			settleFill()
+		}, [settleFill])
 
 		const handleRadixChange = React.useCallback(
 			(newValues: number[]) => {
@@ -506,10 +535,22 @@ const FluidSlider = React.forwardRef<HTMLDivElement, FluidSliderProps>(
 							: '1px solid transparent',
 					}}
 					transition={spring.fast}
-					onPointerDown={handlePointerDown}
-					onPointerMove={handlePointerMove}
-					onPointerUp={handlePointerUp}
-					onPointerCancel={handlePointerUp}
+					onPointerDown={(event) => {
+						onPointerDown?.(event)
+						handlePointerDown(event)
+					}}
+					onPointerMove={(event) => {
+						onPointerMove?.(event)
+						handlePointerMove(event)
+					}}
+					onPointerUp={(event) => {
+						onPointerUp?.(event)
+						handlePointerUp()
+					}}
+					onPointerCancel={(event) => {
+						onPointerCancel?.(event)
+						handlePointerUp()
+					}}
 					{...props}
 				>
 					{/* Invisible Base UI Slider for keyboard nav + a11y */}
@@ -519,7 +560,9 @@ const FluidSlider = React.forwardRef<HTMLDivElement, FluidSliderProps>(
 						value={[value]}
 						onValueChange={(v) => handleRadixChange(v as number[])}
 						min={min}
-						max={max}
+						// The primitive warns when max is not above min; a degenerate range
+						// still renders, with every position mapping to the start.
+						max={max > min ? max : min + step}
 						step={step}
 						disabled={disabled}
 						className="pointer-events-none absolute inset-0 opacity-0 [&_*]:pointer-events-none"
@@ -529,9 +572,12 @@ const FluidSlider = React.forwardRef<HTMLDivElement, FluidSliderProps>(
 								<SliderPrimitive.Indicator />
 							</SliderPrimitive.Track>
 							<SliderPrimitive.Thumb
+								ref={thumbRef}
 								index={0}
 								aria-label={ariaLabel ?? label}
 								aria-labelledby={ariaLabelledBy}
+								aria-describedby={ariaDescribedBy}
+								getAriaValueText={(_formatted, current) => formatValue(current)}
 								className="block outline-none"
 								onFocus={(e) => {
 									if (

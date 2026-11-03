@@ -29,25 +29,20 @@ const RESIZE_ATTEMPTS = [
  *  messages that carry them. Older ones go text-only, which bounds the request
  *  size and the token cost of a long conversation. */
 export const IMAGE_HISTORY_MESSAGES = 2
-// Used only when the browser cannot decode and resize the image itself.
-const MAX_UNRESIZED_BYTES = 2 * 1024 * 1024
+/** Stands in for a message that was only an image once the image is left out,
+ *  so the turn (and the reply to it) keeps its place in the history. */
+export const OMITTED_IMAGE_TEXT = '[Image omitted]'
 
 export function isAcceptedImage(file: File) {
 	return ACCEPTED_IMAGE_TYPES.split(',').includes(file.type)
 }
 
-function readAsDataUrl(file: Blob): Promise<string> {
-	return new Promise((resolve, reject) => {
-		const reader = new FileReader()
-		reader.onload = () => resolve(String(reader.result))
-		reader.onerror = () => reject(reader.error)
-		reader.readAsDataURL(file)
-	})
-}
-
 async function resizeToJpeg(file: File): Promise<string | null> {
 	if (typeof createImageBitmap !== 'function') return null
-	const bitmap = await createImageBitmap(file)
+	// Explicit, so a phone photo is not sent sideways in any browser.
+	const bitmap = await createImageBitmap(file, {
+		imageOrientation: 'from-image',
+	})
 	try {
 		for (const { edge, quality } of RESIZE_ATTEMPTS) {
 			const scale = Math.min(1, edge / Math.max(bitmap.width, bitmap.height))
@@ -72,39 +67,39 @@ async function resizeToJpeg(file: File): Promise<string | null> {
 	}
 }
 
-/** Returns null for a file that is not a usable image. */
+/**
+ * Returns null for a file that is not a usable image.
+ *
+ * Every image is decoded and re-encoded as a JPEG, which also drops its
+ * metadata (EXIF, including GPS location) before it leaves for the model
+ * provider. A browser that cannot decode it gets no attachment rather than
+ * the original bytes. An animated GIF becomes its first frame.
+ */
 export async function fileToAttachment(
 	file: File,
 ): Promise<ChatAttachment | null> {
 	if (!isAcceptedImage(file) || file.size > MAX_SOURCE_BYTES) return null
 	try {
-		const resized = await resizeToJpeg(file)
-		if (resized) {
-			return {
-				id: crypto.randomUUID(),
-				name: file.name,
-				mediaType: 'image/jpeg',
-				url: resized,
-			}
-		}
-		if (file.size > MAX_UNRESIZED_BYTES) return null
+		const url = await resizeToJpeg(file)
+		if (!url) return null
 		return {
 			id: crypto.randomUUID(),
 			name: file.name,
-			mediaType: file.type,
-			url: await readAsDataUrl(file),
+			mediaType: 'image/jpeg',
+			url,
 		}
 	} catch {
 		return null
 	}
 }
 
-type WithParts = { parts: Array<{ type: string }> }
+type WithParts = { parts: Array<{ type: string; text?: string }> }
 
 /**
  * Returns the messages with images kept only on the last `keep` messages that
- * have any. A message left with no parts is dropped, since an empty one is not
- * a valid turn. `keep = 0` strips every image, for saving a conversation.
+ * have any. A message left with nothing but the omitted image becomes a short
+ * text placeholder, so every turn stays in the conversation. `keep = 0` strips
+ * every image, for saving a conversation.
  */
 export function keepRecentImages<T extends WithParts>(
 	messages: T[],
@@ -121,14 +116,15 @@ export function keepRecentImages<T extends WithParts>(
 		const message = messages[index]
 		if (message && hasImage(message)) kept.add(index)
 	}
-	return messages
-		.map((message, index) =>
-			!hasImage(message) || kept.has(index)
-				? message
-				: {
-						...message,
-						parts: message.parts.filter((part) => part.type !== 'file'),
-					},
-		)
-		.filter((message) => message.parts.length > 0)
+	return messages.map((message, index) => {
+		if (!hasImage(message) || kept.has(index)) return message
+		const parts = message.parts.filter((part) => part.type !== 'file')
+		return {
+			...message,
+			parts:
+				parts.length > 0
+					? parts
+					: ([{ type: 'text', text: OMITTED_IMAGE_TEXT }] as typeof parts),
+		}
+	})
 }
