@@ -23,6 +23,7 @@ import {
 	sitesConnectSrc,
 	sitesFrameSrc,
 	sitesScriptSrc,
+	sitesScriptSrcAttr,
 	sitesShopCheckoutConnectSrc,
 	sitesShopCheckoutScriptSrc,
 } from '~/lib/site-headers'
@@ -80,6 +81,7 @@ function securityHeadersFor(env: SiteHostEnv) {
 			"default-src 'self'",
 			connectSrc,
 			`${sitesScriptSrc(!isProduction)}${sitesShopCheckoutScriptSrc(shopCheckoutCsp)}`,
+			sitesScriptSrcAttr(!isProduction),
 			"style-src 'self' 'unsafe-inline'",
 			fontSrc,
 			imgSrc,

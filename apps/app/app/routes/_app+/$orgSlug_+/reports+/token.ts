@@ -9,6 +9,7 @@ import {
 	ORG_WIDE_REPORT_SUBJECTS,
 	type RestrictedReportSubject,
 } from '@repo/reports/token'
+import { assertSecretNotPlaceholder } from '@repo/security'
 import { data } from 'react-router'
 import { ENV } from 'varlock/env'
 import { requireUserOrganization } from '#app/utils/organization/loader.server.ts'
@@ -61,8 +62,20 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 		...staff.subjects,
 	]
 
+	const signingSecret = assertSecretNotPlaceholder(
+		'OPERATOR_ANALYTICS_TOKEN',
+		ENV.OPERATOR_ANALYTICS_TOKEN || '',
+	)
+	if (
+		signingSecret.length < 16 ||
+		signingSecret === (ENV.INTERNAL_COMMAND_TOKEN || '')
+	) {
+		throw new Error(
+			'OPERATOR_ANALYTICS_TOKEN is not configured or matches INTERNAL_COMMAND_TOKEN',
+		)
+	}
 	const minted = await mintOperatorAnalyticsToken({
-		internalCommandToken: ENV.INTERNAL_COMMAND_TOKEN || '',
+		signingSecret,
 		userId,
 		orgId: organization.id,
 		role: 'operator',

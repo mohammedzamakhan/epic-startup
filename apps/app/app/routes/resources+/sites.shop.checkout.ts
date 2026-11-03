@@ -5,6 +5,7 @@ import {
 	checkRateLimit,
 	createRateLimitResponse,
 	PUBLIC_SITE_RATE_LIMIT,
+	SHOP_CHECKOUT_RATE_LIMIT,
 } from '#app/utils/rate-limit.server.ts'
 import { createPublicShopCheckoutSession } from '#app/utils/shop.server.ts'
 
@@ -48,6 +49,17 @@ export async function action({ request }: ActionFunctionArgs) {
 
 	if (!parsed.data.slug && !parsed.data.host) {
 		return Response.json({ error: 'slug or host is required' }, { status: 400 })
+	}
+
+	const shopKey = (parsed.data.host || parsed.data.slug || '')
+		.trim()
+		.toLowerCase()
+	const shopLimit = await checkRateLimit(
+		{ type: 'org', value: shopKey },
+		SHOP_CHECKOUT_RATE_LIMIT,
+	)
+	if (!shopLimit.allowed) {
+		return createRateLimitResponse(shopLimit.resetAt)
 	}
 
 	try {

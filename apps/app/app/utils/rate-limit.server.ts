@@ -75,6 +75,17 @@ export const PUBLIC_SITE_RATE_LIMIT: RateLimitConfig = {
 	windowMs: 60 * 1000, // 1 minute
 }
 
+/**
+ * Shop checkout creation, separate from the shared public-page IP bucket and
+ * keyed by the shop (host or slug) so a spread of addresses cannot open
+ * unlimited sessions for one organization.
+ */
+export const SHOP_CHECKOUT_RATE_LIMIT: RateLimitConfig = {
+	scope: 'shop-checkout',
+	maxRequests: process.env.NODE_ENV === 'development' ? 1000 : 30,
+	windowMs: 60 * 1000,
+}
+
 // Caps guesses against a single emailed/2FA code regardless of source IP, so a
 // botnet cannot spread guesses across addresses to dodge the per-IP limiter.
 export const VERIFICATION_CODE_ATTEMPT_RATE_LIMIT: RateLimitConfig = {

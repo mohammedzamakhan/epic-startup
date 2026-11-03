@@ -422,6 +422,7 @@ function generateSharedSecrets() {
 	const sessionSecret = randomHex(16)
 	const internalCommandToken = randomHex(16)
 	const tenantOperatorToken = randomHex(16)
+	const operatorAnalyticsToken = randomHex(16)
 	const customerJwtSecret = randomHex(16)
 
 	return {
@@ -439,10 +440,12 @@ function generateSharedSecrets() {
 			TENANT_CUSTOMER_JWT_SECRET: customerJwtSecret,
 			INTEGRATION_ENCRYPTION_KEY: randomHex(32),
 			INTEGRATIONS_OAUTH_STATE_SECRET: randomHex(16),
+			OPERATOR_ANALYTICS_TOKEN: operatorAnalyticsToken,
 		},
 		tenant_api: {
 			JWT_SECRET: customerJwtSecret,
 			AUTH_HMAC_SECRET: randomHex(16),
+			OPERATOR_ANALYTICS_TOKEN: operatorAnalyticsToken,
 		},
 		voice_agent: {
 			VOICE_AGENT_TOKEN: randomHex(32),
@@ -452,6 +455,7 @@ function generateSharedSecrets() {
 			'INTERNAL_COMMAND_TOKEN must also match jobs-cron and tenant-api.',
 			'TENANT_CUSTOMER_JWT_SECRET (App) must equal JWT_SECRET on US tenant-api.',
 			'VOICE_AGENT_TOKEN must match on App, US tenant-api, and the LiveKit Cloud voice agent (launch.voice-agent.env).',
+			'OPERATOR_ANALYTICS_TOKEN must match on App and every tenant-api, and must differ from INTERNAL_COMMAND_TOKEN.',
 			'launch:setup can apply these via wrangler secret put after deploy — never commit values to git.',
 		],
 	}
@@ -626,6 +630,7 @@ function applyGeneratedWranglerSecrets(
 				['HONEYPOT_SECRET', secrets.shared.HONEYPOT_SECRET],
 				['INTERNAL_COMMAND_TOKEN', secrets.shared.INTERNAL_COMMAND_TOKEN],
 				['TENANT_OPERATOR_TOKEN', secrets.shared.TENANT_OPERATOR_TOKEN],
+				['OPERATOR_ANALYTICS_TOKEN', secrets.app.OPERATOR_ANALYTICS_TOKEN],
 				['JWT_SECRET', secrets.app.JWT_SECRET],
 				['TENANT_CUSTOMER_JWT_SECRET', secrets.app.TENANT_CUSTOMER_JWT_SECRET],
 				...(secrets.app.INTEGRATION_ENCRYPTION_KEY
@@ -688,6 +693,10 @@ function applyGeneratedWranglerSecrets(
 				['AUTH_HMAC_SECRET', secrets.tenant_api.AUTH_HMAC_SECRET],
 				['INTERNAL_COMMAND_TOKEN', secrets.shared.INTERNAL_COMMAND_TOKEN],
 				['TENANT_OPERATOR_TOKEN', secrets.shared.TENANT_OPERATOR_TOKEN],
+				[
+					'OPERATOR_ANALYTICS_TOKEN',
+					secrets.tenant_api.OPERATOR_ANALYTICS_TOKEN,
+				],
 				['VOICE_AGENT_TOKEN', secrets.voice_agent.VOICE_AGENT_TOKEN],
 			],
 		},
@@ -1197,6 +1206,7 @@ function printWranglerSecrets(secrets, { autoApplied = false } = {}) {
 						['HONEYPOT_SECRET', secrets.shared.HONEYPOT_SECRET],
 						['INTERNAL_COMMAND_TOKEN', secrets.shared.INTERNAL_COMMAND_TOKEN],
 						['TENANT_OPERATOR_TOKEN', secrets.shared.TENANT_OPERATOR_TOKEN],
+						['OPERATOR_ANALYTICS_TOKEN', secrets.app.OPERATOR_ANALYTICS_TOKEN],
 						['JWT_SECRET', secrets.app.JWT_SECRET],
 						[
 							'TENANT_CUSTOMER_JWT_SECRET',
@@ -1232,6 +1242,10 @@ function printWranglerSecrets(secrets, { autoApplied = false } = {}) {
 						['AUTH_HMAC_SECRET', secrets.tenant_api.AUTH_HMAC_SECRET],
 						['INTERNAL_COMMAND_TOKEN', secrets.shared.INTERNAL_COMMAND_TOKEN],
 						['TENANT_OPERATOR_TOKEN', secrets.shared.TENANT_OPERATOR_TOKEN],
+						[
+							'OPERATOR_ANALYTICS_TOKEN',
+							secrets.tenant_api.OPERATOR_ANALYTICS_TOKEN,
+						],
 						['VOICE_AGENT_TOKEN', secrets.voice_agent.VOICE_AGENT_TOKEN],
 					],
 				},
@@ -1416,6 +1430,7 @@ async function main() {
 		HONEYPOT_SECRET: secrets.shared.HONEYPOT_SECRET,
 		INTERNAL_COMMAND_TOKEN: secrets.shared.INTERNAL_COMMAND_TOKEN,
 		TENANT_OPERATOR_TOKEN: secrets.shared.TENANT_OPERATOR_TOKEN,
+		OPERATOR_ANALYTICS_TOKEN: secrets.app.OPERATOR_ANALYTICS_TOKEN,
 		JWT_SECRET: secrets.app.JWT_SECRET,
 		TENANT_CUSTOMER_JWT_SECRET: secrets.app.TENANT_CUSTOMER_JWT_SECRET,
 		...(secrets.app.INTEGRATION_ENCRYPTION_KEY

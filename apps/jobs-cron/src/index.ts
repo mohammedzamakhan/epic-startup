@@ -30,8 +30,7 @@ export const JOB_ROUTES: Record<string, readonly string[]> = {
 		'/resources/jobs/voice-retention',
 		'/resources/jobs/staffing-outbox',
 	],
-	// Not in wrangler.jsonc triggers: form retention has never been enabled in
-	// production, and turning it on deletes submissions, so it stays opt-in.
+	// Deletes submissions older than the retention window (365 days).
 	'0 5 * * *': ['/resources/jobs/form-submission-retention'],
 }
 

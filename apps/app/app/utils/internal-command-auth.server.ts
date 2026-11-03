@@ -1,7 +1,6 @@
 import crypto from 'node:crypto'
 import { getInstanceInfo } from '@repo/common/litefs'
 import { assertSecretNotPlaceholder } from '@repo/security'
-import { redirect } from 'react-router'
 import { ENV } from 'varlock/env'
 
 function safeCompare(
@@ -27,6 +26,9 @@ export async function requireInternalCommandAuth(request: Request) {
 	const authHeader = request.headers.get('Authorization')
 	const isAuthorized = safeCompare(authHeader, `Bearer ${token}`)
 	if (!isAuthorized) {
-		throw redirect('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+		throw new Response(JSON.stringify({ error: 'Unauthorized' }), {
+			status: 401,
+			headers: { 'content-type': 'application/json' },
+		})
 	}
 }
