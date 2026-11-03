@@ -449,9 +449,11 @@ const FluidSlider = React.forwardRef<HTMLDivElement, FluidSliderProps>(
 
 		const handleRadixChange = React.useCallback(
 			(newValues: number[]) => {
-				onChange(newValues[0] ?? min)
+				// A degenerate range gives the primitive one extra step to render; never
+				// pass that on.
+				onChange(Math.min(max, Math.max(min, newValues[0] ?? min)))
 			},
-			[onChange, min],
+			[onChange, min, max],
 		)
 
 		// Hover or keyboard focus brightens the label and value and grows the

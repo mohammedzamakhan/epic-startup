@@ -302,6 +302,32 @@ describe('handleChat', () => {
 		}
 	})
 
+	it('counts the bytes that arrive when the declared length is missing or wrong', async () => {
+		// A stream with no Content-Length, larger than the limit.
+		const chunk = new TextEncoder().encode('x'.repeat(1_000_000))
+		let sent = 0
+		const stream = new ReadableStream<Uint8Array>({
+			pull(controller) {
+				if (sent >= 41) return controller.close()
+				sent += 1
+				controller.enqueue(chunk)
+			},
+		})
+		const request = new Request('http://localhost/api/ai/chat', {
+			method: 'POST',
+			body: stream,
+			// @ts-expect-error Node requires duplex for a streamed body.
+			duplex: 'half',
+		})
+		const response = await handleChat(
+			{ request, params: {} } as any,
+			baseDeps(),
+		)
+		expect((response as Response).status).toBe(413)
+		// It stopped reading well before the end of the stream.
+		expect(sent).toBeLessThan(45)
+	})
+
 	it('refuses a request that declares a body larger than the limit before reading it', async () => {
 		const request = new Request('http://localhost/api/ai/chat', {
 			method: 'POST',

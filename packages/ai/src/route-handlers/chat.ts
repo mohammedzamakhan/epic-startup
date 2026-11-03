@@ -113,6 +113,33 @@ const BASE64_BODY = /^[A-Za-z0-9+/]*={0,2}$/
 /** Largest request body read at all: the image caps plus room for the text. */
 export const MAX_CHAT_BODY_BYTES = 40_000_000
 
+/**
+ * Reads the request body as text, giving up as soon as more than `maxBytes`
+ * have arrived (and cancelling the rest), so an oversized or unannounced body
+ * is never held in memory whole. Returns null when the limit is exceeded.
+ */
+async function readTextWithLimit(
+	request: Request,
+	maxBytes: number,
+): Promise<string | null> {
+	const reader = request.body?.getReader()
+	if (!reader) return ''
+	const decoder = new TextDecoder()
+	let received = 0
+	let text = ''
+	for (;;) {
+		const { done, value } = await reader.read()
+		if (done) break
+		received += value.byteLength
+		if (received > maxBytes) {
+			await reader.cancel()
+			return null
+		}
+		text += decoder.decode(value, { stream: true })
+	}
+	return text + decoder.decode()
+}
+
 /** Whether the first bytes of the decoded data are those of the declared type. */
 function hasImageSignature(mediaType: string, base64: string): boolean {
 	let bytes: Uint8Array
@@ -304,13 +331,16 @@ export async function handleChat(
 	const noteId = url.searchParams.get('noteId')
 	const orgSlug = url.searchParams.get('orgSlug')
 
-	// Refuse an oversized body before it is read into memory.
+	// Read the body with a real limit. The Content-Length header is only a hint
+	// (it can be missing, chunked or understated), so it is checked first for a
+	// cheap refusal and the bytes are counted as they arrive either way.
 	const declaredLength = Number(request.headers.get('content-length'))
 	if (declaredLength > MAX_CHAT_BODY_BYTES) {
 		return new Response('Request too large', { status: 413 })
 	}
-
-	const body = (await request.json()) as {
+	const text = await readTextWithLimit(request, MAX_CHAT_BODY_BYTES)
+	if (text === null) return new Response('Request too large', { status: 413 })
+	const body = JSON.parse(text) as {
 		messages: unknown[]
 		pageId?: string | null
 		currentPath?: unknown

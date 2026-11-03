@@ -199,4 +199,22 @@ describe('FluidSlider', () => {
 			expect(call[0] as number).toBeLessThanOrEqual(10)
 		}
 	})
+
+	it('keeps keyboard changes inside the range when min equals max', () => {
+		const onChange = vi.fn()
+		render(
+			<FluidSlider
+				variant="scrubber"
+				label="Fixed"
+				min={5}
+				max={5}
+				value={5}
+				onChange={onChange}
+			/>,
+		)
+		const thumb = screen.getByRole('slider', { name: 'Fixed' })
+		fireEvent.keyDown(thumb, { key: 'ArrowRight' })
+		fireEvent.keyDown(thumb, { key: 'End' })
+		for (const call of onChange.mock.calls) expect(call[0]).toBe(5)
+	})
 })
