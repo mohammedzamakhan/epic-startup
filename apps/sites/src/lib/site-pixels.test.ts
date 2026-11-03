@@ -26,7 +26,7 @@ describe('bootSitePixels', () => {
 		vi.stubGlobal('window', win)
 		const root = {
 			dataset: { tiktokPixel: 'C1234567890' },
-		} as HTMLElement
+		} as unknown as HTMLElement
 
 		bootSitePixels(root)
 
