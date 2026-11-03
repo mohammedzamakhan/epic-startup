@@ -27,6 +27,13 @@ import {
 } from './ai-elements/conversation.js'
 import { Loader } from './ai-elements/loader.js'
 import { Message, MessageContent } from './ai-elements/message.js'
+import {
+	ACCEPTED_IMAGE_TYPES,
+	fileToAttachment,
+	keepRecentImages,
+	MAX_ATTACHMENTS,
+	type ChatAttachment,
+} from './chat-attachments.js'
 import { Response } from './ai-elements/response.js'
 import { Suggestions, Suggestion } from './ai-elements/suggestion.js'
 import { brand } from '@repo/config/brand'
@@ -62,6 +69,13 @@ export interface AIChatProps {
 	 * so the conversation survives route changes and remounts.
 	 */
 	persistKey?: string
+	/**
+	 * A message to send as soon as the chat can take it, for callers that
+	 * collect the question elsewhere (the home prompt). The chat sends it once
+	 * and then calls `onPendingMessageSent`, so the caller can clear it.
+	 */
+	pendingMessage?: { text: string; files?: ChatAttachment[] } | null
+	onPendingMessageSent?: () => void
 }
 
 function loadPersistedMessages(storageKey: string): UIMessage[] | undefined {
@@ -369,7 +383,21 @@ function MessageContentRenderer({
 }) {
 	if (isUser) {
 		return (
-			<div className="leading-relaxed break-words whitespace-pre-wrap">
+			<div className="flex flex-col gap-2 leading-relaxed break-words whitespace-pre-wrap">
+				{parts.some((part) => part.type === 'file') ? (
+					<div className="flex flex-wrap gap-2">
+						{parts.map((part, index) =>
+							part.type === 'file' && part.mediaType.startsWith('image/') ? (
+								<img
+									key={index}
+									src={part.url}
+									alt={part.filename ?? ''}
+									className="max-h-48 max-w-full rounded-lg object-cover"
+								/>
+							) : null,
+						)}
+					</div>
+				) : null}
 				{parts.map((part, index) => {
 					if (part.type === 'text') {
 						return <span key={index}>{part.text}</span>
@@ -554,8 +582,14 @@ export function AIChat({
 	onToolCall,
 	resolveDestinationLabel,
 	persistKey,
+	pendingMessage,
+	onPendingMessageSent,
 }: AIChatProps) {
 	const [input, setInput] = useState('')
+	const [attachments, setAttachments] = useState<ChatAttachment[]>([])
+	const [attachmentError, setAttachmentError] = useState(false)
+	const [resizing, setResizing] = useState(0)
+	const fileInputRef = useRef<HTMLInputElement>(null)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const pageIdRef = useRef(pageId)
 	const currentPathRef = useRef(currentPath)
@@ -584,6 +618,23 @@ export function AIChat({
 		() =>
 			new DefaultChatTransport({
 				api: buildChatApiUrl({ noteId, orgSlug }),
+				// Same request the SDK builds by default, except that images from
+				// older messages are left out: see IMAGE_HISTORY_MESSAGES.
+				prepareSendMessagesRequest: ({
+					id,
+					messages: allMessages,
+					body,
+					trigger,
+					messageId,
+				}) => ({
+					body: {
+						...body,
+						id,
+						messages: keepRecentImages(allMessages),
+						trigger,
+						messageId,
+					},
+				}),
 				body: () => ({
 					...(pageIdRef.current ? { pageId: pageIdRef.current } : {}),
 					...(currentPathRef.current
@@ -637,7 +688,8 @@ export function AIChat({
 		try {
 			window.sessionStorage.setItem(
 				buildPersistStorageKey(persistKey),
-				JSON.stringify(messages),
+				// Images are left out: inline data URLs would fill the storage quota.
+				JSON.stringify(keepRecentImages(messages, 0)),
 			)
 		} catch {
 			// sessionStorage may be unavailable; ignore.
@@ -673,7 +725,11 @@ export function AIChat({
 	const isSubmitted = status === 'submitted'
 	const isBusy = isStreaming || isSubmitted
 	// `error` status must still allow sending: a new request clears the error.
-	const canSend = !isBusy && input.trim().length > 0
+	// Not while an image is still being resized: it would be left out.
+	const canSend =
+		!isBusy &&
+		resizing === 0 &&
+		(input.trim().length > 0 || attachments.length > 0)
 	const lastMessage = messages[messages.length - 1]
 	// A stream can finish "successfully" with no assistant content (status
 	// goes back to 'ready', not 'error'); treat that as a failed reply. Derived
@@ -693,16 +749,74 @@ export function AIChat({
 		}
 	}, [isBusy])
 
+	const sendUserMessage = (text: string, attached: ChatAttachment[]) => {
+		const files = attached.map((attachment) => ({
+			type: 'file' as const,
+			mediaType: attachment.mediaType,
+			filename: attachment.name,
+			url: attachment.url,
+		}))
+		// A picture sent alone has no text part: an empty one can be refused.
+		if (text.trim().length === 0) {
+			void sendMessage({ files })
+		} else {
+			void sendMessage({ text, ...(files.length > 0 ? { files } : {}) })
+		}
+	}
+
+	// Send a question handed over from outside once, when the chat is idle.
+	const sentPendingMessageRef = useRef(false)
+	const onPendingMessageSentRef = useRef(onPendingMessageSent)
+	onPendingMessageSentRef.current = onPendingMessageSent
+	useEffect(() => {
+		if (!pendingMessage) {
+			sentPendingMessageRef.current = false
+			return
+		}
+		if (sentPendingMessageRef.current || isBusy) return
+		sentPendingMessageRef.current = true
+		sendUserMessage(pendingMessage.text, pendingMessage.files ?? [])
+		onPendingMessageSentRef.current?.()
+	}, [pendingMessage, isBusy, sendMessage])
+
 	const handleRetry = () => {
 		refocusInputRef.current = true
 		void regenerate()
 	}
 
+	const addFiles = async (files: File[]) => {
+		const room = MAX_ATTACHMENTS - attachments.length
+		setResizing((count) => count + 1)
+		const results = await Promise.all(
+			files.slice(0, Math.max(0, room)).map(fileToAttachment),
+		).finally(() => setResizing((count) => count - 1))
+		const added = results.filter(
+			(result): result is ChatAttachment => result !== null,
+		)
+		setAttachmentError(added.length < files.length)
+		if (added.length > 0) {
+			setAttachments((current) =>
+				[...current, ...added].slice(0, MAX_ATTACHMENTS),
+			)
+		}
+	}
+
+	const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+		const images = Array.from(e.clipboardData.files).filter((file) =>
+			file.type.startsWith('image/'),
+		)
+		if (images.length === 0) return
+		e.preventDefault()
+		void addFiles(images)
+	}
+
 	const handleFormSubmit = (e: React.FormEvent) => {
 		e.preventDefault()
 		if (canSend) {
-			sendMessage({ text: input })
+			sendUserMessage(input, attachments)
 			setInput('')
+			setAttachments([])
+			setAttachmentError(false)
 			setShowFollowUpSuggestions(false)
 			if (textareaRef.current) {
 				textareaRef.current.style.height = 'auto'
@@ -711,6 +825,9 @@ export function AIChat({
 	}
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		// Enter that commits an IME candidate (Pinyin, Japanese, Korean) must not
+		// send the half-typed text.
+		if (e.nativeEvent.isComposing) return
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault()
 			handleFormSubmit(e)
@@ -827,7 +944,7 @@ export function AIChat({
 									className={cn(
 										'cursor-pointer rounded-full px-4 py-2 text-[0.8125rem] font-medium',
 										'bg-muted text-muted-foreground ring-border ring-1',
-										'transition-all duration-150 ease-out',
+										'transition-[color,background-color,box-shadow,scale] duration-160 ease-out',
 										'hover:bg-accent hover:text-accent-foreground hover:ring-foreground/20',
 										'active:scale-[0.97]',
 										'focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none',
@@ -840,7 +957,7 @@ export function AIChat({
 					</div>
 				) : (
 					<Conversation className="flex-1">
-						<ConversationContent className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-6 pb-4 sm:px-0">
+						<ConversationContent className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-6 pb-4">
 							{messages.map((message) => (
 								<Message key={message.id} from={message.role}>
 									<MessageContent from={message.role}>
@@ -924,7 +1041,7 @@ export function AIChat({
 											size="sm"
 											className={cn(
 												'border-border/70 bg-background/70 text-foreground/80 rounded-full text-xs',
-												'transition-all duration-150',
+												'transition-[color,background-color,border-color,translate] duration-160',
 												'hover:border-primary/40 hover:bg-primary/5 hover:text-foreground hover:-translate-y-px',
 											)}
 										/>
@@ -940,11 +1057,45 @@ export function AIChat({
 							isBusy && 'opacity-95',
 						)}
 					>
+						{attachments.length > 0 ? (
+							<ul className="flex flex-wrap gap-2 px-1 pt-2">
+								{attachments.map((attachment) => (
+									<li key={attachment.id} className="group/thumb relative">
+										<img
+											src={attachment.url}
+											alt={attachment.name}
+											className="border-border size-14 rounded-lg border object-cover"
+										/>
+										<button
+											type="button"
+											onClick={() =>
+												setAttachments((current) =>
+													current.filter((item) => item.id !== attachment.id),
+												)
+											}
+											aria-label={_(t`Remove image`)}
+											className="bg-foreground text-background focus-visible:ring-primary/40 absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full opacity-0 transition-opacity duration-80 group-focus-within/thumb:opacity-100 group-hover/thumb:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+										>
+											<Icon name="x" className="size-3" />
+										</button>
+									</li>
+								))}
+							</ul>
+						) : null}
+						{attachmentError ? (
+							<p role="status" className="text-destructive px-1 pt-1.5 text-xs">
+								<Trans>
+									Some images couldn't be added. Use PNG, JPEG, WebP or GIF
+									under 10 MB, up to 4 per message.
+								</Trans>
+							</p>
+						) : null}
 						<textarea
 							ref={textareaRef}
 							value={input}
 							onChange={(e) => setInput(e.target.value)}
 							onKeyDown={handleKeyDown}
+							onPaste={handlePaste}
 							placeholder={inputPlaceholder}
 							rows={1}
 							disabled={isBusy}
@@ -956,14 +1107,45 @@ export function AIChat({
 							)}
 						/>
 
-						<div className="flex items-center justify-end gap-0.5 pt-1">
+						<div className="flex items-center gap-0.5 pt-1">
+							<input
+								ref={fileInputRef}
+								type="file"
+								accept={ACCEPTED_IMAGE_TYPES}
+								multiple
+								className="sr-only"
+								tabIndex={-1}
+								aria-hidden
+								onChange={(e) => {
+									const files = Array.from(e.currentTarget.files ?? [])
+									e.currentTarget.value = ''
+									if (files.length > 0) void addFiles(files)
+								}}
+							/>
+							<button
+								type="button"
+								onClick={() => fileInputRef.current?.click()}
+								disabled={isBusy || attachments.length >= MAX_ATTACHMENTS}
+								className={cn(
+									'text-muted-foreground cursor-pointer rounded-lg p-2',
+									'transition-colors duration-160',
+									'hover:bg-muted hover:text-foreground',
+									'focus-visible:ring-primary/30 focus-visible:ring-2 focus-visible:outline-none',
+									'disabled:cursor-not-allowed disabled:opacity-50',
+								)}
+								title={_(t`Attach an image`)}
+								aria-label={_(t`Attach an image`)}
+							>
+								<Icon name="image" className="size-4" />
+							</button>
+							<span className="flex-1" />
 							{canRegenerate ? (
 								<button
 									type="button"
 									onClick={() => regenerate()}
 									className={cn(
 										'text-muted-foreground cursor-pointer rounded-lg p-2',
-										'transition-colors duration-150',
+										'transition-colors duration-160',
 										'hover:bg-muted hover:text-foreground',
 										'focus-visible:ring-primary/30 focus-visible:ring-2 focus-visible:outline-none',
 									)}
@@ -987,7 +1169,7 @@ export function AIChat({
 								disabled={!isStreaming && !canSend}
 								aria-label={isStreaming ? _(t`Stop`) : _(t`Send`)}
 								className={cn(
-									'ml-1 flex size-8 items-center justify-center rounded-full transition-all duration-150 ease-out',
+									'ml-1 flex size-8 items-center justify-center rounded-full transition-[color,background-color,opacity,scale] duration-160 ease-out',
 									'focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none',
 									isStreaming
 										? 'bg-foreground text-background cursor-pointer hover:opacity-90 active:scale-95'

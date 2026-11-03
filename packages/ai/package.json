@@ -8,6 +8,7 @@
   "types": "./index.ts",
   "exports": {
     ".": "./index.ts",
+    "./chat-attachments": "./src/components/chat-attachments.ts",
     "./route-handlers": "./src/route-handlers/index.ts",
     "./server": "./src/server/index.ts"
   },

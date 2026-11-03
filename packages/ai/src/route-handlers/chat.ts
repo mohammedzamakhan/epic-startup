@@ -101,6 +101,61 @@ export interface ChatDependencies {
 	) => Promise<void>
 }
 
+/** Limits on images attached to a chat message. The client downsizes them and
+ *  keeps only the last few in a request, so these only stop a request that
+ *  skipped the client. */
+export const MAX_CHAT_IMAGES = 12
+export const MAX_CHAT_IMAGES_PER_MESSAGE = 4
+export const MAX_CHAT_IMAGE_URL_LENGTH = 3_000_000
+
+const INLINE_IMAGE_URL = /^data:(image\/(?:png|jpeg|webp|gif));base64,/
+
+/**
+ * Checks every file part and returns a refusal for anything that is not a
+ * small, inline, base64 PNG/JPEG/WebP/GIF. A remote URL would make the server
+ * fetch whatever the client names, and a provider reference would make the
+ * model use something other than the bytes that were checked. Accepted parts
+ * are rebuilt from the known fields only, so nothing else the client attached
+ * reaches the model.
+ */
+export function rejectUnsafeAttachments(rawMessages: unknown): Response | null {
+	if (!Array.isArray(rawMessages)) {
+		return new Response('Invalid messages', { status: 400 })
+	}
+	let images = 0
+	for (const message of rawMessages) {
+		const parts = (message as { parts?: unknown })?.parts
+		if (!Array.isArray(parts)) continue
+		let inMessage = 0
+		for (let index = 0; index < parts.length; index++) {
+			const part = parts[index] as Record<string, unknown> | null
+			if (part?.type !== 'file') continue
+			const { url, mediaType, filename } = part
+			const match = typeof url === 'string' ? INLINE_IMAGE_URL.exec(url) : null
+			if (!match || typeof mediaType !== 'string' || mediaType !== match[1]) {
+				return new Response('Only images can be attached', { status: 400 })
+			}
+			if ((url as string).length > MAX_CHAT_IMAGE_URL_LENGTH) {
+				return new Response('That image is too large', { status: 413 })
+			}
+			inMessage += 1
+			images += 1
+			if (inMessage > MAX_CHAT_IMAGES_PER_MESSAGE || images > MAX_CHAT_IMAGES) {
+				return new Response('Too many images', { status: 413 })
+			}
+			parts[index] = {
+				type: 'file',
+				mediaType,
+				url,
+				...(typeof filename === 'string'
+					? { filename: filename.slice(0, 200) }
+					: {}),
+			}
+		}
+	}
+	return null
+}
+
 async function convertIncomingMessages(
 	rawMessages: unknown[],
 	tools?: Record<string, any>,
@@ -201,6 +256,8 @@ export async function handleChat(
 		params?: unknown
 	}
 	const { messages: rawMessages } = body
+	const attachmentRefusal = rejectUnsafeAttachments(rawMessages)
+	if (attachmentRefusal) return attachmentRefusal
 	const pageId = url.searchParams.get('pageId') ?? body.pageId ?? null
 
 	// When noteId is absent, attach app-navigation tools plus (when allowed)
