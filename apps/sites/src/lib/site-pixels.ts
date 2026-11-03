@@ -6,6 +6,11 @@ type Fbq = ((...args: unknown[]) => void) & {
 	push: Fbq
 }
 
+function browserWindow() {
+	const host = globalThis as typeof globalThis & { window?: Window }
+	return (host.window ?? host) as Window
+}
+
 type TikTokQueue = {
 	methods: string[]
 	setAndDefer: (target: TikTokQueue, method: string) => void
@@ -19,7 +24,7 @@ type TikTokQueue = {
 }
 
 function bootFacebook(pixelId: string) {
-	const w = window as Window & { fbq?: Fbq; _fbq?: Fbq }
+	const w = browserWindow() as Window & { fbq?: Fbq; _fbq?: Fbq }
 	if (!w.fbq) {
 		const fbq = function (this: Fbq, ...args: unknown[]) {
 			if (fbq.callMethod) fbq.callMethod.apply(fbq, args)
@@ -31,22 +36,23 @@ function bootFacebook(pixelId: string) {
 		fbq.push = fbq
 		w.fbq = fbq
 		w._fbq = fbq
-		const script = document.createElement('script')
+		const script = browserWindow().document.createElement('script')
 		script.async = true
 		script.src = 'https://connect.facebook.net/en_US/fbevents.js'
-		document.head.appendChild(script)
+		browserWindow().document.head.appendChild(script)
 	}
 	w.fbq('init', pixelId)
 	w.fbq('track', 'PageView')
 }
 
 function bootTikTok(pixelId: string) {
-	const w = window as Window & {
+	const w = browserWindow() as Window & {
 		TiktokAnalyticsObject?: string
 		ttq?: TikTokQueue
 	}
 	w.TiktokAnalyticsObject = 'ttq'
-	const ttq = (w.ttq = w.ttq || ({} as TikTokQueue))
+	// The vendor snippet queues on an array so events.js can replay `push`.
+	const ttq = (w.ttq = w.ttq || ([] as unknown as TikTokQueue))
 	ttq.methods = [
 		'page',
 		'track',
@@ -74,7 +80,8 @@ function bootTikTok(pixelId: string) {
 	}
 	for (const method of ttq.methods) ttq.setAndDefer(ttq, method)
 	ttq.instance = (id) => {
-		const queue = ttq._i[id] || ({} as TikTokQueue)
+		const instances = (ttq._i = ttq._i || {})
+		const queue = instances[id] || ([] as unknown as TikTokQueue)
 		for (const method of ttq.methods) ttq.setAndDefer(queue, method)
 		return queue
 	}
@@ -88,25 +95,24 @@ function bootTikTok(pixelId: string) {
 		ttq._t[id] = Date.now()
 		ttq._o = ttq._o || {}
 		ttq._o[id] = options || {}
-		const script = document.createElement('script')
+		const script = browserWindow().document.createElement('script')
 		script.async = true
 		script.src = `${src}?sdkid=${encodeURIComponent(id)}&lib=ttq`
-		const first = document.getElementsByTagName('script')[0]
+		const first = browserWindow().document.getElementsByTagName('script')[0]
 		first?.parentNode?.insertBefore(script, first)
 	}
-	ttq.push = () => {}
 	ttq.load(pixelId)
 	ttq.page()
 }
 
 function bootTagManager(containerId: string) {
-	const w = window as Window & { dataLayer?: unknown[] }
+	const w = browserWindow() as Window & { dataLayer?: unknown[] }
 	w.dataLayer = w.dataLayer || []
 	w.dataLayer.push({ 'gtm.start': Date.now(), event: 'gtm.js' })
-	const script = document.createElement('script')
+	const script = browserWindow().document.createElement('script')
 	script.async = true
 	script.src = `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(containerId)}`
-	document.head.appendChild(script)
+	browserWindow().document.head.appendChild(script)
 }
 
 /** Loads pixels from data attributes. The script itself is bundled. */

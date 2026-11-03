@@ -209,7 +209,7 @@ const verificationRequired = Astro.locals.i18n._(
 								data-action="website-form"
 							/>
 						) : null}
-						<p data-form-status class="hidden" role="status" />
+						<p data-form-status class="sr-only" role="status" aria-live="polite"></p>
 						<button class={siteBtnPrimaryClass} type="submit">
 							{pickLocalized(form.submitLabel, activeLocale, defaultLocale)}
 						</button>

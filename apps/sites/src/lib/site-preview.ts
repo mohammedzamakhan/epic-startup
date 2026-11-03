@@ -1,6 +1,12 @@
-/** Applies a live preview payload from the site editor without an inline script. */
-export function initSitePreview() {
+/**
+ * Applies a live preview payload from the site editor without an inline script.
+ * Messages are accepted only from the framing App window.
+ */
+export function initSitePreview(root: HTMLElement) {
+	const allowedOrigin = root.dataset.previewParentOrigin
 	window.addEventListener('message', async (event) => {
+		if (window.parent === window || event.source !== window.parent) return
+		if (!allowedOrigin || event.origin !== allowedOrigin) return
 		if (event.data?.type !== 'epic-preview-update') return
 		try {
 			const res = await fetch(window.location.href, {

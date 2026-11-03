@@ -15,7 +15,10 @@ function isProduction(): boolean {
 	return !isLocalRuntime()
 }
 
-const limiters = new Map<string, LRUCache<string, number[]>>()
+/** Caps how many per-org caches one isolate keeps. Eviction resets that org's window. */
+const limiters = new LRUCache<string, LRUCache<string, number[]>>({
+	max: 512,
+})
 
 /**
  * One cache per organization. Durable Objects in the same isolate share this
@@ -30,16 +33,15 @@ function limiterId(name: string) {
 
 function getLimiter(name: string, config: RateLimitConfig) {
 	const id = limiterId(name)
-	if (!limiters.has(id)) {
-		limiters.set(
-			id,
-			new LRUCache<string, number[]>({
-				max: 5000,
-				ttl: config.windowMs,
-			}),
-		)
+	let cache = limiters.get(id)
+	if (!cache) {
+		cache = new LRUCache<string, number[]>({
+			max: 5000,
+			ttl: config.windowMs,
+		})
+		limiters.set(id, cache)
 	}
-	return limiters.get(id)!
+	return cache
 }
 
 /**

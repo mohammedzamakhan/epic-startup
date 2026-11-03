@@ -703,6 +703,7 @@ function applyGeneratedWranglerSecrets(
 	]
 
 	const failures = []
+	const skipped = []
 	for (const block of workerBlocks) {
 		patchWranglerApp(block.patchApp, deployEnv)
 		for (const [secretName, value] of block.secrets) {
@@ -712,6 +713,7 @@ function applyGeneratedWranglerSecrets(
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error)
 				if (block.optional) {
+					skipped.push(`${block.name} ${secretName}`)
 					log(`  ⚠ ${block.name}: ${secretName} skipped (${message})`, 'yellow')
 				} else {
 					failures.push(`${block.name} ${secretName}: ${message}`)
@@ -723,6 +725,14 @@ function applyGeneratedWranglerSecrets(
 
 	if (failures.length > 0) {
 		throw new Error(failures.join('; '))
+	}
+
+	if (skipped.length > 0) {
+		log(
+			`⚠️ Wrangler secrets incomplete (${label}): skipped ${skipped.join(', ')}. Report queries answer 401 until OPERATOR_ANALYTICS_TOKEN is set on every tenant-api.`,
+			'yellow',
+		)
+		return
 	}
 
 	log(`✅ Wrangler secrets applied (${label})`, 'green')

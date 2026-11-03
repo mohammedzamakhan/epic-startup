@@ -53,6 +53,12 @@ describe('sitesConnectSrc', () => {
 		expect(sitesConnectSrc(['https://app.example'])).toContain(
 			'https://cloudflareinsights.com',
 		)
+		expect(sitesConnectSrc(['https://app.example'])).toContain(
+			'https://www.facebook.com',
+		)
+		expect(sitesConnectSrc(['https://app.example'])).toContain(
+			'https://analytics.tiktok.com',
+		)
 	})
 })
 

@@ -26,9 +26,15 @@ export async function requireInternalCommandAuth(request: Request) {
 	const authHeader = request.headers.get('Authorization')
 	const isAuthorized = safeCompare(authHeader, `Bearer ${token}`)
 	if (!isAuthorized) {
-		throw new Response(JSON.stringify({ error: 'Unauthorized' }), {
-			status: 401,
-			headers: { 'content-type': 'application/json' },
-		})
+		throw Response.json(
+			{ error: 'Unauthorized' },
+			{
+				status: 401,
+				headers: {
+					'WWW-Authenticate': 'Bearer',
+					'Cache-Control': 'no-store',
+				},
+			},
+		)
 	}
 }

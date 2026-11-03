@@ -15,8 +15,10 @@ async function submitWebsiteForm(formElement: HTMLFormElement, event: Event) {
 	const successClass = className(formElement, 'successClass', '')
 	const errorClass = className(formElement, 'errorClass', '')
 	button.disabled = true
+	formElement.setAttribute('aria-busy', 'true')
 	button.textContent = formElement.dataset.submittingLabel || 'Submitting...'
-	status.className = 'hidden'
+	status.textContent = ''
+	status.className = 'sr-only'
 	const formData = new FormData(formElement)
 	const website = String(formData.get('website') || '')
 	formData.delete('website')
@@ -28,6 +30,7 @@ async function submitWebsiteForm(formElement: HTMLFormElement, event: Event) {
 			'Complete the verification check before submitting.'
 		status.className = errorClass
 		button.disabled = false
+		formElement.setAttribute('aria-busy', 'false')
 		button.textContent = formElement.dataset.submitLabel || 'Submit'
 		return
 	}
@@ -80,6 +83,7 @@ async function submitWebsiteForm(formElement: HTMLFormElement, event: Event) {
 		turnstile?.reset?.()
 	} finally {
 		button.disabled = false
+		formElement.setAttribute('aria-busy', 'false')
 		button.textContent = formElement.dataset.submitLabel || 'Submit'
 	}
 }

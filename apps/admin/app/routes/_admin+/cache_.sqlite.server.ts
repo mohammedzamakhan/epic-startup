@@ -30,7 +30,16 @@ export async function action({ request }: Route.ActionArgs) {
 	const isAuthorized = safeCompare(authHeader, `Bearer ${token}`)
 	if (!isAuthorized) {
 		// nah, you can't be here...
-		return Response.json({ error: 'Unauthorized' }, { status: 401 })
+		return Response.json(
+			{ error: 'Unauthorized' },
+			{
+				status: 401,
+				headers: {
+					'WWW-Authenticate': 'Bearer',
+					'Cache-Control': 'no-store',
+				},
+			},
+		)
 	}
 	const { key, cacheValue } = z
 		.object({ key: z.string(), cacheValue: z.unknown().optional() })

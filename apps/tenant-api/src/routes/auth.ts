@@ -73,7 +73,11 @@ async function sendCodeChallengeAccepted(
 		// Same rule as forms and careers: an explicit local NODE_ENV may send
 		// without a widget. An unset NODE_ENV counts as production and refuses,
 		// so a deploy that forgot the secret cannot be used to pump SMS.
-		return ENV.NODE_ENV === 'development' || ENV.NODE_ENV === 'test'
+		const nodeEnv =
+			typeof process !== 'undefined' ? process.env.NODE_ENV : undefined
+		const isLocal = nodeEnv === 'development' || nodeEnv === 'test'
+		if (!isLocal) console.error('turnstile_not_configured')
+		return isLocal
 	}
 	if (!token?.trim()) {
 		// Expo customer app: org binding, Origin, and rate limits; no web widget.

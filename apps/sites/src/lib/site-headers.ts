@@ -11,6 +11,11 @@ const CLOUDFLARE_INSIGHTS_CONNECT = 'https://cloudflareinsights.com'
 const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com'
 const FACEBOOK_SCRIPT = 'https://connect.facebook.net'
 const TIKTOK_SCRIPT = 'https://analytics.tiktok.com'
+const PIXEL_CONNECT_SRC = [
+	'https://connect.facebook.net',
+	'https://www.facebook.com',
+	'https://analytics.tiktok.com',
+]
 
 // Google Analytics / Google Tag Manager (loaded off-thread by Partytown)
 const GA_SCRIPT_SRC = 'https://www.googletagmanager.com'
@@ -63,6 +68,7 @@ export function sitesConnectSrc(origins: string[]) {
 		...origins,
 		CLOUDFLARE_INSIGHTS_CONNECT,
 		...GA_CONNECT_SRC,
+		...PIXEL_CONNECT_SRC,
 	]
 		.filter(Boolean)
 		.join(' ')

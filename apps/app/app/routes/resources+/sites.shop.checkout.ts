@@ -7,7 +7,10 @@ import {
 	PUBLIC_SITE_RATE_LIMIT,
 	SHOP_CHECKOUT_RATE_LIMIT,
 } from '#app/utils/rate-limit.server.ts'
-import { createPublicShopCheckoutSession } from '#app/utils/shop.server.ts'
+import {
+	createPublicShopCheckoutSession,
+	findPublishedShopOrganization,
+} from '#app/utils/shop.server.ts'
 
 const checkoutSchema = z.object({
 	slug: z.string().optional(),
@@ -51,11 +54,15 @@ export async function action({ request }: ActionFunctionArgs) {
 		return Response.json({ error: 'slug or host is required' }, { status: 400 })
 	}
 
-	const shopKey = (parsed.data.host || parsed.data.slug || '')
-		.trim()
-		.toLowerCase()
+	const organization = await findPublishedShopOrganization({
+		slug: parsed.data.slug,
+		host: parsed.data.host,
+	})
+	if (!organization) {
+		return new Response('Organization not found', { status: 404 })
+	}
 	const shopLimit = await checkRateLimit(
-		{ type: 'org', value: shopKey },
+		{ type: 'org', value: organization.id },
 		SHOP_CHECKOUT_RATE_LIMIT,
 	)
 	if (!shopLimit.allowed) {

@@ -565,8 +565,10 @@ git commit --no-verify -m "fix: resolve ESLint warnings (verified manually)"
   and tenant provision/deprovision. It does not sign report JWTs.
 - `OPERATOR_ANALYTICS_TOKEN` - App and every tenant-api (≥16 chars). Signs
   operator analytics JWTs. Must differ from `INTERNAL_COMMAND_TOKEN`. The schema
-  default is refused in production; set it on the App and each tenant-api before
-  deploying or report queries answer 401.
+  default is refused outside development and test. Set it on each tenant-api
+  first, then the App. An unset, placeholder, or command-token-equal App value
+  makes the report token route answer 503, so no query runs. The same problem on
+  a tenant-api, or a value that differs from the App, makes queries answer 401.
 - `TENANT_OPERATOR_TOKEN` - Shared secret between App and tenant-api (≥16
   chars). Signs and validates operator JWT tokens for tenant-api `/operator/*`
   routes.

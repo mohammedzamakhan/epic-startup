@@ -67,7 +67,7 @@ function securityHeadersFor(env: SiteHostEnv) {
 	]
 		.filter(Boolean)
 		.join(' ')
-	const imgSrc = `img-src 'self' data: ${appUrl}`
+	const imgSrc = `img-src 'self' data: ${appUrl} https://www.facebook.com https://analytics.tiktok.com`
 	const fontSrc = `font-src 'self' data: ${appUrl}`
 	const frameAncestors = getSiteHostSuffixes(env)
 		.flatMap((domain) => [`*.${domain}:*`, `*.${domain}`])

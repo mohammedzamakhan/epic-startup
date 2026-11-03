@@ -122,9 +122,12 @@ export function getOperatorAnalyticsToken() {
 	if (token.length < 16) return ''
 	const internal = getInternalCommandToken()
 	if (internal && timingSafeEqualString(token, internal)) return ''
-	const isProd = (ENV as { NODE_ENV?: string }).NODE_ENV === 'production'
+	// An unset NODE_ENV is production. The schema default must not sign reports.
+	const nodeEnv =
+		typeof process !== 'undefined' ? process.env.NODE_ENV : undefined
+	const isLocal = nodeEnv === 'development' || nodeEnv === 'test'
 	if (
-		isProd &&
+		!isLocal &&
 		(token === DEV_OPERATOR_ANALYTICS_TOKEN || isInsecureSecret(token))
 	) {
 		return ''

@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto'
 import {
 	createForbiddenResponse,
 	isImpersonating,
@@ -9,7 +10,7 @@ import {
 	ORG_WIDE_REPORT_SUBJECTS,
 	type RestrictedReportSubject,
 } from '@repo/reports/token'
-import { assertSecretNotPlaceholder } from '@repo/security'
+import { isInsecureSecret } from '@repo/security'
 import { data } from 'react-router'
 import { ENV } from 'varlock/env'
 import { requireUserOrganization } from '#app/utils/organization/loader.server.ts'
@@ -62,16 +63,25 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 		...staff.subjects,
 	]
 
-	const signingSecret = assertSecretNotPlaceholder(
-		'OPERATOR_ANALYTICS_TOKEN',
-		ENV.OPERATOR_ANALYTICS_TOKEN || '',
-	)
+	const signingSecret = ENV.OPERATOR_ANALYTICS_TOKEN || ''
+	const internal = ENV.INTERNAL_COMMAND_TOKEN || ''
+	const nodeEnv = process.env.NODE_ENV
+	const isLocal = nodeEnv === 'development' || nodeEnv === 'test'
+	const sameAsInternal =
+		internal.length > 0 &&
+		timingSafeEqual(
+			createHash('sha256').update(signingSecret).digest(),
+			createHash('sha256').update(internal).digest(),
+		)
 	if (
 		signingSecret.length < 16 ||
-		signingSecret === (ENV.INTERNAL_COMMAND_TOKEN || '')
+		sameAsInternal ||
+		(!isLocal && isInsecureSecret(signingSecret))
 	) {
-		throw new Error(
-			'OPERATOR_ANALYTICS_TOKEN is not configured or matches INTERNAL_COMMAND_TOKEN',
+		console.error('operator_analytics_token_not_configured')
+		throw data(
+			{ error: 'Reports are temporarily unavailable' },
+			{ status: 503 },
 		)
 	}
 	const minted = await mintOperatorAnalyticsToken({
