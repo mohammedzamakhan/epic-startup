@@ -60,16 +60,18 @@ export async function changeEmailAction({
 	}
 
 	const newEmail = submission.value.email
-	const [userLimit, recipientLimit] = [
-		await checkRateLimit(
-			{ type: 'user', value: userId },
-			CHANGE_EMAIL_USER_RATE_LIMIT,
-		),
-		await checkRateLimit(
-			{ type: 'token', value: newEmail.toLowerCase() },
-			CHANGE_EMAIL_RECIPIENT_RATE_LIMIT,
-		),
-	]
+	// The recipient is charged only for a request the user limit let through, so
+	// someone over their own limit cannot use up an address they do not own.
+	const userLimit = await checkRateLimit(
+		{ type: 'user', value: userId },
+		CHANGE_EMAIL_USER_RATE_LIMIT,
+	)
+	const recipientLimit = userLimit.allowed
+		? await checkRateLimit(
+				{ type: 'token', value: newEmail.toLowerCase() },
+				CHANGE_EMAIL_RECIPIENT_RATE_LIMIT,
+			)
+		: { allowed: false }
 	if (!userLimit.allowed || !recipientLimit.allowed) {
 		return Response.json(
 			{

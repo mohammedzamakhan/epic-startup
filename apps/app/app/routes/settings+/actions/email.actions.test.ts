@@ -11,7 +11,7 @@ import { action as verifyAction } from '../../_auth+/verify.tsx'
 import { changeEmailAction } from './email.actions.tsx'
 
 vi.mock('@repo/email', async (importOriginal) => ({
-	...(await importOriginal<typeof import('@repo/email')>()),
+	...(await importOriginal<Record<string, unknown>>()),
 	sendEmail: vi.fn().mockResolvedValue({ status: 'success' }),
 }))
 
@@ -146,6 +146,43 @@ describe('changeEmailAction', () => {
 
 		expect(blocked.response.status).toBe(429)
 		expect(sendEmailMock).toHaveBeenCalledTimes(3)
+	})
+
+	it('limits how many codes one user can request across addresses', async () => {
+		const user = await createTestUser()
+		const { cookie } = await createTestSession(user.id)
+
+		for (let attempt = 0; attempt < 5; attempt++) {
+			expect(
+				(await requestChange(user.id, cookie, uniqueEmail('spread'))).response
+					.status,
+			).toBe(200)
+		}
+		const blocked = await requestChange(user.id, cookie, uniqueEmail('spread'))
+
+		expect(blocked.response.status).toBe(429)
+		expect(sendEmailMock).toHaveBeenCalledTimes(5)
+	})
+
+	it('does not charge a recipient for a request the user limit refused', async () => {
+		const user = await createTestUser()
+		const { cookie } = await createTestSession(user.id)
+		for (let attempt = 0; attempt < 5; attempt++) {
+			await requestChange(user.id, cookie, uniqueEmail('spread'))
+		}
+		const victim = uniqueEmail('victim')
+		for (let attempt = 0; attempt < 4; attempt++) {
+			expect(
+				(await requestChange(user.id, cookie, victim)).response.status,
+			).toBe(429)
+		}
+
+		// Someone else can still send a code to that address.
+		const other = await createTestUser()
+		const { cookie: otherCookie } = await createTestSession(other.id)
+		expect(
+			(await requestChange(other.id, otherCookie, victim)).response.status,
+		).toBe(200)
 	})
 
 	it('greets the user by name, not the template placeholder', async () => {

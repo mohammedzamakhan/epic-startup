@@ -6,6 +6,7 @@ import {
 	getRequestDocumentPath,
 	verifySessionStorage,
 	verifyTOTP,
+	getSessionUserId,
 	requireUserId,
 	validateAndConsumeBackupCode,
 } from '@repo/auth'
@@ -140,7 +141,10 @@ export function getRedirectToUrl({
 }
 
 export async function requireRecentVerification(request: Request) {
-	const userId = await requireUserId(request)
+	await requireUserId(request)
+	// Step-up is the signed-in person's own (see `shouldRequestTwoFA`), which
+	// during impersonation is the admin and not the account being viewed.
+	const userId = (await getSessionUserId(request)) as string
 	const shouldReverify = await shouldRequestTwoFA(request)
 	if (shouldReverify) {
 		const redirectUrl = getRedirectToUrl({
@@ -208,20 +212,17 @@ export async function hashVerificationSecret(secret: string) {
 }
 
 /**
- * Whether the current `change-email` code is the one mailed to the address this
- * browser asked for. Two overlapping requests could otherwise leave the stored
+ * The secret of the current `change-email` code when it is the one mailed to
+ * the address this browser asked for, else null. Two overlapping requests could otherwise leave the stored
  * code (sent to one address) beside a cookie naming another, and entering the
  * code would attach an address its owner never proved.
  */
-async function changeEmailCodeMatchesPendingAddress(
-	request: Request,
-	target: string,
-) {
+async function pendingChangeEmailSecret(request: Request, target: string) {
 	const verifySession = await verifySessionStorage.getSession(
 		request.headers.get('cookie'),
 	)
 	const boundHash = verifySession.get(newEmailVerificationSessionKey)
-	if (typeof boundHash !== 'string') return false
+	if (typeof boundHash !== 'string') return null
 	const [verification] = await db
 		.select({ secret: Verification.secret })
 		.from(Verification)
@@ -232,8 +233,10 @@ async function changeEmailCodeMatchesPendingAddress(
 			),
 		)
 		.limit(1)
-	if (!verification) return false
+	if (!verification) return null
 	return (await hashVerificationSecret(verification.secret)) === boundHash
+		? verification.secret
+		: null
 }
 
 export async function checkCodeValidity({
@@ -359,12 +362,11 @@ export async function validateRequest(
 			return handleOnboardingVerification({ request, body, submission })
 		}
 		case 'change-email': {
-			if (
-				!(await changeEmailCodeMatchesPendingAddress(
-					request,
-					submissionValue[targetQueryParam],
-				))
-			) {
+			const boundSecret = await pendingChangeEmailSecret(
+				request,
+				submissionValue[targetQueryParam],
+			)
+			if (!boundSecret) {
 				return data(
 					{
 						result: submission.reply({
@@ -376,7 +378,17 @@ export async function validateRequest(
 					{ status: 400 },
 				)
 			}
-			await deleteVerification()
+			// Delete only the code that was just checked: a newer request may have
+			// replaced the row since, and its code must stay usable.
+			await db
+				.delete(Verification)
+				.where(
+					and(
+						eq(Verification.target, submissionValue[targetQueryParam]),
+						eq(Verification.type, 'change-email'),
+						eq(Verification.secret, boundSecret),
+					),
+				)
 			return handleChangeEmailVerification({ request, body, submission })
 		}
 		case '2fa': {
