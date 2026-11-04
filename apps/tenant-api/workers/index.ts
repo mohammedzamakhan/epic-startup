@@ -321,8 +321,8 @@ async function withCors(request: Request, response: Response) {
 	if (!(await isAllowedAnalyticsOrigin(origin))) return response
 	// Responses forwarded from a Durable Object have immutable headers.
 	const withHeaders = new Response(response.body, response)
-	// nosemgrep: javascript.express.security.cors-misconfiguration.cors-misconfiguration -- origin passed isAllowedAnalyticsOrigin above (same allowlist as src/app.ts)
-	withHeaders.headers.set('Access-Control-Allow-Origin', origin)
+	// The origin passed isAllowedAnalyticsOrigin above (same allowlist as src/app.ts).
+	withHeaders.headers.set('Access-Control-Allow-Origin', origin) // nosemgrep: javascript.express.security.cors-misconfiguration.cors-misconfiguration
 	withHeaders.headers.append('Vary', 'Origin')
 	return withHeaders
 }
