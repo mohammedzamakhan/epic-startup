@@ -168,6 +168,11 @@ describe('Operator Routes', () => {
 				body: JSON.stringify({ name: 'After' }),
 			})
 			expect(res.status).toBe(200)
+			const [after] = await db
+				.select({ name: customers.name })
+				.from(customers)
+				.where(eq(customers.id, inserted!.id))
+			expect(after?.name).toBe('After')
 		})
 
 		it('can create a campaign', async () => {

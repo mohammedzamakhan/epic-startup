@@ -520,10 +520,9 @@ describe('Journey API Routes (System & Operator)', () => {
 					['POST', '/operator/journeys/some-id/publish'],
 					['POST', '/operator/journeys/some-id/pause'],
 				] as const) {
-					expect(
-						(await call(method, path)).status,
-						`${method} ${path}`,
-					).not.toBe(403)
+					const { status } = await call(method, path)
+					expect(status, `${method} ${path}`).not.toBe(403)
+					expect(status, `${method} ${path}`).toBeLessThan(500)
 				}
 				expect(
 					(await call('DELETE', '/operator/journeys/some-id')).status,

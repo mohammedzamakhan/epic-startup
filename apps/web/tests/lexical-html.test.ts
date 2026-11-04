@@ -85,6 +85,25 @@ describe('renderLexicalContent', () => {
 		expect(html.match(/Read more/g)).toHaveLength(2)
 	})
 
+	it('escapes the label of a link whose target is rejected', () => {
+		const html = renderLexicalContent(
+			doc({
+				type: 'paragraph',
+				children: [
+					{
+						type: 'link',
+						url: 'javascript:alert(1)',
+						children: [{ text: '<img src=x onerror=alert(1)>' }],
+					},
+				],
+			}),
+		)
+
+		expect(html).not.toContain('<img')
+		expect(html).not.toContain('<a ')
+		expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+	})
+
 	it('returns nothing for content whose children are not arrays', () => {
 		expect(renderLexicalContent({ root: { children: { a: 1 } } })).toBe('')
 		expect(renderLexicalContent({ root: { children: 'x' } })).toBe('')

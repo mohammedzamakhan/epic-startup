@@ -162,6 +162,28 @@ describe.each([
 		const strangerRow = rows.find((row) => row.phone === stranger)
 		expect(strangerRow?.phoneVerificationCode ?? null).toBeNull()
 	})
+
+	it('never verifies or signs in as a row stored in another form of the digits', async () => {
+		const db = await getTenantDb(orgId)
+		const stranger = scenario.e164.slice(1)
+		const code = '123456'
+		await db.insert(customers).values({
+			name: 'Stranger',
+			phone: stranger,
+			phoneVerificationCode: hmacHash(code),
+			phoneVerificationExpiresAt: new Date(Date.now() + 5 * 60 * 1000),
+		})
+
+		const res = await post(app, '/auth/verify', {
+			phone: scenario.e164,
+			code,
+		})
+
+		expect(res.status).toBe(400)
+		const [row] = await db.select().from(customers).all()
+		expect(row?.phone).toBe(stranger)
+		expect(row?.phoneVerified).toBeFalsy()
+	})
 })
 
 describe('send-code without Turnstile', () => {
