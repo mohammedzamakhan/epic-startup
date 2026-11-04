@@ -48,13 +48,24 @@ describe('getOperatorTenantClient tokens', () => {
 	async function client(
 		options: Parameters<typeof getOperatorTenantClient>[2],
 	) {
-		const { organization, cookie } = await setupTestOrgWithUser('member')
+		const { organization, user, cookie } = await setupTestOrgWithUser('member')
 		const request = createAuthenticatedRequest(
 			`http://localhost:3001/${organization.slug}/marketing`,
 			{},
 			cookie,
 		)
-		return getOperatorTenantClient(request, organization.slug, options)
+		const result = await getOperatorTenantClient(
+			request,
+			organization.slug,
+			options,
+		)
+		return { ...result, organizationId: organization.id, userId: user.id }
+	}
+
+	/** The bearer token `fetchTenant` sent on its only call. */
+	function sentToken(fetchSpy: { mock: { calls: any[][] } }) {
+		const headers = new Headers(fetchSpy.mock.calls[0]?.[1]?.headers)
+		return headers.get('Authorization')?.replace('Bearer ', '')
 	}
 
 	it('gives the browser token only the write claims it was asked for', async () => {
@@ -67,19 +78,38 @@ describe('getOperatorTenantClient tokens', () => {
 		expect(decodeJwt(updater.jwt)).not.toHaveProperty('canDelete')
 	})
 
-	it('sends server-side requests with full write claims, never the browser token', async () => {
+	it('signs the member and organization the request was authorized for', async () => {
+		const operator = await client({ canUpdate: true })
+
+		expect(decodeJwt(operator.jwt)).toMatchObject({
+			sub: operator.userId,
+			orgId: operator.organizationId,
+			role: 'operator',
+		})
+	})
+
+	it('limits server-side requests to the claims it was asked for', async () => {
 		const fetchSpy = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('{}'))
 		const readOnly = await client({})
 
-		await readOnly.fetchTenant('/operator/journeys')
+		await readOnly.fetchTenant('/operator/journeys', { method: 'DELETE' })
 
-		const headers = new Headers(fetchSpy.mock.calls[0]?.[1]?.headers)
-		const serverToken = headers.get('Authorization')?.replace('Bearer ', '')
-		expect(serverToken).toBeTruthy()
-		expect(serverToken).not.toBe(readOnly.jwt)
-		expect(decodeJwt(serverToken!)).toMatchObject({
+		const claims = decodeJwt(sentToken(fetchSpy)!)
+		expect(claims).not.toHaveProperty('canUpdate')
+		expect(claims).not.toHaveProperty('canDelete')
+	})
+
+	it('sends write claims on the server only when they were asked for', async () => {
+		const fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('{}'))
+		const writer = await client({ canUpdate: true, canDelete: true })
+
+		await writer.fetchTenant('/operator/journeys', { method: 'POST' })
+
+		expect(decodeJwt(sentToken(fetchSpy)!)).toMatchObject({
 			canUpdate: true,
 			canDelete: true,
 		})

@@ -130,22 +130,19 @@ export async function getOperatorTenantClient(
 			.setExpirationTime('15m')
 			.sign(secret)
 
-	// `jwt` can be handed to the browser, so it carries only the write claims
-	// the caller's permissions earned (see `options`). tenant-api refuses writes
-	// from a token without them.
+	// Both the browser token and the one `fetchTenant` signs carry only the write
+	// claims the caller asked for (see `options`), and tenant-api refuses writes
+	// from a token without them. A loader or action that never asked for
+	// `canUpdate` / `canDelete` therefore cannot write or erase, even if a later
+	// change forgets its own permission check. Ask for them only after the
+	// permission check that earns them.
 	const jwt = await signOperatorJwt(options)
-	// `fetchTenant` never leaves the server: callers are loaders and actions that
-	// have already authorized the user for what they send, so it carries the
-	// full claims. Scoped tokens (mailbox, phone calls) keep exactly what was asked.
-	const serverJwt = options.scope
-		? jwt
-		: await signOperatorJwt({ canUpdate: true, canDelete: true })
 
 	const { tenantApiUrl } = resolveRegionalTenantApiUrls(organization.dataRegion)
 
 	const fetchTenant = async (path: string, init: RequestInit = {}) => {
 		const headers = new Headers(init.headers || {})
-		headers.set('Authorization', `Bearer ${serverJwt}`)
+		headers.set('Authorization', `Bearer ${jwt}`)
 		headers.set('Content-Type', 'application/json')
 
 		const url = `${tenantApiUrl}${path.startsWith('/') ? path : `/${path}`}`
