@@ -5,8 +5,8 @@ import {
 } from '@repo/tenant-db'
 import { createTenantApiApp } from '../src/app.ts'
 import {
-	isAllowedAnalyticsOrigin,
 	organizationFromProvisionPayload,
+	resolveCorsAllowOrigin,
 } from '../src/lib/origin.ts'
 import {
 	DEPROVISION_RECORDING_BUDGET_MS,
@@ -314,17 +314,28 @@ const worker = {
  * header the app sets, for allowed origins only.
  */
 async function withCors(request: Request, response: Response) {
-	const origin = request.headers.get('Origin')
-	if (!origin || response.headers.has('Access-Control-Allow-Origin')) {
+	// A 101 upgrade response cannot be rebuilt (it carries the socket).
+	if (
+		response.status === 101 ||
+		response.headers.has('Access-Control-Allow-Origin')
+	) {
 		return response
 	}
-	if (!(await isAllowedAnalyticsOrigin(origin))) return response
-	// Responses forwarded from a Durable Object have immutable headers.
-	const withHeaders = new Response(response.body, response)
-	// The origin passed isAllowedAnalyticsOrigin above (same allowlist as src/app.ts).
-	withHeaders.headers.set('Access-Control-Allow-Origin', origin) // nosemgrep: javascript.express.security.cors-misconfiguration.cors-misconfiguration
-	withHeaders.headers.append('Vary', 'Origin')
-	return withHeaders
+	const allowOrigin = await resolveCorsAllowOrigin(
+		request.headers.get('Origin'),
+	)
+	if (!allowOrigin) return response
+	// Responses forwarded from a Durable Object have immutable headers, so build
+	// a new response instead of mutating this one.
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers: [
+			...response.headers,
+			['Access-Control-Allow-Origin', allowOrigin],
+			['Vary', 'Origin'],
+		],
+	})
 }
 
 export default {
