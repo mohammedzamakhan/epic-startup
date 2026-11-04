@@ -13,13 +13,16 @@ import {
 } from './site-headers.ts'
 
 describe('sitesScriptSrc', () => {
-	it('hashes the boot script and does not allow unsafe-inline in production', () => {
+	it('hashes the boot script and does not allow unsafe-inline in production', async () => {
+		const { createHash } = await import('node:crypto')
+		const bootHash = `'sha256-${createHash('sha256').update(SITES_BOOT_SCRIPT).digest('base64')}'`
 		const policy = sitesScriptSrc(false)
 		expect(policy).toContain('https://static.cloudflareinsights.com')
 		expect(policy).toContain('https://challenges.cloudflare.com')
 		expect(policy).toContain('https://connect.facebook.net')
 		expect(policy).toContain('https://analytics.tiktok.com')
 		expect(policy).toContain(PARTYTOWN_SCRIPT_HASH)
+		expect(policy).toContain(bootHash)
 		expect(policy).not.toContain('unsafe-inline')
 		expect(policy).not.toContain('unsafe-eval')
 		expect(sitesScriptSrcAttr(false)).toBe("script-src-attr 'none'")

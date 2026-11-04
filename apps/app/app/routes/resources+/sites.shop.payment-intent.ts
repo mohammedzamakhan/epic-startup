@@ -73,6 +73,7 @@ export async function action({ request }: ActionFunctionArgs) {
 				request,
 				slug: parsed.data.slug,
 				host: parsed.data.host,
+				organizationId: organization.id,
 				customerId: parsed.data.customerId,
 			})
 

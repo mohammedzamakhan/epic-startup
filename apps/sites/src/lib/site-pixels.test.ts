@@ -34,4 +34,43 @@ describe('bootSitePixels', () => {
 		expect(win.ttq).toContainEqual(['page'])
 		expect(inserted[0]?.src).toContain('analytics.tiktok.com')
 	})
+
+	it('queues a Facebook page view', () => {
+		const win = {
+			document: {
+				createElement: () => ({ async: false, src: '' }),
+				head: { appendChild() {} },
+			},
+		} as unknown as Window & { fbq?: { queue: unknown[][] } }
+		vi.stubGlobal('window', win)
+		const root = {
+			dataset: { facebookPixel: '123456789' },
+		} as unknown as HTMLElement
+
+		bootSitePixels(root)
+
+		expect(win.fbq?.queue).toContainEqual(['track', 'PageView'])
+	})
+
+	it('appends the Tag Manager script', () => {
+		const appended: { src?: string }[] = []
+		const win = {
+			document: {
+				createElement: () => ({ async: false, src: '' }),
+				head: {
+					appendChild(element: { src?: string }) {
+						appended.push(element)
+					},
+				},
+			},
+		} as unknown as Window
+		vi.stubGlobal('window', win)
+		const root = {
+			dataset: { googleTagManager: 'GTM-ABC123' },
+		} as unknown as HTMLElement
+
+		bootSitePixels(root)
+
+		expect(appended[0]?.src).toContain('googletagmanager.com/gtm.js')
+	})
 })

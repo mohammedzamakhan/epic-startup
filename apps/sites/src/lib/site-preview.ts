@@ -1,8 +1,12 @@
+import { initWebsiteForms } from './website-form.ts'
+
 /**
  * Applies a live preview payload from the site editor without an inline script.
  * Messages are accepted only from the framing App window.
  */
 export function initSitePreview(root: HTMLElement) {
+	// A preview that starts without a form still has to bind one inserted later.
+	initWebsiteForms()
 	const allowedOrigin = root.dataset.previewParentOrigin
 	window.addEventListener('message', async (event) => {
 		if (window.parent === window || event.source !== window.parent) return

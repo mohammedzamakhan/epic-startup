@@ -53,6 +53,11 @@ export async function action({ request }: ActionFunctionArgs) {
 	if (!parsed.data.slug && !parsed.data.host) {
 		return Response.json({ error: 'slug or host is required' }, { status: 400 })
 	}
+	// The creator rejects a caller-supplied email. Refuse it before the shop
+	// ceiling so that request cannot lock out other customers.
+	if (parsed.data.customerEmail) {
+		return Response.json({ error: 'Invalid request' }, { status: 400 })
+	}
 
 	const organization = await findPublishedShopOrganization({
 		slug: parsed.data.slug,
@@ -74,8 +79,8 @@ export async function action({ request }: ActionFunctionArgs) {
 			request,
 			slug: parsed.data.slug,
 			host: parsed.data.host,
+			organizationId: organization.id,
 			customerId: parsed.data.customerId,
-			customerEmail: parsed.data.customerEmail || null,
 			embed: parsed.data.embed,
 		})
 
