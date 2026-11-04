@@ -58,6 +58,7 @@ import {
 	requireUserWithOrganizationPermission,
 	ORG_PERMISSIONS,
 } from '#app/utils/organization/permissions.server.ts'
+import { isPublicEmailDomain } from '#app/utils/organization/public-email-domains.ts'
 import {
 	updateSeatQuantity,
 	deleteSubscription,
@@ -145,47 +146,6 @@ async function rejectUnsafeS3Endpoint(endpoint: string | null | undefined) {
 	const result = await validateInstanceUrlWithDns(endpoint)
 	return result.valid ? null : (result.reason ?? 'Invalid S3 endpoint')
 }
-
-/**
- * Mailbox providers open to anyone. An organization cannot claim these as a
- * verified domain, because the claim enrolls every account on the domain.
- */
-const PUBLIC_EMAIL_DOMAINS = new Set([
-	'gmail.com',
-	'googlemail.com',
-	'yahoo.com',
-	'ymail.com',
-	'hotmail.com',
-	'outlook.com',
-	'live.com',
-	'msn.com',
-	'icloud.com',
-	'me.com',
-	'mac.com',
-	'aol.com',
-	'proton.me',
-	'protonmail.com',
-	'protonmail.ch',
-	'tutanota.com',
-	'tuta.com',
-	'tuta.io',
-	'mail.ru',
-	'rocketmail.com',
-	'yahoo.co.uk',
-	'hotmail.co.uk',
-	'live.co.uk',
-	'outlook.sa',
-	'pm.me',
-	'gmx.com',
-	'gmx.net',
-	'mail.com',
-	'zoho.com',
-	'yandex.com',
-	'fastmail.com',
-	'hey.com',
-	'qq.com',
-	'163.com',
-])
 
 const EMAIL_DOMAIN_PATTERN =
 	/^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/
@@ -405,7 +365,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 					return
 				}
 				// Mailbox providers anyone can register on are never an organization.
-				if (PUBLIC_EMAIL_DOMAINS.has(domain)) {
+				if (isPublicEmailDomain(domain)) {
 					ctx.addIssue({
 						path: ['verifiedDomain'],
 						code: z.ZodIssueCode.custom,
