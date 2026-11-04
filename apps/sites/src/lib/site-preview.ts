@@ -8,10 +8,12 @@ export function initSitePreview(root: HTMLElement) {
 	// A preview that starts without a form still has to bind one inserted later.
 	initWebsiteForms()
 	const allowedOrigin = root.dataset.previewParentOrigin
+	let requestId = 0
 	window.addEventListener('message', async (event) => {
 		if (window.parent === window || event.source !== window.parent) return
 		if (!allowedOrigin || event.origin !== allowedOrigin) return
 		if (event.data?.type !== 'epic-preview-update') return
+		const currentRequest = ++requestId
 		try {
 			const res = await fetch(window.location.href, {
 				method: 'POST',
@@ -22,6 +24,7 @@ export function initSitePreview(root: HTMLElement) {
 				}),
 			})
 			const html = await res.text()
+			if (currentRequest !== requestId) return
 			const doc = new DOMParser().parseFromString(html, 'text/html')
 			const newHtml = doc.documentElement
 			document.documentElement.className = newHtml.className

@@ -732,10 +732,11 @@ function applyGeneratedWranglerSecrets(
 			`⚠️ Wrangler secrets incomplete (${label}): skipped ${skipped.join(', ')}. Report queries answer 401 until OPERATOR_ANALYTICS_TOKEN is set on every tenant-api.`,
 			'yellow',
 		)
-		return
+		return false
 	}
 
 	log(`✅ Wrangler secrets applied (${label})`, 'green')
+	return true
 }
 
 function parseD1CreateOutput(output) {
@@ -1785,17 +1786,20 @@ async function main() {
 							.map((value) => value.trim().toLowerCase())
 							.filter((value) => value === 'production' || value === 'staging')
 
+			const appliedEnvs = []
 			for (const deployEnv of secretEnvs) {
 				try {
-					applyGeneratedWranglerSecrets(
-						secrets,
-						config.urls,
-						deployEnv,
-						secrets.launch_status,
-						secrets.credit_card_required_for_trial,
+					appliedEnvs.push(
+						applyGeneratedWranglerSecrets(
+							secrets,
+							config.urls,
+							deployEnv,
+							secrets.launch_status,
+							secrets.credit_card_required_for_trial,
+						),
 					)
-					secretsApplied = true
 				} catch (error) {
+					appliedEnvs.push(false)
 					log(
 						`\nWrangler secret apply had errors (${deployEnv}): ${error.message}`,
 						'yellow',
@@ -1803,6 +1807,8 @@ async function main() {
 					log('Retry manually — values are in launch.secrets.json', 'gray')
 				}
 			}
+			secretsApplied =
+				appliedEnvs.length > 0 && appliedEnvs.every((applied) => applied)
 		}
 	}
 
