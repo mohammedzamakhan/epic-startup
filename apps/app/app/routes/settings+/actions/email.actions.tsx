@@ -5,8 +5,19 @@ import { db, eq, User } from '@repo/database'
 import { EmailChangeEmail, sendEmail } from '@repo/email'
 import { z } from 'zod'
 
-import { newEmailAddressSessionKey } from '#app/routes/_app+/security.tsx'
-import { prepareVerification } from '#app/routes/_auth+/verify.server.tsx'
+import {
+	newEmailAddressSessionKey,
+	newEmailVerificationSessionKey,
+} from '#app/routes/_app+/security.tsx'
+import {
+	hashVerificationSecret,
+	prepareVerification,
+} from '#app/routes/_auth+/verify.server.tsx'
+import {
+	CHANGE_EMAIL_RECIPIENT_RATE_LIMIT,
+	CHANGE_EMAIL_USER_RATE_LIMIT,
+	checkRateLimit,
+} from '#app/utils/rate-limit.server.ts'
 
 export const ChangeEmailSchema = z.object({
 	email: z.string().email({ message: 'Please provide a valid email address' }),
@@ -48,7 +59,38 @@ export async function changeEmailAction({
 		)
 	}
 
-	const { otp, verifyUrl } = await prepareVerification({
+	const newEmail = submission.value.email
+	const [userLimit, recipientLimit] = [
+		await checkRateLimit(
+			{ type: 'user', value: userId },
+			CHANGE_EMAIL_USER_RATE_LIMIT,
+		),
+		await checkRateLimit(
+			{ type: 'token', value: newEmail.toLowerCase() },
+			CHANGE_EMAIL_RECIPIENT_RATE_LIMIT,
+		),
+	]
+	if (!userLimit.allowed || !recipientLimit.allowed) {
+		return Response.json(
+			{
+				result: submission.reply({
+					formErrors: ['Too many verification emails. Try again later.'],
+				}),
+				status: 'error',
+			},
+			{ status: 429 },
+		)
+	}
+
+	const [account] = await db
+		.select({ name: User.name, username: User.username })
+		.from(User)
+		.where(eq(User.id, userId))
+		.limit(1)
+	const firstName = (account?.name?.trim().split(/\s+/)[0] ||
+		account?.username) as string | undefined
+
+	const { otp, verifyUrl, secret } = await prepareVerification({
 		period: 10 * 60,
 		request,
 		target: userId,
@@ -56,15 +98,27 @@ export async function changeEmailAction({
 	})
 
 	const verifySession = await verifySessionStorage.getSession()
-	verifySession.set(newEmailAddressSessionKey, submission.value.email)
+	verifySession.set(newEmailAddressSessionKey, newEmail)
+	// Names the code mailed to this address, so entering a code from an
+	// overlapping request cannot apply an address it was not sent to.
+	verifySession.set(
+		newEmailVerificationSessionKey,
+		await hashVerificationSecret(secret),
+	)
 
 	// The code goes only to the NEW address. Returning it to the requester
 	// would let anyone claim an address they do not control (and the
 	// invitations sent to it) without ever reading its mailbox.
 	const response = await sendEmail({
-		to: submission.value.email,
+		to: newEmail,
 		subject: `Verify your new ${brand.name} email address`,
-		react: <EmailChangeEmail verifyUrl={verifyUrl.toString()} otp={otp} />,
+		react: (
+			<EmailChangeEmail
+				verifyUrl={verifyUrl.toString()}
+				otp={otp}
+				firstName={firstName}
+			/>
+		),
 	})
 	if (response.status !== 'success') {
 		return Response.json(
@@ -80,7 +134,7 @@ export async function changeEmailAction({
 		{
 			status: 'success',
 			result: submission.reply(),
-			verificationInfo: { email: submission.value.email },
+			verificationInfo: { email: newEmail },
 		},
 		{
 			headers: {

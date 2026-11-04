@@ -23,6 +23,7 @@ import {
 } from '#app/utils/rate-limit.server.ts'
 import {
 	newEmailAddressSessionKey,
+	newEmailVerificationSessionKey,
 	twoFAVerificationType,
 	type twoFAVerifyVerificationType,
 } from '../_app+/security.tsx'
@@ -68,7 +69,7 @@ export async function handleChangeEmailVerification({
 		)
 	}
 	const [preUpdateUser] = await db
-		.select({ email: User.email })
+		.select({ email: User.email, name: User.name, username: User.username })
 		.from(User)
 		.where(eq(User.id, submission.value.target))
 		.limit(1)
@@ -83,7 +84,14 @@ export async function handleChangeEmailVerification({
 	void sendEmail({
 		to: preUpdateUser.email,
 		subject: `${brand.name} email changed`,
-		react: <EmailChangeNoticeEmail userId={user.id} />,
+		react: (
+			<EmailChangeNoticeEmail
+				userId={user.id}
+				firstName={
+					preUpdateUser.name?.trim().split(/\s+/)[0] || preUpdateUser.username
+				}
+			/>
+		),
 	})
 
 	return redirectWithToast(
@@ -185,7 +193,47 @@ export async function prepareVerification({
 	// add the otp to the url we'll email the user.
 	verifyUrl.searchParams.set(codeQueryParam, otp)
 
-	return { otp, redirectTo, verifyUrl }
+	return { otp, redirectTo, verifyUrl, secret: verificationConfig.secret }
+}
+
+/** SHA-256 of a verification secret, so a cookie can name a code without holding it. */
+export async function hashVerificationSecret(secret: string) {
+	const digest = await crypto.subtle.digest(
+		'SHA-256',
+		new TextEncoder().encode(secret),
+	)
+	return Array.from(new Uint8Array(digest), (byte) =>
+		byte.toString(16).padStart(2, '0'),
+	).join('')
+}
+
+/**
+ * Whether the current `change-email` code is the one mailed to the address this
+ * browser asked for. Two overlapping requests could otherwise leave the stored
+ * code (sent to one address) beside a cookie naming another, and entering the
+ * code would attach an address its owner never proved.
+ */
+async function changeEmailCodeMatchesPendingAddress(
+	request: Request,
+	target: string,
+) {
+	const verifySession = await verifySessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+	const boundHash = verifySession.get(newEmailVerificationSessionKey)
+	if (typeof boundHash !== 'string') return false
+	const [verification] = await db
+		.select({ secret: Verification.secret })
+		.from(Verification)
+		.where(
+			and(
+				eq(Verification.target, target),
+				eq(Verification.type, 'change-email'),
+			),
+		)
+		.limit(1)
+	if (!verification) return false
+	return (await hashVerificationSecret(verification.secret)) === boundHash
 }
 
 export async function checkCodeValidity({
@@ -311,6 +359,23 @@ export async function validateRequest(
 			return handleOnboardingVerification({ request, body, submission })
 		}
 		case 'change-email': {
+			if (
+				!(await changeEmailCodeMatchesPendingAddress(
+					request,
+					submissionValue[targetQueryParam],
+				))
+			) {
+				return data(
+					{
+						result: submission.reply({
+							formErrors: [
+								'This code does not match your latest email change request. Request a new code and use it on the same device.',
+							],
+						}),
+					},
+					{ status: 400 },
+				)
+			}
 			await deleteVerification()
 			return handleChangeEmailVerification({ request, body, submission })
 		}
