@@ -1,4 +1,5 @@
 import { generateTOTP } from '@epic-web/totp'
+import { authSessionStorage } from '@repo/auth'
 import { db, eq, Verification } from '@repo/database'
 
 import { describe, expect, it } from 'vitest'
@@ -186,6 +187,19 @@ describe('verify route integration', () => {
 			}
 		}
 
+		/** The auth-session cookie this response sets, if any. */
+		async function authSessionFrom(response: Response) {
+			const empty = await authSessionStorage.commitSession(
+				await authSessionStorage.getSession(),
+			)
+			const name = empty.split('=')[0]
+			const header = response.headers
+				.getSetCookie()
+				.find((value) => value.startsWith(`${name}=`))
+			if (!header) return null
+			return authSessionStorage.getSession(header.split(';')[0])
+		}
+
 		it("refuses another account's valid code for a signed-in session", async () => {
 			const caller = await createTestUser()
 			const other = await createTestUser()
@@ -197,6 +211,8 @@ describe('verify route integration', () => {
 
 			expect(response.status).toBe(302)
 			expect(response.headers.get('Location')).toContain('/login')
+			// Nothing is stamped on the caller's session.
+			expect(await authSessionFrom(response)).toBeNull()
 		})
 
 		it("accepts the signed-in user's own code", async () => {
@@ -208,7 +224,10 @@ describe('verify route integration', () => {
 
 			expect(response.status).toBe(302)
 			expect(response.headers.get('Location')).not.toContain('/login')
-			expect(response.headers.get('set-cookie')).toBeTruthy()
+			const authSession = await authSessionFrom(response)
+			const verifiedAt = authSession?.get('verified-time')
+			expect(verifiedAt).toBeTypeOf('number')
+			expect(Date.now() - verifiedAt).toBeLessThan(60_000)
 		})
 	})
 })

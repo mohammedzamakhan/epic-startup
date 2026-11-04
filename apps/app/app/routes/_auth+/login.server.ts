@@ -3,6 +3,7 @@ import { auditService, AuditAction } from '@repo/audit'
 import {
 	authSessionStorage,
 	verifySessionStorage,
+	getSessionUserId,
 	getUserId,
 	safeDocumentRedirect,
 	sessionKey,
@@ -158,13 +159,34 @@ export async function handleVerification({
 		// A signed-in step-up must be for the signed-in user. Without this, a
 		// valid code for any other account would stamp `verified-time` on this
 		// session and satisfy `requireRecentVerification` (change-email, etc.).
-		const sessionUserId = await getUserId(request)
+		// Compare with the auth-session user, not `getUserId`: while an admin
+		// impersonates someone, `getUserId` is the target, and the stamp would
+		// land on the admin's own cookie.
+		const sessionUserId = await getSessionUserId(request)
 		if (!sessionUserId || sessionUserId !== submission.value.target) {
-			throw await redirectWithToast('/login', {
-				type: 'error',
-				title: 'Invalid session',
-				description: 'Could not find session to verify. Please try again.',
-			})
+			// A valid code for a different account is an abuse signal.
+			void auditService.logAuth(
+				AuditAction.USER_LOGIN_FAILED,
+				sessionUserId ?? undefined,
+				'Two-factor code for a different account presented on a signed-in session',
+				{ reason: 'two_factor_target_mismatch' },
+				request,
+				false,
+			)
+			throw await redirectWithToast(
+				'/login',
+				{
+					type: 'error',
+					title: 'Invalid session',
+					description: 'Could not find session to verify. Please try again.',
+				},
+				{
+					headers: {
+						'set-cookie':
+							await verifySessionStorage.destroySession(verifySession),
+					},
+				},
+			)
 		}
 		headers.append(
 			'set-cookie',
