@@ -58,4 +58,38 @@ describe('renderLexicalContent', () => {
 		expect(html).toContain('<em')
 		expect(html).toContain('Hi')
 	})
+	it('demotes an editor h1 to h2 so the page keeps one h1', () => {
+		const html = renderLexicalContent(
+			doc({ type: 'heading', tag: 'h1', children: [{ text: 'Title' }] }),
+		)
+
+		expect(html).toMatch(/^<h2 /)
+		expect(html).not.toContain('<h1')
+	})
+
+	it('keeps link text and only links to safe targets', () => {
+		const link = (url: string) => ({
+			type: 'link',
+			url,
+			children: [{ text: 'Read more' }],
+		})
+		const html = renderLexicalContent(
+			doc(
+				{ type: 'paragraph', children: [link('https://example.com/a?b="c')] },
+				{ type: 'paragraph', children: [link('javascript:alert(1)')] },
+			),
+		)
+
+		expect(html).toContain('href="https://example.com/a?b=&quot;c"')
+		expect(html).not.toContain('javascript:')
+		expect(html.match(/Read more/g)).toHaveLength(2)
+	})
+
+	it('returns nothing for content whose children are not arrays', () => {
+		expect(renderLexicalContent({ root: { children: { a: 1 } } })).toBe('')
+		expect(renderLexicalContent({ root: { children: 'x' } })).toBe('')
+		expect(
+			renderLexicalContent(doc({ type: 'paragraph', children: { a: 1 } })),
+		).toContain('<p')
+	})
 })
