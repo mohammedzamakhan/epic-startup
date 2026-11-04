@@ -298,7 +298,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 		{ canUpdate: canErase, canDelete: canErase },
 	)
 
-	return { jwt, tenantApiUrl, canErase }
+	// The same permission gates both, so read-only members see no Edit action
+	// that tenant-api would refuse.
+	return { jwt, tenantApiUrl, canErase, canEdit: canErase }
 }
 
 function CustomerRow({
@@ -307,21 +309,26 @@ function CustomerRow({
 	onErase,
 }: {
 	customer: CustomerListItem
-	onEdit: (customer: CustomerListItem) => void
+	/** Set only for people allowed to edit a customer. */
+	onEdit?: (customer: CustomerListItem) => void
 	/** Set only for people allowed to erase a customer. */
 	onErase?: (customer: CustomerListItem) => void
 }) {
 	return (
 		<TableRow
-			className="cursor-pointer"
-			onClick={() => onEdit(customer)}
-			onKeyDown={(event) => {
-				if (event.key === 'Enter' || event.key === ' ') {
-					event.preventDefault()
-					onEdit(customer)
-				}
-			}}
-			tabIndex={0}
+			className={onEdit ? 'cursor-pointer' : undefined}
+			onClick={onEdit ? () => onEdit(customer) : undefined}
+			onKeyDown={
+				onEdit
+					? (event) => {
+							if (event.key === 'Enter' || event.key === ' ') {
+								event.preventDefault()
+								onEdit(customer)
+							}
+						}
+					: undefined
+			}
+			tabIndex={onEdit ? 0 : undefined}
 		>
 			<TableCell className="font-medium">{customer.name}</TableCell>
 			<TableCell className="text-muted-foreground hidden text-sm sm:table-cell">
@@ -351,41 +358,46 @@ function CustomerRow({
 				className="text-right"
 				onClick={(event) => event.stopPropagation()}
 			>
-				<DropdownMenu>
-					<DropdownMenuTrigger
-						render={
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								aria-label="Customer actions"
-							>
-								<Icon name="ellipsis" className="size-4" />
-							</Button>
-						}
-					/>
-					<DropdownMenuContent align="end">
-						<DropdownMenuItem onClick={() => onEdit(customer)}>
-							<Icon name="pencil" className="mr-2 size-4" />
-							Edit
-						</DropdownMenuItem>
-						{onErase ? (
-							<DropdownMenuItem
-								variant="destructive"
-								onClick={() => onErase(customer)}
-							>
-								<Icon name="trash-2" className="mr-2 size-4" />
-								Erase data
-							</DropdownMenuItem>
-						) : null}
-					</DropdownMenuContent>
-				</DropdownMenu>
+				{onEdit || onErase ? (
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							render={
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									aria-label="Customer actions"
+								>
+									<Icon name="ellipsis" className="size-4" />
+								</Button>
+							}
+						/>
+						<DropdownMenuContent align="end">
+							{onEdit ? (
+								<DropdownMenuItem onClick={() => onEdit(customer)}>
+									<Icon name="pencil" className="mr-2 size-4" />
+									Edit
+								</DropdownMenuItem>
+							) : null}
+							{onErase ? (
+								<DropdownMenuItem
+									variant="destructive"
+									onClick={() => onErase(customer)}
+								>
+									<Icon name="trash-2" className="mr-2 size-4" />
+									Erase data
+								</DropdownMenuItem>
+							) : null}
+						</DropdownMenuContent>
+					</DropdownMenu>
+				) : null}
 			</TableCell>
 		</TableRow>
 	)
 }
 
 export default function CustomersRoute() {
-	const { jwt, tenantApiUrl, canErase } = useLoaderData<typeof loader>()
+	const { jwt, tenantApiUrl, canErase, canEdit } =
+		useLoaderData<typeof loader>()
 	const [erasingCustomer, setErasingCustomer] =
 		useState<CustomerListItem | null>(null)
 	const [isErasing, setIsErasing] = useState(false)
@@ -643,7 +655,7 @@ export default function CustomersRoute() {
 								<CustomerRow
 									key={customer.id}
 									customer={customer}
-									onEdit={openEditSheet}
+									onEdit={canEdit ? openEditSheet : undefined}
 									onErase={
 										canErase
 											? (target) => {
