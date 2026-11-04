@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
 import {
 	createForbiddenResponse,
 	isImpersonating,
@@ -8,9 +7,10 @@ import {
 import {
 	mintOperatorAnalyticsToken,
 	ORG_WIDE_REPORT_SUBJECTS,
+	resolveOperatorAnalyticsSecret,
 	type RestrictedReportSubject,
 } from '@repo/reports/token'
-import { isInsecureSecret } from '@repo/security'
+import { isInsecureSecret, isProductionLike } from '@repo/security'
 import { data } from 'react-router'
 import { ENV } from 'varlock/env'
 import { requireUserOrganization } from '#app/utils/organization/loader.server.ts'
@@ -63,21 +63,15 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 		...staff.subjects,
 	]
 
-	const signingSecret = ENV.OPERATOR_ANALYTICS_TOKEN || ''
-	const internal = ENV.INTERNAL_COMMAND_TOKEN || ''
-	const nodeEnv = process.env.NODE_ENV
-	const isLocal = nodeEnv === 'development' || nodeEnv === 'test'
-	const sameAsInternal =
-		internal.length > 0 &&
-		timingSafeEqual(
-			createHash('sha256').update(signingSecret).digest(),
-			createHash('sha256').update(internal).digest(),
-		)
-	if (
-		signingSecret.length < 16 ||
-		sameAsInternal ||
-		(!isLocal && isInsecureSecret(signingSecret))
-	) {
+	// A production build on localhost (E2E, build + preview) may keep the schema
+	// default; a real deploy may not.
+	const signingSecret = resolveOperatorAnalyticsSecret({
+		secret: ENV.OPERATOR_ANALYTICS_TOKEN,
+		internalCommandToken: ENV.INTERNAL_COMMAND_TOKEN,
+		isPlaceholder: isInsecureSecret,
+		placeholderAllowed: !isProductionLike(),
+	})
+	if (!signingSecret) {
 		console.error('operator_analytics_token_not_configured')
 		throw data(
 			{ error: 'Reports are temporarily unavailable' },
