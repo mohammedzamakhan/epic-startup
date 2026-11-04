@@ -356,8 +356,11 @@ must differ, and rotating one never requires touching the other.
   answers 401 to report queries. Both fail closed.
 - **Rotation:** report tokens last 15 minutes (5 for pay data), so there is no
   long-lived token to revoke. Set the new value on all tenant-api nodes and App
-  in the same window. A report screen opened before the swap holds a token
-  signed with the old value, so its queries answer 401 until it is reloaded.
+  in the same window. There is no previous-key fallback, so any App and
+  tenant-api pair that holds different values answers 401 (a token from App
+  fails on a node that still has the old value, and the reverse), and a report
+  screen opened before the swap holds a token signed with the old value, so its
+  queries answer 401 until it is reloaded. Swap every node and App together.
 - **Local and CI:** the schema default (`dev-operator-analytics-token-...`) is
   accepted outside production and in a production build served from localhost
   (E2E, `npm run build` + preview). On a real deploy (`BASE_URL` not local, or

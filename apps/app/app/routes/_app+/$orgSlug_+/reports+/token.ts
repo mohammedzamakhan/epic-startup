@@ -64,7 +64,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 	]
 
 	// A production build on localhost (E2E, build + preview) may keep the schema
-	// default; a real deploy may not.
+	// default; a real deploy may not. tenant-api applies its own rule (it has no
+	// BASE_URL, and an unset NODE_ENV counts as production there), so a
+	// production-mode tenant-api still answers 401 to a token signed with the
+	// default. Real deploys refuse the default on both sides.
 	const signingSecret = resolveOperatorAnalyticsSecret({
 		secret: ENV.OPERATOR_ANALYTICS_TOKEN,
 		internalCommandToken: ENV.INTERNAL_COMMAND_TOKEN,

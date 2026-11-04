@@ -124,9 +124,12 @@ async function readTextWithLimit(
 ): Promise<string | null> {
 	const reader = request.body?.getReader()
 	if (!reader) return ''
-	// Keep the raw chunks and decode once at the end, instead of growing a
-	// string chunk by chunk next to the bytes that built it.
-	const chunks: Uint8Array[] = []
+	// Decode each chunk as it arrives so the raw bytes can be freed, and join
+	// once at the end. Holding every chunk and then copying them into one
+	// buffer would keep the body three times over at its peak (chunks, buffer,
+	// string), which matters in a 128 MB Worker isolate.
+	const decoder = new TextDecoder()
+	const parts: string[] = []
 	let received = 0
 	for (;;) {
 		const { done, value } = await reader.read()
@@ -136,15 +139,10 @@ async function readTextWithLimit(
 			await reader.cancel()
 			return null
 		}
-		chunks.push(value)
+		parts.push(decoder.decode(value, { stream: true }))
 	}
-	const bytes = new Uint8Array(received)
-	let offset = 0
-	for (const chunk of chunks) {
-		bytes.set(chunk, offset)
-		offset += chunk.byteLength
-	}
-	return new TextDecoder().decode(bytes)
+	parts.push(decoder.decode())
+	return parts.join('')
 }
 
 /**
