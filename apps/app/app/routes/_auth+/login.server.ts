@@ -4,7 +4,6 @@ import {
 	authSessionStorage,
 	verifySessionStorage,
 	getSessionUserId,
-	getUserId,
 	safeDocumentRedirect,
 	sessionKey,
 } from '@repo/auth'
@@ -227,7 +226,9 @@ export async function shouldRequestTwoFA(request: Request) {
 		request.headers.get('cookie'),
 	)
 	if (verifySession.has(unverifiedSessionIdKey)) return true
-	const userId = await getUserId(request)
+	// The person at the keyboard steps up, not the account an admin impersonates:
+	// `verified-time` lives on the admin's own session cookie.
+	const userId = await getSessionUserId(request)
 	if (!userId) return false
 	// if it's over two hours since they last verified, we should request 2FA again
 	const [userHasTwoFA] = await db

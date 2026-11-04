@@ -146,8 +146,12 @@ describe('verify route integration', () => {
 	})
 
 	describe('signed-in two-factor step-up', () => {
+		// Each account gets its own secret, so one account's code is not valid
+		// for another.
+		const secrets = ['JBSWY3DPEHPK3PXP', 'KRSXG5CTMVRXEZLU', 'MFRGGZDFMZTWQ2LK']
+		let nextSecret = 0
 		async function setupTwoFactor(userId: string) {
-			const secret = 'JBSWY3DPEHPK3PXP'
+			const secret = secrets[nextSecret++ % secrets.length]!
 			await db.insert(Verification).values({
 				type: '2fa',
 				target: userId,
@@ -213,6 +217,19 @@ describe('verify route integration', () => {
 			expect(response.headers.get('Location')).toContain('/login')
 			// Nothing is stamped on the caller's session.
 			expect(await authSessionFrom(response)).toBeNull()
+		})
+
+		it("refuses another account's code submitted for the signed-in user", async () => {
+			const caller = await createTestUser()
+			const other = await createTestUser()
+			await setupTwoFactor(caller.id)
+			const otherOtp = await setupTwoFactor(other.id)
+			const { cookie } = await createTestSession(caller.id)
+
+			const response = await submit2fa(cookie, caller.id, otherOtp)
+
+			// The code does not verify for the caller: refused, nothing stamped.
+			expect(getResponseStatus(response)).toBe(400)
 		})
 
 		it("accepts the signed-in user's own code", async () => {
