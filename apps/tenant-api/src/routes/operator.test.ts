@@ -137,6 +137,60 @@ describe('Operator Routes', () => {
 		expect(body.customer).not.toHaveProperty('stripeCustomerId')
 	})
 
+	describe('a token with canUpdate but not canDelete', () => {
+		async function updateOnlyToken() {
+			return new SignJWT({
+				orgId: testOrgId,
+				role: 'operator',
+				canUpdate: true,
+			})
+				.setProtectedHeader({ alg: 'HS256' })
+				.setAudience('tenant-api-operator')
+				.setIssuer(brand.shortName)
+				.setExpirationTime('1h')
+				.sign(new TextEncoder().encode(operatorSecret))
+		}
+
+		it('can update a customer', async () => {
+			const db = await getTenantDb(testOrgId)
+			const [inserted] = await db
+				.insert(customers)
+				.values({ name: 'Before', phone: '+15550000012' })
+				.returning()
+			const token = await updateOnlyToken()
+
+			const res = await app.request(`/operator/customers/${inserted!.id}`, {
+				method: 'PATCH',
+				headers: {
+					Authorization: `Bearer ${token}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ name: 'After' }),
+			})
+			expect(res.status).toBe(200)
+		})
+
+		it('can create a campaign', async () => {
+			const token = await updateOnlyToken()
+
+			const res = await app.request('/operator/marketing/campaigns', {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${token}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					name: 'Update-only promo',
+					channel: 'email',
+					subject: 'Hello',
+					content: 'Hi {{customer.name}}!',
+					audience: 'verified',
+				}),
+			})
+			expect(res.status).toBe(200)
+		})
+	})
+
 	describe('a token without write claims (read-only member)', () => {
 		it('lists customers but cannot update one', async () => {
 			const db = await getTenantDb(testOrgId)

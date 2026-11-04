@@ -489,6 +489,47 @@ describe('Journey API Routes (System & Operator)', () => {
 				}
 			})
 
+			it('lets an update-only token write but refuses delete', async () => {
+				const secret = new TextEncoder().encode(operatorToken)
+				const updater = await new SignJWT({
+					orgId,
+					role: 'operator',
+					canUpdate: true,
+				})
+					.setProtectedHeader({ alg: 'HS256' })
+					.setAudience('tenant-api-operator')
+					.setIssuer(brand.shortName)
+					.setExpirationTime('15m')
+					.sign(secret)
+				const headers = {
+					Authorization: `Bearer ${updater}`,
+					'Content-Type': 'application/json',
+				}
+				const call = (method: string, path: string) =>
+					app.request(path, {
+						method,
+						headers,
+						body: method === 'DELETE' ? undefined : '{}',
+					})
+
+				// The guard passes (the id or body is what fails), so never a 403.
+				for (const [method, path] of [
+					['POST', '/operator/journeys'],
+					['PATCH', '/operator/journeys/some-id'],
+					['PUT', '/operator/journeys/some-id'],
+					['POST', '/operator/journeys/some-id/publish'],
+					['POST', '/operator/journeys/some-id/pause'],
+				] as const) {
+					expect(
+						(await call(method, path)).status,
+						`${method} ${path}`,
+					).not.toBe(403)
+				}
+				expect(
+					(await call('DELETE', '/operator/journeys/some-id')).status,
+				).toBe(403)
+			})
+
 			it('rejects an operator token with no expiry', async () => {
 				const secret = new TextEncoder().encode(operatorToken)
 				const forever = await new SignJWT({ orgId, role: 'operator' })

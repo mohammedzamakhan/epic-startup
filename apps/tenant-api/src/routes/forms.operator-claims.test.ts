@@ -77,6 +77,10 @@ describe('operator form routes honor the write claims', () => {
 
 	it('a delete-capable token can delete', async () => {
 		const deleter = await mint({ canUpdate: true, canDelete: true })
+		const created = await call('POST', '', deleter, validForm)
+		const { form } = (await created.json()) as { form: { id: string } }
+		expect((await call('DELETE', `/${form.id}`, deleter)).status).toBe(200)
+		expect((await call('DELETE', `/${form.id}`, deleter)).status).toBe(404)
 		expect((await call('DELETE', '/missing', deleter)).status).toBe(404)
 	})
 })

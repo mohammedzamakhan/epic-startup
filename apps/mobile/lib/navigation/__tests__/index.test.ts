@@ -18,6 +18,7 @@ const replace = router.replace as jest.Mock
 
 function verifyHref() {
 	const href = replace.mock.calls[0]?.[0] as string
+	expect(href.split('?')[0]).toBe('/(auth)/verify-code')
 	return new URLSearchParams(href.split('?')[1])
 }
 
