@@ -258,6 +258,30 @@ describe('ssrfSafeFetch', () => {
 
 		fetchSpy.mockRestore()
 	})
+
+	it('cancels the body of a refused redirect response', async () => {
+		mockResolve4.mockResolvedValue(['142.250.80.46'])
+		mockResolve6.mockRejectedValue(new Error('no AAAA'))
+
+		let cancelled = false
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(
+				new ReadableStream({
+					cancel() {
+						cancelled = true
+					},
+				}),
+				{ status: 302, headers: { Location: 'http://169.254.169.254/' } },
+			),
+		)
+
+		await expect(
+			ssrfSafeFetch('https://gitlab.example.com/api/v4/user'),
+		).rejects.toThrow('redirect blocked')
+		expect(cancelled).toBe(true)
+
+		fetchSpy.mockRestore()
+	})
 })
 
 describe('isPrivateIp IPv6 forms', () => {
