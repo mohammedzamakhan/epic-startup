@@ -88,7 +88,7 @@ export async function getLivePosting(
 					Accept: 'application/json',
 					Authorization: `Bearer ${token}`,
 				},
-				redirect: 'error',
+				redirect: 'manual',
 				signal: AbortSignal.timeout(4_000),
 			},
 		)

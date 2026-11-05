@@ -91,7 +91,7 @@ async function tokenRequest(
 				'Content-Type': 'application/x-www-form-urlencoded',
 			},
 			body: new URLSearchParams(form),
-			redirect: 'error',
+			redirect: 'manual',
 			signal: AbortSignal.timeout(15_000),
 		})
 	} catch {
@@ -169,7 +169,7 @@ export async function revokeCanvaToken(token: string): Promise<void> {
 			'Content-Type': 'application/x-www-form-urlencoded',
 		},
 		body: new URLSearchParams({ token }),
-		redirect: 'error',
+		redirect: 'manual',
 		signal: AbortSignal.timeout(10_000),
 	}).catch(() => null)
 }
@@ -203,7 +203,7 @@ async function call(
 					: {}),
 				...(init.headers as Record<string, string> | undefined),
 			},
-			redirect: 'error',
+			redirect: 'manual',
 			signal: AbortSignal.timeout(30_000),
 		})
 	} catch {

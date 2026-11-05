@@ -33,7 +33,7 @@ export async function draftMailboxReply(context: unknown) {
 				Authorization: `Bearer ${ENV.MAILBOX_AI_API_KEY}`,
 				'Content-Type': 'application/json',
 			},
-			redirect: 'error',
+			redirect: 'manual',
 			signal: AbortSignal.timeout(30000),
 			body: JSON.stringify({
 				model: ENV.MAILBOX_AI_MODEL,

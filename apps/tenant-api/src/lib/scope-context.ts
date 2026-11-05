@@ -101,7 +101,7 @@ async function fetchContext(
 					Accept: 'application/json',
 					Authorization: `Bearer ${token}`,
 				},
-				redirect: 'error',
+				redirect: 'manual',
 				signal: AbortSignal.timeout(3_000),
 			},
 		)

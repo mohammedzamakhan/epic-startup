@@ -282,7 +282,7 @@ export async function findActiveOrganizationById(orgId: string) {
 						Accept: 'application/json',
 						Authorization: `Bearer ${token}`,
 					},
-					redirect: 'error',
+					redirect: 'manual',
 					signal: AbortSignal.timeout(5_000),
 				},
 			)

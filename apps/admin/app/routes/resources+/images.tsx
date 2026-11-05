@@ -209,7 +209,7 @@ async function getCloudflareImageResponse(request: Request) {
 			})
 		: await fetch(imageUrl, {
 				headers: fetchHeaders,
-				redirect: 'error',
+				redirect: 'manual',
 				signal: AbortSignal.timeout(10_000),
 			})
 

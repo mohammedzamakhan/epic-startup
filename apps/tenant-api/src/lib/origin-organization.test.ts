@@ -46,7 +46,7 @@ describe('active organization lookup', () => {
 					Accept: 'application/json',
 					Authorization: `Bearer ${commandToken}`,
 				},
-				redirect: 'error',
+				redirect: 'manual',
 				signal: expect.any(AbortSignal),
 			}),
 		)

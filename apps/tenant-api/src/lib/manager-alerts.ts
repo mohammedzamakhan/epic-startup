@@ -55,7 +55,7 @@ export async function sendManagerAlert(
 				Authorization: `Bearer ${token}`,
 			},
 			body: JSON.stringify(parsed.data),
-			redirect: 'error',
+			redirect: 'manual',
 			signal: AbortSignal.timeout(8_000),
 		})
 		if (!response.ok) {

@@ -300,10 +300,18 @@ export async function ssrfSafeFetch(
 		throw new Error(`SSRF security validation failed: ${validation.reason}`)
 	}
 
-	return fetch(urlStr, {
+	const response = await fetch(urlStr, {
 		...init,
 		// Block redirects — a safe URL could redirect to an internal one.
 		// Callers that need to follow redirects should validate each hop.
-		redirect: 'error',
+		// `redirect: 'error'` is not implemented on Cloudflare Workers (fetch
+		// throws a TypeError before sending), so ask for the redirect response
+		// and refuse it here. That behaves the same on Node and Workers.
+		redirect: 'manual',
 	})
+	if (response.status >= 300 && response.status < 400) {
+		await response.body?.cancel().catch(() => {})
+		throw new Error('SSRF security validation failed: redirect blocked')
+	}
+	return response
 }
