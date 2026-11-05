@@ -50,6 +50,14 @@ const corsCache = new LRUCache<string, boolean>({
 	ttl: 30_000,
 })
 
+function safeHost(url: string) {
+	try {
+		return new URL(url).host
+	} catch {
+		return 'invalid-url'
+	}
+}
+
 function appBaseUrl() {
 	return (ENV.APP_URL || (ENV as { BASE_URL?: string }).BASE_URL || '').replace(
 		/\/$/,
@@ -232,7 +240,17 @@ export async function findActiveOrganizationById(orgId: string) {
 	if (appUrl) {
 		// App owns the current org flags. A node-local control-plane copy may be
 		// missing or stale, especially when App uses D1 or the org changes region.
-		if (token.length < 16) return null
+		// Every failure below answers "not found", so each one logs why. The logs
+		// carry the App host, a status or an error name, never the token.
+		const appHost = safeHost(appUrl)
+		if (token.length < 16) {
+			console.warn('tenant org lookup skipped', {
+				reason: 'internal_command_token_too_short',
+				tokenLength: token.length,
+				appHost,
+			})
+			return null
+		}
 		try {
 			const params = new URLSearchParams({ orgId })
 			const response = await fetch(
@@ -246,11 +264,30 @@ export async function findActiveOrganizationById(orgId: string) {
 					signal: AbortSignal.timeout(5_000),
 				},
 			)
-			if (!response.ok) return null
+			if (!response.ok) {
+				console.warn('tenant org lookup refused', {
+					status: response.status,
+					appHost,
+				})
+				return null
+			}
 			const parsed = activeOrganizationSchema.safeParse(await response.json())
-			return parsed.success && parsed.data.id === orgId ? parsed.data : null
-		} catch {
+			if (!parsed.success || parsed.data.id !== orgId) {
+				console.warn('tenant org lookup returned an unexpected body', {
+					appHost,
+				})
+				return null
+			}
+			return parsed.data
+		} catch (error) {
 			// Fail closed: do not authorize from stale metadata after an outage.
+			console.warn('tenant org lookup failed', {
+				appHost,
+				error:
+					error instanceof Error
+						? { name: error.name, message: error.message }
+						: String(error),
+			})
 			return null
 		}
 	}
