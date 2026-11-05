@@ -119,7 +119,7 @@ async function graph<T>(
 					: {}),
 			},
 			body: method === 'POST' ? params : undefined,
-			redirect: 'manual',
+			redirect: 'error',
 			signal: AbortSignal.timeout(30_000),
 		})
 	} catch {
