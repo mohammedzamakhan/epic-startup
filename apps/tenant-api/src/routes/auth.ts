@@ -20,10 +20,7 @@ import {
 	runTenantTransaction,
 } from '@repo/tenant-db'
 import { clientAddress } from '../lib/client-ip.ts'
-import {
-	nativeSendRetryAfter,
-	recordSmsSend,
-} from '../services/sms-send-limits.ts'
+import { reserveSmsSend } from '../services/sms-send-limits.ts'
 import {
 	findActiveOrganizationById,
 	resolveOrganizationForBrowserAuth,
@@ -483,29 +480,24 @@ authRoutes.post(
 			)
 		}
 
-		if (challenge === 'native') {
-			const retryAfter = await nativeSendRetryAfter(db, {
-				phone,
-				ip: clientAddress(c),
-			})
-			if (retryAfter !== null) {
-				return c.json(
-					{
-						error: 'rate_limit_exceeded',
-						error_description:
-							'Too many verification codes requested. Please try again later.',
-						retry_after: retryAfter,
-					},
-					429,
-				)
-			}
-		}
-		// Counted before the send: a failed send still used a provider request.
-		await recordSmsSend(db, {
+		// Counted before the send (a failed send still used a provider request).
+		// App-header requests also get the durable hourly ceilings.
+		const reservation = await reserveSmsSend(db, {
 			kind: challenge,
 			phone,
 			ip: clientAddress(c),
 		})
+		if (!reservation.ok) {
+			return c.json(
+				{
+					error: 'rate_limit_exceeded',
+					error_description:
+						'Too many verification codes requested. Please try again later.',
+					retry_after: reservation.retryAfter,
+				},
+				429,
+			)
+		}
 
 		const code = crypto.randomInt(100000, 1_000_000).toString()
 		const hashedCode = hmacHash(code)

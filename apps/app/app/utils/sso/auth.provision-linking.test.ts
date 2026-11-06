@@ -1,4 +1,11 @@
-import { db, eq, Organization, User, UserOrganization } from '@repo/database'
+import {
+	db,
+	eq,
+	Organization,
+	SSOIdentity,
+	User,
+	UserOrganization,
+} from '@repo/database'
 import { describe, expect, it, vi } from 'vitest'
 import { ssoAuthService } from './auth.server.ts'
 
@@ -178,5 +185,38 @@ describe('SSO identity link (issuer + subject)', () => {
 				cfg,
 			),
 		).rejects.toThrow(/not allowed/)
+	})
+
+	it('two first sign-ins racing for one account bind exactly one subject', async () => {
+		const { id, domain, org, cfg } = await orgWithDomain()
+		const [member] = await db
+			.insert(User)
+			.values({
+				id: `m-${id}`,
+				email: `dana@${domain}`,
+				username: `dana-${id}`,
+			})
+			.returning()
+		await db.insert(UserOrganization).values({
+			userId: member!.id,
+			organizationId: org.id,
+			organizationRoleId: 'org_role_member',
+		})
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+		const results = await Promise.allSettled(
+			['a', 'b', 'c'].map((suffix) =>
+				ssoAuthService.provisionUser(
+					{ sub: `${suffix}-${id}`, email: `dana@${domain}` } as any,
+					cfg,
+				),
+			),
+		)
+		warn.mockRestore()
+		expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+		const links = await db
+			.select({ subject: SSOIdentity.subject })
+			.from(SSOIdentity)
+			.where(eq(SSOIdentity.userId, member!.id))
+		expect(links).toHaveLength(1)
 	})
 })

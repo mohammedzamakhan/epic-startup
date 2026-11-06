@@ -64,9 +64,10 @@ export default function VerifiedDomainCard({
 		domainCheck?: { status: string; message: string }
 	}>()
 	useConformSaveBar(form, saveFetcher)
-	// A claim just started (save response) or one still waiting (loader).
-	const claim: DomainClaim | null =
-		saveFetcher.data?.domainClaim ?? organization.domainClaim ?? null
+	// The loader supplies the pending claim and revalidates after each save.
+	// Not from `saveFetcher.data`: a fetcher keeps its last response, so a
+	// verified or removed claim would linger.
+	const claim: DomainClaim | null = organization.domainClaim ?? null
 	const verifiedDomain = organization.verifiedDomain
 	const claimDomain = claim?.domain
 	const needsReverification =

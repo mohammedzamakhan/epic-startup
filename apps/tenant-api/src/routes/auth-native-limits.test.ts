@@ -15,8 +15,7 @@ import { authRoutes } from './auth.ts'
 import { syncEnvFromProcess } from '../lib/secrets.ts'
 import {
 	NATIVE_SEND_LIMITS,
-	nativeSendRetryAfter,
-	recordSmsSend,
+	reserveSmsSend,
 } from '../services/sms-send-limits.ts'
 
 const orgId = 'clw9x0a12000008l00test81'
@@ -103,7 +102,7 @@ describe('send-code from the customer app (no Turnstile widget)', () => {
 	it('refuses app-header sends once the organization hour is used up', async () => {
 		const db = await getTenantDb(orgId)
 		for (let i = 0; i < NATIVE_SEND_LIMITS.perOrganizationPerHour; i++) {
-			await recordSmsSend(db, {
+			await reserveSmsSend(db, {
 				kind: 'native',
 				phone: `+1555000${String(i).padStart(4, '0')}`,
 				ip: `198.51.100.${i % 250}`,
@@ -130,88 +129,72 @@ describe('native send limits', () => {
 		fs.rmSync(tempDir, { recursive: true, force: true })
 	})
 
-	it('caps one phone and one IP per hour, and forgets after the hour', async () => {
-		const db = await getTenantDb(orgId)
+	const native = (phone: string, ip: string | null, now?: number) =>
+		getTenantDb(orgId).then((db) =>
+			reserveSmsSend(db, { kind: 'native', phone, ip, now }),
+		)
+
+	it('caps one phone per hour and says when the oldest send leaves the window', async () => {
 		const now = Date.now()
 		for (let i = 0; i < NATIVE_SEND_LIMITS.perPhonePerHour; i++) {
-			await recordSmsSend(db, {
-				kind: 'native',
-				phone: '+15550001111',
-				ip: `203.0.113.${i}`,
-				now,
-			})
+			expect(
+				await native('+15550001111', `203.0.113.${i}`, now + i * 60_000),
+			).toEqual({ ok: true })
 		}
+		const refused = await native(
+			'+15550001111',
+			'203.0.113.99',
+			now + 10 * 60_000,
+		)
+		expect(refused.ok).toBe(false)
+		// The first send was at `now`, so the wait is about 50 minutes, not an hour.
+		expect(!refused.ok && refused.retryAfter).toBe(50 * 60)
+		// A refused attempt is not counted, and another phone still passes.
+		const db = await getTenantDb(orgId)
+		expect(await db.select().from(smsSendEvents)).toHaveLength(3)
+		expect(await native('+15550002222', '203.0.113.99', now)).toEqual({
+			ok: true,
+		})
+		// After the hour the phone may send again.
 		expect(
-			await nativeSendRetryAfter(db, {
-				phone: '+15550001111',
-				ip: '203.0.113.99',
-				now,
-			}),
-		).not.toBeNull()
-		expect(
-			await nativeSendRetryAfter(db, {
-				phone: '+15550002222',
-				ip: '203.0.113.99',
-				now,
-			}),
-		).toBeNull()
-		expect(
-			await nativeSendRetryAfter(db, {
-				phone: '+15550001111',
-				ip: '203.0.113.99',
-				now: now + 61 * 60 * 1000,
-			}),
-		).toBeNull()
+			await native('+15550001111', '203.0.113.99', now + 61 * 60_000),
+		).toEqual({ ok: true })
+	})
 
+	it('caps one IP per hour, but an unknown IP does not share one bucket', async () => {
 		for (let i = 0; i < NATIVE_SEND_LIMITS.perIpPerHour; i++) {
-			await recordSmsSend(db, {
-				kind: 'native',
-				phone: `+1555009${String(i).padStart(4, '0')}`,
-				ip: '192.0.2.7',
-				now,
-			})
+			expect(
+				(await native(`+1555009${String(i).padStart(4, '0')}`, '192.0.2.7')).ok,
+			).toBe(true)
 		}
-		expect(
-			await nativeSendRetryAfter(db, {
-				phone: '+15550003333',
-				ip: '192.0.2.7',
-				now,
-			}),
-		).not.toBeNull()
+		expect((await native('+15550003333', '192.0.2.7')).ok).toBe(false)
+		for (let i = 0; i < NATIVE_SEND_LIMITS.perIpPerHour + 2; i++) {
+			expect(
+				(await native(`+1555008${String(i).padStart(4, '0')}`, null)).ok,
+			).toBe(true)
+		}
+	})
+
+	it('holds the ceiling under a parallel burst', async () => {
+		const results = await Promise.all(
+			Array.from({ length: 8 }, (_, i) =>
+				native('+15550006666', `198.51.100.${i}`),
+			),
+		)
+		expect(results.filter((r) => r.ok)).toHaveLength(
+			NATIVE_SEND_LIMITS.perPhonePerHour,
+		)
 	})
 
 	it('does not count browser sends against the app limits', async () => {
 		const db = await getTenantDb(orgId)
 		for (let i = 0; i < 5; i++) {
-			await recordSmsSend(db, {
+			await reserveSmsSend(db, {
 				kind: 'browser',
 				phone: '+15550004444',
 				ip: '192.0.2.8',
 			})
 		}
-		expect(
-			await nativeSendRetryAfter(db, {
-				phone: '+15550004444',
-				ip: '192.0.2.8',
-			}),
-		).toBeNull()
-	})
-
-	it('drops rows older than a day when writing', async () => {
-		const db = await getTenantDb(orgId)
-		const now = Date.now()
-		await recordSmsSend(db, {
-			kind: 'native',
-			phone: '+15550005555',
-			ip: 'x',
-			now: now - 25 * 60 * 60 * 1000,
-		})
-		await recordSmsSend(db, {
-			kind: 'native',
-			phone: '+15550005555',
-			ip: 'x',
-			now,
-		})
-		expect(await db.select().from(smsSendEvents)).toHaveLength(1)
+		expect(await native('+15550004444', '192.0.2.8')).toEqual({ ok: true })
 	})
 })

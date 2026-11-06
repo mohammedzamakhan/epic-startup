@@ -7,7 +7,7 @@ describe('sanitizeSvg', () => {
 			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M13 2L3 14h8" /><linearGradient id="g"><stop offset="0" stop-color="#fff" /></linearGradient></svg>'
 		const clean = sanitizeSvg(icon)
 		expect(clean).toContain('viewBox="0 0 24 24"')
-		expect(clean).toContain('<linearGradient id="g">')
+		expect(clean).toContain('<linearGradient id="cms-g">')
 		expect(clean).toContain('d="M13 2L3 14h8"')
 	})
 
@@ -24,6 +24,35 @@ describe('sanitizeSvg', () => {
 	it('returns nothing for empty input', () => {
 		expect(sanitizeSvg(undefined)).toBe('')
 		expect(sanitizeSvg('  ')).toBe('')
+	})
+})
+
+describe('sanitizeSvg references and ids', () => {
+	it('keeps local url(#id) references, rewritten with the id prefix', () => {
+		const clean = sanitizeSvg(
+			'<svg><defs><linearGradient id="g"></linearGradient></defs><rect fill="url(#g)" clip-path="url( \'#c\' )" /></svg>',
+		)
+		expect(clean).toContain('id="cms-g"')
+		expect(clean).toContain('fill="url(#cms-g)"')
+		expect(clean).toContain('clip-path="url(#cms-c)"')
+	})
+
+	it('drops attributes that reference an external URL', () => {
+		const clean = sanitizeSvg(
+			'<svg><rect fill="url(https://tracker.example/x.svg#a)" mask="url(//t.example/m)" stroke="red" /></svg>',
+		)
+		expect(clean).not.toMatch(/tracker|t\.example|fill=|mask=/)
+		expect(clean).toContain('stroke="red"')
+	})
+
+	it('prefixes ids so they cannot clobber page globals', () => {
+		expect(sanitizeSvg('<svg id="analytics"></svg>')).toBe(
+			'<svg id="cms-analytics"></svg>',
+		)
+	})
+
+	it('drops an uppercase SVG tag (SVG is case-sensitive)', () => {
+		expect(sanitizeSvg('<SVG><path d="M0 0" /></SVG>')).not.toContain('<SVG')
 	})
 })
 

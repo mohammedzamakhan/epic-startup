@@ -35,7 +35,11 @@ import { ssoConfigurationService } from './configuration.server.ts'
 
 /** Issuer as stored on SSOIdentity: trimmed, without a trailing slash. */
 export function normalizeIssuer(issuerUrl: string) {
-	return issuerUrl.trim().replace(/\/+$/, '')
+	// A loop, not /\/+$/: that regex backtracks on long runs of slashes.
+	const trimmed = issuerUrl.trim()
+	let end = trimmed.length
+	while (end > 0 && trimmed.charCodeAt(end - 1) === 47) end--
+	return trimmed.slice(0, end)
 }
 
 /** The configured allowed email domains, lowercase. */
@@ -321,8 +325,11 @@ export class SSOAuthService {
 				)
 			}
 
-			// Enrolling an account that exists elsewhere also needs the IdP to
-			// vouch for the address (the domain was checked above).
+			// An existing member is linked on first SSO sign-in when the email is
+			// on an allowed domain; `requireVerifiedEmail` (checked above) adds
+			// the IdP's email_verified claim, which some IdPs such as Entra ID do
+			// not send. Enrolling an account that exists elsewhere always needs
+			// the IdP to vouch for the address.
 			if (!isMember && userInfo.email_verified !== true) {
 				console.warn(
 					`SSO link refused for ${config.providerName}: the IdP did not send email_verified=true`,
@@ -363,7 +370,13 @@ export class SSOAuthService {
 		if (userRole)
 			await db.insert(_RoleToUser).values({ A: userRole.id, B: user.id })
 
-		await this.linkIdentity(issuer, subject, user.id)
+		try {
+			await this.linkIdentity(issuer, subject, user.id)
+		} catch (error) {
+			// Another sign-in linked this IdP account first; drop the duplicate.
+			await db.delete(UserTable).where(eq(UserTable.id, user.id))
+			throw error
+		}
 
 		// Add user to organization
 		await this.ensureOrganizationMembership(
@@ -389,11 +402,34 @@ export class SSOAuthService {
 		return Boolean(membership)
 	}
 
+	/**
+	 * Binds (issuer, subject) to `userId`, or throws when either side is
+	 * already bound elsewhere. Two first sign-ins can race: whichever insert
+	 * loses must not sign anyone in without a durable binding of its own.
+	 */
 	private async linkIdentity(issuer: string, subject: string, userId: string) {
-		await db
+		const inserted = await db
 			.insert(SSOIdentityTable)
 			.values({ issuer, subject, userId })
 			.onConflictDoNothing()
+			.returning({ userId: SSOIdentityTable.userId })
+		if (inserted.length > 0) return
+		// Nothing inserted: this subject or this user is already linked. It is
+		// fine only when it is exactly this pair.
+		const [existing] = await db
+			.select({ userId: SSOIdentityTable.userId })
+			.from(SSOIdentityTable)
+			.where(
+				and(
+					eq(SSOIdentityTable.issuer, issuer),
+					eq(SSOIdentityTable.subject, subject),
+				),
+			)
+			.limit(1)
+		if (existing?.userId === userId) return
+		throw new Error(
+			'This account is linked to a different identity provider account. Ask an administrator for help.',
+		)
 	}
 
 	/** The user `handleCallback` provisioned (the strategy returns their id). */

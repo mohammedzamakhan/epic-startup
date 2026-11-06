@@ -16,6 +16,10 @@ import {
 	getInternalCommandToken,
 	timingSafeEqualString,
 } from '../src/lib/secrets.ts'
+import {
+	type ConsentTokenKind,
+	verifyConsentToken,
+} from '../src/lib/email-consent.ts'
 import type { TenantApiWorkerEnv } from './bindings.ts'
 
 const orgIdBodySchema = z.object({
@@ -125,19 +129,28 @@ async function orgIdFromKioskRequest(
 	return parseKioskDeviceSecret(secret)?.orgId ?? null
 }
 
+/** Public bodies parsed at the edge, before any verification, stay small. */
+const MAX_EDGE_BODY_BYTES = 16 * 1024
+
+function hasSmallBody(request: Request) {
+	const length = Number(request.headers.get('content-length'))
+	return Number.isFinite(length) && length > 0 && length <= MAX_EDGE_BODY_BYTES
+}
+
 /**
  * Unsubscribe and confirm links carry only `?token=`; the signed consent token
  * names its organization in claim `o`. One-click unsubscribe (RFC 8058) may
- * send the token in a form body instead. Like the kiosk credential, the token
- * is only parsed here to pick the Durable Object; the route verifies its
- * signature before doing anything.
+ * send the token in a form body instead. The signature is checked here, so a
+ * junk token cannot wake an organization's Durable Object; expiry is left to
+ * the route, which answers an expired link with a page.
  */
 async function orgIdFromConsentToken(
 	request: Request,
 	url: URL,
+	kind: ConsentTokenKind,
 ): Promise<string | null> {
 	let token = url.searchParams.get('token')
-	if (!token && request.method === 'POST') {
+	if (!token && request.method === 'POST' && hasSmallBody(request)) {
 		const form = await request
 			.clone()
 			.formData()
@@ -145,24 +158,9 @@ async function orgIdFromConsentToken(
 		const value = form?.get('token')
 		token = typeof value === 'string' ? value : null
 	}
-	if (!token || token.length > 1024) return null
-	const [body] = token.split('.')
-	try {
-		const payload = JSON.parse(
-			new TextDecoder().decode(
-				Uint8Array.from(
-					atob(body!.replace(/-/g, '+').replace(/_/g, '/')),
-					(char) => char.charCodeAt(0),
-				),
-			),
-		) as { o?: unknown }
-		return typeof payload.o === 'string' &&
-			TENANT_ORG_ID_PATTERN.test(payload.o)
-			? payload.o
-			: null
-	} catch {
-		return null
-	}
+	if (!token) return null
+	const payload = verifyConsentToken(token, kind, 0)
+	return payload && TENANT_ORG_ID_PATTERN.test(payload.o) ? payload.o : null
 }
 
 /**
@@ -179,6 +177,7 @@ async function orgIdFromPublicForm(
 		host: url.searchParams.get('host') ?? undefined,
 	}
 	if (request.method === 'POST') {
+		if (!hasSmallBody(request)) return null
 		const body = await request
 			.clone()
 			.json()
@@ -271,11 +270,11 @@ export async function resolveOrgId(
 		return orgIdFromAuthBody(request)
 	}
 
-	if (
-		pathname === '/subscriptions/unsubscribe' ||
-		pathname === '/subscriptions/confirm'
-	) {
-		return orgIdFromConsentToken(request, url)
+	if (pathname === '/subscriptions/unsubscribe') {
+		return orgIdFromConsentToken(request, url, 'unsubscribe')
+	}
+	if (pathname === '/subscriptions/confirm') {
+		return orgIdFromConsentToken(request, url, 'confirm')
 	}
 
 	// Customer subscription toggles: the signed-in customer's own organization.

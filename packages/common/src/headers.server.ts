@@ -130,17 +130,34 @@ function parseBareHost(
 	} catch {
 		return null
 	}
-	if (url.username || url.password || url.host !== candidate) return null
+	if (url.username || url.password) return null
+	// The URL parser drops the scheme's default port, so `name:80` comes back
+	// as `name`; anything else that changed was not a bare host.
+	const sameHost =
+		url.host === candidate || (!url.port && `${url.host}:80` === candidate)
+	if (!sameHost) return null
 	return { host: url.host, hostname: url.hostname.replace(/^\[|\]$/g, '') }
+}
+
+function isAllowedHostname(hostname: string, baseUrl: string) {
+	if (
+		hostname === 'localhost' ||
+		hostname === '127.0.0.1' ||
+		hostname === '::1'
+	) {
+		return true
+	}
+	const baseUrlHost = new URL(baseUrl).hostname.toLowerCase()
+	return hostname === baseUrlHost || hostname.endsWith(`.${baseUrlHost}`)
 }
 
 /**
  * Validates and extracts the host from a request, checking against allowed hosts.
  * Returns the validated host or null if invalid.
  *
- * Accepts localhost, 127.0.0.1, ::1, and hosts matching the BASE_URL. When the
- * forwarded host is not allowed, falls back to the request's own Host header
- * (the routed hostname on Workers), still only as a bare host.
+ * Accepts localhost, 127.0.0.1, ::1, and hosts matching the BASE_URL, from
+ * X-Forwarded-Host or else the Host header. When neither is allowed, the
+ * BASE_URL's own host is returned: a client-chosen Host never comes back.
  */
 export function getValidatedHost(
 	request: Request,
@@ -148,28 +165,14 @@ export function getValidatedHost(
 ): string | null {
 	const forwardedHost = request.headers.get('X-Forwarded-Host')
 	const host = request.headers.get('host')
-	const candidateHost = forwardedHost ?? host
+	if (!forwardedHost && !host) return null
 
-	if (!candidateHost) {
-		return null
-	}
-
-	const parsed = parseBareHost(candidateHost)
-	if (parsed) {
-		const { hostname } = parsed
-		if (
-			hostname === 'localhost' ||
-			hostname === '127.0.0.1' ||
-			hostname === '::1'
-		) {
-			return parsed.host
-		}
-
-		const baseUrlHost = new URL(baseUrl).hostname.toLowerCase()
-		if (hostname === baseUrlHost || hostname.endsWith(`.${baseUrlHost}`)) {
+	for (const candidate of [forwardedHost, host]) {
+		if (!candidate) continue
+		const parsed = parseBareHost(candidate)
+		if (parsed && isAllowedHostname(parsed.hostname, baseUrl)) {
 			return parsed.host
 		}
 	}
-
-	return host ? (parseBareHost(host)?.host ?? null) : null
+	return new URL(baseUrl).host
 }

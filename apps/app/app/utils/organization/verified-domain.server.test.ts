@@ -135,4 +135,30 @@ describe('verified domain proof', () => {
 		) as unknown as typeof fetch
 		expect(await lookupTxtRecords('x.test', fetchImpl)).toEqual(['abcdef'])
 	})
+
+	it('matches the domain exactly and finds a mixed-case invitation', async () => {
+		consoleError.mockImplementation(() => {})
+		const { user: admin, organization } = await setupTestOrgWithUser('admin')
+		const domain = uniqueDomain()
+		const lookalike = domain.replace('-', '_')
+		await createTestUser({ email: `exact@${domain}` })
+		// Would match an unescaped `%@corp_...` pattern only if `_` were a wildcard.
+		await createTestUser({ email: `near@x${domain}` })
+		await createTestUser({ email: `under@${lookalike}` })
+		const invite = () =>
+			inviteExistingDomainUsers({
+				organizationId: organization.id,
+				organizationName: organization.name,
+				domain,
+				inviterId: admin.id,
+				inviterName: 'Admin',
+			})
+		expect(await invite()).toEqual({ invited: 1, more: false })
+		const invites = await db
+			.select({ email: OrganizationInvitation.email })
+			.from(OrganizationInvitation)
+			.where(eq(OrganizationInvitation.organizationId, organization.id))
+		expect(invites.map((row) => row.email)).toEqual([`exact@${domain}`])
+		expect(await invite()).toEqual({ invited: 0, more: false })
+	})
 })

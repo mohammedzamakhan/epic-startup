@@ -34,7 +34,7 @@ export function pinGitLabInstanceUrl(
 	}
 	const normalize = (value: unknown) =>
 		typeof value === 'string'
-			? value.trim().replace(/\/+$/, '').toLowerCase()
+			? trimTrailingSlashes(value.trim()).toLowerCase()
 			: null
 	if (normalize(nextUrl) !== normalize(storedUrl ?? 'https://gitlab.com')) {
 		return {
@@ -43,4 +43,11 @@ export function pinGitLabInstanceUrl(
 		}
 	}
 	return { config: nextConfig }
+}
+
+/** Linear-time `value.replace(/\/+$/, '')` (that regex backtracks on input). */
+function trimTrailingSlashes(value: string) {
+	let end = value.length
+	while (end > 0 && value.charCodeAt(end - 1) === 47) end--
+	return value.slice(0, end)
 }

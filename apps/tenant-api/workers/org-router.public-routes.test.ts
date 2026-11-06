@@ -34,11 +34,19 @@ describe('resolveOrgId for consent, subscription and public form routes', () => 
 		signConsentToken({ k: 'unsubscribe', o: ORG, c: 'cust1', t: 'marketing' })
 
 	it('routes unsubscribe and confirm links by the token org claim', async () => {
-		const t = encodeURIComponent(token())
-		for (const path of [
-			'/subscriptions/unsubscribe',
-			'/subscriptions/confirm',
-		]) {
+		const confirm = signConsentToken({
+			k: 'confirm',
+			o: ORG,
+			c: 'cust1',
+			t: 'marketing',
+			e: 'hash',
+			x: Date.now() + 60_000,
+		})
+		for (const [path, raw] of [
+			['/subscriptions/unsubscribe', token()],
+			['/subscriptions/confirm', confirm],
+		] as const) {
+			const t = encodeURIComponent(raw)
 			expect(
 				await resolveOrgId(new Request(`${base}${path}?token=${t}`), env),
 			).toBe(ORG)
@@ -52,11 +60,71 @@ describe('resolveOrgId for consent, subscription and public form routes', () => 
 	})
 
 	it('routes a one-click unsubscribe POST with the token in a form body', async () => {
+		const body = new URLSearchParams({ token: token() }).toString()
 		const request = new Request(`${base}/subscriptions/unsubscribe`, {
 			method: 'POST',
-			body: new URLSearchParams({ token: token() }),
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'Content-Length': String(body.length),
+			},
+			body,
 		})
 		expect(await resolveOrgId(request, env)).toBe(ORG)
+	})
+
+	it('routes nowhere for a forged or wrong-kind token, so no Durable Object wakes', async () => {
+		const [body] = token().split('.')
+		const forged = `${body}.${'0'.repeat(64)}`
+		expect(
+			await resolveOrgId(
+				new Request(`${base}/subscriptions/unsubscribe?token=${forged}`),
+				env,
+			),
+		).toBeNull()
+		// An unsubscribe token is not a confirm token.
+		expect(
+			await resolveOrgId(
+				new Request(
+					`${base}/subscriptions/confirm?token=${encodeURIComponent(token())}`,
+				),
+				env,
+			),
+		).toBeNull()
+	})
+
+	it('still routes an expired confirm link, so the route can say it expired', async () => {
+		const expired = signConsentToken({
+			k: 'confirm',
+			o: ORG,
+			c: 'cust1',
+			t: 'marketing',
+			e: 'hash',
+			x: Date.now() - 1000,
+		})
+		expect(
+			await resolveOrgId(
+				new Request(
+					`${base}/subscriptions/confirm?token=${encodeURIComponent(expired)}`,
+				),
+				env,
+			),
+		).toBe(ORG)
+	})
+
+	it('does not parse a public body that is missing its length or too large', async () => {
+		resolveOrganizationForBrowserAuth.mockResolvedValue({ id: ORG })
+		const big = JSON.stringify({ slug: 'acme', pad: 'x'.repeat(20_000) })
+		const request = new Request(`${base}/forms/f1/submissions`, {
+			method: 'POST',
+			headers: {
+				Origin: 'https://acme.example',
+				'Content-Type': 'application/json',
+				'Content-Length': String(big.length),
+			},
+			body: big,
+		})
+		expect(await resolveOrgId(request, env)).toBeNull()
+		expect(resolveOrganizationForBrowserAuth).not.toHaveBeenCalled()
 	})
 
 	it('routes nowhere for a malformed token, and ignores a body orgId', async () => {
@@ -113,13 +181,15 @@ describe('resolveOrgId for consent, subscription and public form routes', () => 
 			headers: { Origin: 'https://acme.example' },
 		})
 		expect(await resolveOrgId(get, env)).toBe(ORG)
+		const formBody = JSON.stringify({ slug: 'acme', orgId: OTHER })
 		const post = new Request(`${base}/forms/f1/submissions`, {
 			method: 'POST',
 			headers: {
 				Origin: 'https://acme.example',
 				'Content-Type': 'application/json',
+				'Content-Length': String(formBody.length),
 			},
-			body: JSON.stringify({ slug: 'acme', orgId: OTHER }),
+			body: formBody,
 		})
 		expect(await resolveOrgId(post, env)).toBe(ORG)
 		const foreign = new Request(`${base}/forms/f1/submissions`, {
@@ -127,8 +197,9 @@ describe('resolveOrgId for consent, subscription and public form routes', () => 
 			headers: {
 				Origin: 'https://evil.example',
 				'Content-Type': 'application/json',
+				'Content-Length': String(formBody.length),
 			},
-			body: JSON.stringify({ slug: 'acme', orgId: OTHER }),
+			body: formBody,
 		})
 		expect(await resolveOrgId(foreign, env)).toBeNull()
 	})

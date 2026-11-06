@@ -84,13 +84,58 @@ const SVG_ATTRIBUTES = [
 	'focusable',
 ]
 
+/** Prefix for CMS SVG ids, so an id cannot clobber a page global (`window.x`). */
+const ID_PREFIX = 'cms-'
+
+/** `url(#id)` references only: an external `url(https://…)` would track visitors. */
+function rewriteUrlReferences(value: string): string | null {
+	if (!/url\s*\(/i.test(value)) return value
+	let external = false
+	// One unambiguous character class (no nested quantifiers) keeps this linear.
+	const rewritten = value.replace(
+		/url\(([^)]*)\)/gi,
+		(_match, inner: string) => {
+			const target = inner.trim().replace(/^['"]|['"]$/g, '')
+			if (!target.startsWith('#')) {
+				external = true
+				return ''
+			}
+			return `url(#${ID_PREFIX}${target.slice(1)})`
+		},
+	)
+	// Anything still shaped like url( (a space before the parenthesis, an
+	// unclosed one) is not a local reference.
+	if (external || /url\s+\(|url\([^)]*$/i.test(rewritten)) return null
+	return rewritten
+}
+
+function cleanSvgAttributes(attribs: Record<string, string>) {
+	const out: Record<string, string> = {}
+	for (const [name, value] of Object.entries(attribs)) {
+		if (name === 'id') {
+			out.id = `${ID_PREFIX}${value}`
+			continue
+		}
+		const cleaned = rewriteUrlReferences(value)
+		if (cleaned !== null) out[name] = cleaned
+	}
+	return out
+}
+
 const SVG_OPTIONS: IOptions = {
 	allowedTags: SVG_TAGS,
 	allowedAttributes: { '*': SVG_ATTRIBUTES },
 	// No href anywhere (no <a>, no <use>, no <image>), so no scheme is needed.
 	allowedSchemes: [],
-	// SVG is case-sensitive (viewBox, linearGradient).
+	// SVG is case-sensitive (viewBox, linearGradient). An uppercase `<SVG>` is
+	// not an allowed tag and is dropped, the safe direction.
 	parser: { lowerCaseTags: false, lowerCaseAttributeNames: false },
+	transformTags: {
+		'*': (tagName, attribs) => ({
+			tagName,
+			attribs: cleanSvgAttributes(attribs),
+		}),
+	},
 }
 
 const INLINE_HTML_OPTIONS: IOptions = {

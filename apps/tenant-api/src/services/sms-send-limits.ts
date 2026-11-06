@@ -1,4 +1,4 @@
-import { and, count, eq, gte, lt } from 'drizzle-orm'
+import { and, count, eq, gte, lt, lte, min } from 'drizzle-orm'
 import { smsSendEvents, type TenantDatabase } from '@repo/tenant-db'
 import { hmacHash } from '../lib/secrets.ts'
 
@@ -14,6 +14,8 @@ export type SmsSendKind = 'browser' | 'native'
 
 const HOUR_MS = 60 * 60 * 1000
 const RETENTION_MS = 24 * HOUR_MS
+/** Old rows are pruned on roughly one write in this many. */
+const PRUNE_EVERY = 25
 
 export const NATIVE_SEND_LIMITS = {
 	perPhonePerHour: 3,
@@ -25,57 +27,46 @@ function phoneHash(phone: string) {
 	return hmacHash(`sms-send-phone:${phone}`)
 }
 
-function ipHash(ip: string | null | undefined) {
-	return hmacHash(`sms-send-ip:${ip || 'unknown'}`)
-}
-
-async function countSince(
-	db: TenantDatabase,
-	since: Date,
-	condition: ReturnType<typeof eq>,
-) {
-	const [row] = await db
-		.select({ total: count() })
-		.from(smsSendEvents)
-		.where(
-			and(
-				condition,
-				eq(smsSendEvents.kind, 'native'),
-				gte(smsSendEvents.at, since),
-			),
-		)
-	return row?.total ?? 0
+function ipHash(ip: string) {
+	return hmacHash(`sms-send-ip:${ip}`)
 }
 
 /**
- * For a header-only (native) request: the number of seconds to wait when an
- * hourly ceiling is reached, or null when the code may be sent. Browser
- * requests are not limited here.
+ * Count and oldest send of native sends matching `condition` in the window,
+ * up to and including row `upToId`: in a parallel burst each request counts
+ * only the rows written before it, so the first ones within the ceiling pass.
  */
-export async function nativeSendRetryAfter(
+async function windowUsage(
 	db: TenantDatabase,
-	params: { phone: string; ip: string | null | undefined; now?: number },
-): Promise<number | null> {
-	const now = params.now ?? Date.now()
-	const since = new Date(now - HOUR_MS)
-	const [perPhone, perIp, perOrg] = await Promise.all([
-		countSince(db, since, eq(smsSendEvents.phoneHash, phoneHash(params.phone))),
-		countSince(db, since, eq(smsSendEvents.ipHash, ipHash(params.ip))),
-		countSince(db, since, eq(smsSendEvents.kind, 'native')),
-	])
-	if (
-		perPhone >= NATIVE_SEND_LIMITS.perPhonePerHour ||
-		perIp >= NATIVE_SEND_LIMITS.perIpPerHour ||
-		perOrg >= NATIVE_SEND_LIMITS.perOrganizationPerHour
-	) {
-		// The oldest counted send leaves the window within the hour.
-		return Math.ceil(HOUR_MS / 1000)
-	}
-	return null
+	since: Date,
+	upToId: number,
+	condition?: ReturnType<typeof eq>,
+) {
+	const [row] = await db
+		.select({ total: count(), oldest: min(smsSendEvents.at) })
+		.from(smsSendEvents)
+		.where(
+			and(
+				eq(smsSendEvents.kind, 'native'),
+				gte(smsSendEvents.at, since),
+				lte(smsSendEvents.id, upToId),
+				...(condition ? [condition] : []),
+			),
+		)
+	return { total: row?.total ?? 0, oldest: row?.oldest ?? null }
 }
 
-/** Records one send and drops rows older than a day. */
-export async function recordSmsSend(
+export type SmsSendReservation =
+	{ ok: true } | { ok: false; retryAfter: number }
+
+/**
+ * Records one send and, for native requests, enforces the hourly ceilings.
+ * The row is written first and the window counted after it, so a parallel
+ * burst cannot all pass a count taken before any of them was written: the
+ * requests that land over a ceiling remove their own row and are refused.
+ * An unknown client IP skips the per-IP ceiling instead of sharing one bucket.
+ */
+export async function reserveSmsSend(
 	db: TenantDatabase,
 	params: {
 		kind: SmsSendKind
@@ -83,19 +74,67 @@ export async function recordSmsSend(
 		ip: string | null | undefined
 		now?: number
 	},
-) {
+): Promise<SmsSendReservation> {
 	const now = params.now ?? Date.now()
-	await db
+	const phone = phoneHash(params.phone)
+	const ip = params.ip ? ipHash(params.ip) : ''
+	const [row] = await db
 		.insert(smsSendEvents)
 		.values({
 			at: new Date(now),
 			kind: params.kind,
-			phoneHash: phoneHash(params.phone),
-			ipHash: ipHash(params.ip),
+			phoneHash: phone,
+			ipHash: ip,
 		})
-		.run()
-	await db
-		.delete(smsSendEvents)
-		.where(lt(smsSendEvents.at, new Date(now - RETENTION_MS)))
-		.run()
+		.returning({ id: smsSendEvents.id })
+
+	if (row && row.id % PRUNE_EVERY === 0) {
+		await db
+			.delete(smsSendEvents)
+			.where(lt(smsSendEvents.at, new Date(now - RETENTION_MS)))
+			.run()
+	}
+
+	if (params.kind !== 'native' || !row) return { ok: true }
+
+	const since = new Date(now - HOUR_MS)
+	const buckets = [
+		{
+			usage: await windowUsage(
+				db,
+				since,
+				row.id,
+				eq(smsSendEvents.phoneHash, phone),
+			),
+			limit: NATIVE_SEND_LIMITS.perPhonePerHour,
+		},
+		...(ip
+			? [
+					{
+						usage: await windowUsage(
+							db,
+							since,
+							row.id,
+							eq(smsSendEvents.ipHash, ip),
+						),
+						limit: NATIVE_SEND_LIMITS.perIpPerHour,
+					},
+				]
+			: []),
+		{
+			usage: await windowUsage(db, since, row.id),
+			limit: NATIVE_SEND_LIMITS.perOrganizationPerHour,
+		},
+	]
+	const exceeded = buckets.filter(({ usage, limit }) => usage.total > limit)
+	if (exceeded.length === 0) return { ok: true }
+
+	await db.delete(smsSendEvents).where(eq(smsSendEvents.id, row.id)).run()
+	// Wait until the oldest counted send of every full bucket leaves the hour.
+	const retryAfterMs = Math.max(
+		...exceeded.map(({ usage }) =>
+			usage.oldest ? usage.oldest.getTime() + HOUR_MS - now : HOUR_MS,
+		),
+	)
+	return { ok: false, retryAfter: Math.max(1, Math.ceil(retryAfterMs / 1000)) }
 }

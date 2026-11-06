@@ -37,8 +37,27 @@ describe('getValidatedHost', () => {
 				req({ 'x-forwarded-host': forwarded }),
 				BASE,
 			)
-			expect(host).toBeNull()
+			// Never the smuggled destination: the BASE_URL host instead.
+			expect(host).toBe('app.example.com')
 		}
+	})
+
+	it('accepts an explicit default port and bracketed IPv6 loopback', () => {
+		expect(
+			getValidatedHost(req({ 'x-forwarded-host': 'localhost:80' }), BASE),
+		).toBe('localhost')
+		expect(
+			getValidatedHost(req({ 'x-forwarded-host': '[::1]:3000' }), BASE),
+		).toBe('[::1]:3000')
+	})
+
+	it('never returns a client-chosen Host outside the allowlist', () => {
+		expect(
+			getValidatedHost(
+				req({ 'x-forwarded-host': 'attacker.example', host: 'evil.example' }),
+				BASE,
+			),
+		).toBe('app.example.com')
 	})
 
 	it('falls back only to a bare Host header', () => {

@@ -5,10 +5,10 @@ import {
 	db,
 	eq,
 	isNull,
-	like,
 	ne,
 	Organization,
 	OrganizationInvitation,
+	sql,
 	User,
 	UserOrganization,
 } from '@repo/database'
@@ -67,6 +67,10 @@ export async function lookupTxtRecords(
 					.map((match) => match[1])
 					.join('') || answer.data,
 		)
+}
+
+function escapeLike(value: string) {
+	return value.replace(/[\\%_]/g, (char) => `\\${char}`)
 }
 
 /** Whether another organization already holds the domain. */
@@ -186,22 +190,24 @@ export async function inviteExistingDomainUsers({
 		.leftJoin(
 			OrganizationInvitation,
 			and(
-				eq(OrganizationInvitation.email, User.email),
+				// Invitations are stored lowercase; a mixed-case account email
+				// must still find its invitation.
+				eq(OrganizationInvitation.email, sql`lower(${User.email})`),
 				eq(OrganizationInvitation.organizationId, organizationId),
 			),
 		)
 		.where(
 			and(
-				like(User.email, `%@${domain}`),
+				// Exact suffix match in SQL, so the cap below counts only real
+				// candidates: `_` and `%` in the domain are escaped.
+				sql`lower(${User.email}) LIKE ${`%@${escapeLike(domain.toLowerCase())}`} ESCAPE '\\'`,
 				isNull(UserOrganization.userId),
 				isNull(OrganizationInvitation.id),
 			),
 		)
 		.limit(MAX_DOMAIN_INVITES + 1)
 
-	const batch = candidates
-		.filter((row) => row.email.toLowerCase().endsWith(`@${domain}`))
-		.slice(0, MAX_DOMAIN_INVITES)
+	const batch = candidates.slice(0, MAX_DOMAIN_INVITES)
 	let invited = 0
 	for (const { email } of batch) {
 		const { invitation } = await createOrganizationInvitation({
