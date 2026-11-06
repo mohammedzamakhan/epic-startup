@@ -130,7 +130,7 @@ describe('resolveOrgId for consent, subscription and public form routes', () => 
 		expect(await resolveOrgId(request, env)).toBe(ORG)
 	})
 
-	it('uses the query identity without reading the body', async () => {
+	it('uses the query identity over the body', async () => {
 		resolveOrganizationForBrowserAuth.mockImplementation(
 			async (_o, identity) => (identity.slug === 'acme' ? { id: ORG } : null),
 		)
@@ -169,8 +169,9 @@ describe('resolveOrgId for consent, subscription and public form routes', () => 
 			body: stream,
 			duplex: 'half',
 		} as RequestInit)
-		// The slug in the body is never parsed: reading stopped at the limit.
+		// Refused at the edge: no organization, so no Durable Object wakes.
 		expect(await resolveOrgId(request, env)).toBeNull()
+		expect(resolveOrganizationForBrowserAuth).not.toHaveBeenCalled()
 		expect(pulled).toBeLessThan(2 * 1024 * 1024)
 	})
 
@@ -249,5 +250,16 @@ describe('resolveOrgId for consent, subscription and public form routes', () => 
 			body: formBody,
 		})
 		expect(await resolveOrgId(foreign, env)).toBeNull()
+	})
+
+	it('refuses an oversized post even when the query names the organization', async () => {
+		resolveOrganizationForBrowserAuth.mockResolvedValue({ id: ORG })
+		const request = new Request(`${base}/forms/f1/submissions?slug=acme`, {
+			method: 'POST',
+			headers: { Origin: 'https://acme.example' },
+			body: 'x'.repeat(1024 * 1024 + 1),
+		})
+		expect(await resolveOrgId(request, env)).toBeNull()
+		expect(resolveOrganizationForBrowserAuth).not.toHaveBeenCalled()
 	})
 })

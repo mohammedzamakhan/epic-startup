@@ -209,21 +209,27 @@ async function orgIdFromPublicForm(
 		slug: url.searchParams.get('slug') ?? undefined,
 		host: url.searchParams.get('host') ?? undefined,
 	}
-	// The submission POST carries slug and host in its JSON body; a query
-	// identity, when present, is enough and the body is not read.
-	if (request.method === 'POST' && !identity.slug && !identity.host) {
+	if (request.method === 'POST') {
+		// Refused at the edge when over the public routes' own limit, whatever
+		// names the organization (Origin alone would): an oversized post must
+		// not reach, or wake, a tenant's Durable Object.
 		const text = await readBoundedText(request, MAX_PUBLIC_BODY_BYTES)
-		let body: unknown = null
-		try {
-			body = text ? JSON.parse(text) : null
-		} catch {
-			body = null
-		}
-		if (body && typeof body === 'object') {
-			const { slug, host } = body as { slug?: unknown; host?: unknown }
-			identity = {
-				slug: typeof slug === 'string' ? slug : undefined,
-				host: typeof host === 'string' ? host : undefined,
+		if (text === null) return null
+		// The submission carries slug and host in its JSON body; a query
+		// identity, when present, wins.
+		if (!identity.slug && !identity.host) {
+			let body: unknown = null
+			try {
+				body = JSON.parse(text)
+			} catch {
+				body = null
+			}
+			if (body && typeof body === 'object') {
+				const { slug, host } = body as { slug?: unknown; host?: unknown }
+				identity = {
+					slug: typeof slug === 'string' ? slug : undefined,
+					host: typeof host === 'string' ? host : undefined,
+				}
 			}
 		}
 	}
