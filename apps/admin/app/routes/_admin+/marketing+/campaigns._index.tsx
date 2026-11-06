@@ -6,7 +6,10 @@ import {
 	userHasPermission,
 } from '@repo/auth'
 import { CampaignListGrid } from '@repo/marketing'
-import { listPlatformCampaigns } from '@repo/marketing/server/platform-campaigns'
+import {
+	listPlatformCampaigns,
+	resumeStalePlatformCampaigns,
+} from '@repo/marketing/server/platform-campaigns'
 import { cn } from '@repo/ui'
 import { Button } from '@repo/ui/button'
 import { Icon } from '@repo/ui/icon'
@@ -15,6 +18,7 @@ import { PageHeader } from '@repo/ui/page-header'
 import { useState } from 'react'
 import { Link, type LoaderFunctionArgs, useLoaderData } from 'react-router'
 import { EmptyState } from '#app/components/empty-state.tsx'
+import { runAfterResponse } from '#app/utils/after-response.server.ts'
 
 const STATUS_FILTERS: Array<{
 	value: string
@@ -26,15 +30,27 @@ const STATUS_FILTERS: Array<{
 	{ value: 'failed', label: msg`Failed` },
 ]
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
 	const userId = await requireUserWithPermission(
 		request,
 		SYSTEM_PERMISSIONS.READ_PLATFORM_CAMPAIGN_ANY,
 	)
-	const [campaigns, canManage] = await Promise.all([
-		listPlatformCampaigns(),
-		userHasPermission(userId, SYSTEM_PERMISSIONS.UPDATE_PLATFORM_CAMPAIGN_ANY),
-	])
+	const canManage = await userHasPermission(
+		userId,
+		SYSTEM_PERMISSIONS.UPDATE_PLATFORM_CAMPAIGN_ANY,
+	)
+	// A dispatch outlives its request only for as long as `waitUntil` allows.
+	// When someone who may send campaigns opens the list, pick up any campaign
+	// whose dispatch stopped (no heartbeat for ten minutes). Resumed dispatch
+	// skips users who already have a message row, so nobody is mailed twice.
+	if (canManage) {
+		runAfterResponse(context, () =>
+			resumeStalePlatformCampaigns({
+				runInBackground: (task) => runAfterResponse(context, task),
+			}),
+		)
+	}
+	const campaigns = await listPlatformCampaigns()
 	return { campaigns, canManage, error: null }
 }
 

@@ -219,4 +219,62 @@ describe('SSO identity link (issuer + subject)', () => {
 			.where(eq(SSOIdentity.userId, member!.id))
 		expect(links).toHaveLength(1)
 	})
+
+	it('a sign-in that dies between creating the user and linking the subject can be resumed', async () => {
+		const { id, domain, cfg } = await orgWithDomain()
+		const email = `eve@${domain}`
+		// The isolate is killed right after the user insert: the identity link
+		// (if it is a separate step) never happens and no cleanup runs.
+		const link = vi
+			.spyOn(ssoAuthService as any, 'linkIdentity')
+			.mockImplementationOnce(() => new Promise(() => {}))
+		const first = ssoAuthService.provisionUser(
+			{ sub: `sub-${id}`, email } as any,
+			cfg,
+		)
+		void first.catch(() => {})
+		await new Promise((resolve) => setTimeout(resolve, 200))
+		link.mockRestore()
+
+		// The same person signs in again (the IdP sends no email_verified).
+		const user = await ssoAuthService.provisionUser(
+			{ sub: `sub-${id}`, email } as any,
+			cfg,
+		)
+		expect(user.email).toBe(email)
+		const users = await db.select().from(User).where(eq(User.email, email))
+		expect(users).toHaveLength(1)
+		const links = await db
+			.select({ userId: SSOIdentity.userId })
+			.from(SSOIdentity)
+			.where(eq(SSOIdentity.subject, `sub-${id}`))
+		expect(links).toEqual([{ userId: user.id }])
+	})
+
+	it('two first sign-ins of one new IdP user create one account and no orphan', async () => {
+		const { id, domain, cfg } = await orgWithDomain()
+		const results = await Promise.allSettled(
+			[`fay@${domain}`, `fay.other@${domain}`].map((email) =>
+				ssoAuthService.provisionUser({ sub: `fay-${id}`, email } as any, cfg),
+			),
+		)
+		const ok = results.filter((r) => r.status === 'fulfilled')
+		expect(ok.length).toBeGreaterThanOrEqual(1)
+		const links = await db
+			.select({ userId: SSOIdentity.userId })
+			.from(SSOIdentity)
+			.where(eq(SSOIdentity.subject, `fay-${id}`))
+		expect(links).toHaveLength(1)
+		const created = await db
+			.select({ id: User.id })
+			.from(User)
+			.where(eq(User.email, `fay.other@${domain}`))
+		const createdA = await db
+			.select({ id: User.id })
+			.from(User)
+			.where(eq(User.email, `fay@${domain}`))
+		expect([...created, ...createdA].map((u) => u.id)).toEqual([
+			links[0]!.userId,
+		])
+	})
 })

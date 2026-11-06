@@ -7,6 +7,16 @@ import {
 } from './checkout-shop'
 
 describe('checkoutPaymentStatusToOrderStatus', () => {
+	it('a refunded or voided payment is not paid, though it was approved', () => {
+		expect(checkoutPaymentStatusToOrderStatus(true, 'Refunded')).toBe(
+			'refunded',
+		)
+		expect(checkoutPaymentStatusToOrderStatus(true, 'Voided')).toBe('failed')
+		expect(checkoutPaymentStatusToOrderStatus(true, 'Partially Refunded')).toBe(
+			'paid',
+		)
+	})
+
 	it('maps approved payments to paid', () => {
 		expect(checkoutPaymentStatusToOrderStatus(true)).toBe('paid')
 		expect(checkoutPaymentStatusToOrderStatus(false, 'Declined')).toBe('failed')

@@ -395,32 +395,62 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			}
 		}
 
+		const regionChangedConcurrently = () =>
+			Response.json(
+				{
+					error:
+						'The data region was changed by someone else. Reload the page and try again.',
+				},
+				{ status: 409 },
+			)
+
 		try {
 			if (organization.hasProvisionedDb) {
 				// Record the database as unavailable before any irreversible deletion.
 				// Keep the old region until its wipe succeeds so retries target it.
-				await db
+				// Compare-and-set: when two admins switch at once, only the one that
+				// still sees the provisioned database it was shown goes on to wipe it.
+				const [claimed] = await db
 					.update(Organization)
 					.set({ hasProvisionedDb: false })
-					.where(eq(Organization.id, organization.id))
+					.where(
+						and(
+							eq(Organization.id, organization.id),
+							eq(Organization.dataRegion, currentRegion),
+							eq(Organization.hasProvisionedDb, true),
+						),
+					)
+					.returning({ id: Organization.id })
+				if (!claimed) return regionChangedConcurrently()
 			}
 
-			if (organization.hasProvisionedDb || dataRegion !== currentRegion) {
-				await deprovisionTenantDatabase({
-					orgId: organization.id,
-					dataRegion: currentRegion,
-					slug: organization.slug,
-					customDomain: organization.customDomain,
-				})
-			}
+			// Always wipe the current region first. With the flag already false a
+			// database may still exist there (an earlier wipe failed after the flag
+			// was cleared), and re-provisioning the same region must not quietly
+			// keep it: its staff erasures were skipped while it was unavailable.
+			// Deleting a database that does not exist is a no-op on tenant-api.
+			await deprovisionTenantDatabase({
+				orgId: organization.id,
+				dataRegion: currentRegion,
+				slug: organization.slug,
+				customDomain: organization.customDomain,
+			})
 
-			await db
+			const [moved] = await db
 				.update(Organization)
 				.set({
 					dataRegion,
 					hasProvisionedDb: false,
 				})
-				.where(eq(Organization.id, organization.id))
+				.where(
+					and(
+						eq(Organization.id, organization.id),
+						eq(Organization.dataRegion, currentRegion),
+						eq(Organization.hasProvisionedDb, false),
+					),
+				)
+				.returning({ id: Organization.id })
+			if (!moved) return regionChangedConcurrently()
 
 			await provisionTenantDatabase({
 				orgId: organization.id,
@@ -434,10 +464,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 				.where(eq(Organization.id, organization.id))
 
 			// Queued staffing events were addressed to the old region's database,
-			// which no longer exists; the new region starts empty.
-			if (organization.hasProvisionedDb) {
-				await cancelPendingStaffingOutbox(organization.id, 'region_changed')
-			}
+			// which no longer exists; the new region starts empty. This includes
+			// events queued while an earlier switch had left the flag cleared.
+			await cancelPendingStaffingOutbox(organization.id, 'region_changed')
 
 			await invalidateUserOrganizationsCache(userId)
 			await purgeOrganizationSiteCache(

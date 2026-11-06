@@ -1,4 +1,4 @@
-import { and, ConfigFlag, db, eq } from '@repo/database'
+import { and, ConfigFlag, db, desc, eq } from '@repo/database'
 
 async function getFlag(
 	key: string,
@@ -18,6 +18,11 @@ async function getFlag(
 		.select({ value: ConfigFlag.value })
 		.from(ConfigFlag)
 		.where(and(...conditions))
+		// Duplicate rows can exist (the unique index does not cover NULL
+		// organization or user ids), so pick the most recently changed one
+		// deterministically instead of whatever row SQLite returns first.
+		.orderBy(desc(ConfigFlag.updatedAt), desc(ConfigFlag.id))
+		.limit(1)
 	if (!flag) return null
 
 	return flag.value

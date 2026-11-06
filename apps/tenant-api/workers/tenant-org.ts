@@ -26,6 +26,21 @@ import type { TenantApiWorkerEnv } from './bindings.ts'
 
 export const TENANT_ORG_HEADER = 'X-Epic-Tenant-Org-Id'
 
+/**
+ * Written by `deprovision()` after the wipe and cleared only by `provision()`.
+ * Without it, any later request (a queued event, a stale browser token, the
+ * staff alarm) would run the migrations again and quietly rebuild an empty
+ * database for an organization that was deleted or moved to another region.
+ */
+export const DEPROVISIONED_TOMBSTONE_KEY = 'tenant:deprovisioned'
+
+export class TenantDbDeprovisionedError extends Error {
+	constructor() {
+		super('Tenant database is deprovisioned')
+		this.name = 'TenantDbDeprovisionedError'
+	}
+}
+
 export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 	private db: DrizzleSqliteDODatabase<typeof schema> | null = null
 	private readonly app = createTenantApiApp()
@@ -40,6 +55,9 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 
 	private async ensureDb() {
 		if (this.db) return this.db
+		if (await this.ctx.storage.get(DEPROVISIONED_TOMBSTONE_KEY)) {
+			throw new TenantDbDeprovisionedError()
+		}
 
 		const db = drizzle(this.ctx.storage, { schema })
 		// Drizzle's `db.transaction` is `transactionSync` here and does not await
@@ -53,6 +71,7 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 	}
 
 	async provision() {
+		await this.ctx.storage.delete(DEPROVISIONED_TOMBSTONE_KEY)
 		await this.ensureDb()
 	}
 
@@ -61,6 +80,7 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 		// then tick against a database that no longer exists.
 		await this.ctx.storage.deleteAlarm()
 		await this.ctx.storage.deleteAll()
+		await this.ctx.storage.put(DEPROVISIONED_TOMBSTONE_KEY, Date.now())
 		if (this.orgId && this.db) {
 			unregisterTenantDb(this.orgId, this.db as unknown as TenantDatabase)
 		}
@@ -95,7 +115,15 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 		}
 		this.orgId = orgId
 
-		const db = await this.ensureDb()
+		let db: DrizzleSqliteDODatabase<typeof schema>
+		try {
+			db = await this.ensureDb()
+		} catch (error) {
+			if (error instanceof TenantDbDeprovisionedError) {
+				return Response.json({ error: 'org_not_provisioned' }, { status: 404 })
+			}
+			throw error
+		}
 		const response = await this.useTenantDb(orgId, db, async () =>
 			this.app.fetch(request, this.env),
 		)
@@ -145,6 +173,8 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 			now: Date.now(),
 			runTick: async (orgId) => {
 				this.orgId = orgId
+				// A deprovisioned object has no alarm left; if one fires anyway it
+				// fails here instead of rebuilding the database.
 				const db = await this.ensureDb()
 				return this.useTenantDb(orgId, db, () => runStaffTickForOrg(orgId))
 			},

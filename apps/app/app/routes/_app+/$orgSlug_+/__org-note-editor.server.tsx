@@ -18,6 +18,7 @@ import { noteHooks } from '@repo/integrations'
 import { data, redirect, type ActionFunctionArgs } from 'react-router'
 import { z } from 'zod'
 import { sanitizeNoteContent } from '#app/utils/content-sanitization.server.ts'
+import { attachLibraryAssetToNote } from '#app/utils/media/library-attach.server.ts'
 import { invalidateNoteFavoritesCaches } from '#app/utils/note-favorites.server.ts'
 import { processNoteMediaUploads } from '#app/utils/note-media-pipeline.server.ts'
 import {
@@ -281,10 +282,29 @@ export async function action({ request, params }: ActionFunctionArgs) {
 				}
 			}
 		}
-		if (newUploads.length > 0) {
+		const fileUploads = newUploads.filter((upload) => !upload.libraryAssetId)
+		if (fileUploads.length > 0) {
 			await tx
 				.insert(OrganizationNoteUpload)
-				.values(newUploads.map((upload) => ({ ...upload, noteId })))
+				.values(fileUploads.map((upload) => ({ ...upload, noteId })))
+		}
+		for (const { libraryAssetId, ...upload } of newUploads) {
+			if (!libraryAssetId) continue
+			const attached = await attachLibraryAssetToNote(tx, {
+				organizationId: organization.id,
+				assetId: libraryAssetId,
+				objectKey: upload.objectKey,
+				noteId,
+				altText: upload.altText,
+				mimeType: upload.mimeType,
+				fileSize: upload.fileSize,
+			})
+			// Deleted or replaced in the media library since it was picked.
+			if (!attached) {
+				throw new Response('Selected media is no longer available', {
+					status: 409,
+				})
+			}
 		}
 		return updated
 	})

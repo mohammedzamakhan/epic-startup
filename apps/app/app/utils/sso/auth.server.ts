@@ -1,3 +1,4 @@
+import { createId } from '@paralleldrive/cuid2'
 import { type ProviderUser } from '@repo/auth'
 import {
 	and,
@@ -352,31 +353,60 @@ export class SSOAuthService {
 			baseUsername.toLowerCase(),
 		)
 
-		// Create new user
-		const [user] = await db
-			.insert(UserTable)
-			.values({
-				email: normalizedEmail,
-				username,
-				name: name || email,
-			})
-			.returning()
-		if (!user) throw new Error('Failed to provision user')
 		const [userRole] = await db
 			.select({ id: Role.id })
 			.from(Role)
 			.where(eq(Role.name, 'user'))
 			.limit(1)
-		if (userRole)
-			await db.insert(_RoleToUser).values({ A: userRole.id, B: user.id })
 
+		// The user, their role and the identity link commit together: a sign-in
+		// that dies half-way must not leave an account with no link (the next
+		// sign-in would find it by email and refuse to link it). The membership
+		// below is idempotent and is redone by the next sign-in through the link.
+		const userId = createId()
+		const insertUser = db
+			.insert(UserTable)
+			.values({
+				id: userId,
+				email: normalizedEmail,
+				username,
+				name: name || email,
+			})
+			.returning()
+		const insertLink = db
+			.insert(SSOIdentityTable)
+			.values({ issuer, subject, userId })
+		let user: User | undefined
 		try {
-			await this.linkIdentity(issuer, subject, user.id)
+			const [users] = userRole
+				? await db.batch([
+						insertUser,
+						db.insert(_RoleToUser).values({ A: userRole.id, B: userId }),
+						insertLink,
+					])
+				: await db.batch([insertUser, insertLink])
+			user = users[0]
 		} catch (error) {
-			// Another sign-in linked this IdP account first; drop the duplicate.
-			await db.delete(UserTable).where(eq(UserTable.id, user.id))
+			// Another sign-in linked this IdP account (or took this email) first;
+			// nothing of ours was written.
+			const [linked] = await db
+				.select({ userId: SSOIdentityTable.userId })
+				.from(SSOIdentityTable)
+				.where(
+					and(
+						eq(SSOIdentityTable.issuer, issuer),
+						eq(SSOIdentityTable.subject, subject),
+					),
+				)
+				.limit(1)
+			if (linked) {
+				throw new Error(
+					'This account is linked to a different identity provider account. Ask an administrator for help.',
+				)
+			}
 			throw error
 		}
+		if (!user) throw new Error('Failed to provision user')
 
 		// Add user to organization
 		await this.ensureOrganizationMembership(

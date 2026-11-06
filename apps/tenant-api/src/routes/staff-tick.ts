@@ -7,6 +7,7 @@ import {
 	getInternalCommandToken,
 	timingSafeEqualString,
 } from '../lib/secrets.ts'
+import { runBroadcastTickForOrg } from '../services/broadcast-dispatch.ts'
 import { fanOutStaffTick } from '../services/staff-tick-fanout.ts'
 import { runStaffTickForOrg } from '../services/staff-tick-service.ts'
 
@@ -65,13 +66,19 @@ staffTickRoutes.post('/tick', async (c) => {
 
 	if (parsed.data.orgId) {
 		const result = await runStaffTickForOrg(parsed.data.orgId)
+		// Same pass: resume interrupted broadcasts, start scheduled ones.
+		await runBroadcastTickForOrg(parsed.data.orgId)
 		return c.json({ success: true, result }, 200, NO_STORE)
 	}
 
 	const orgIds = await listTenantOrgIds()
 	const totals = await fanOutStaffTick({
 		orgIds,
-		run: (orgId) => runStaffTickForOrg(orgId).catch(() => null),
+		run: async (orgId) => {
+			const result = await runStaffTickForOrg(orgId).catch(() => null)
+			await runBroadcastTickForOrg(orgId)
+			return result
+		},
 	})
 	return c.json({ success: totals.errors === 0, ...totals }, 200, NO_STORE)
 })

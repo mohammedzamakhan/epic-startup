@@ -24,17 +24,39 @@ export function escapeHtml(value: string): string {
 	return value.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char] ?? char)
 }
 
+const HTML_UNESCAPES: Record<string, string> = {
+	'&amp;': '&',
+	'&lt;': '<',
+	'&gt;': '>',
+	'&quot;': '"',
+	'&#39;': "'",
+	'&#x27;': "'",
+	'&apos;': "'",
+}
+
+/** Undoes `escapeHtml`, or React's escaping (`&#x27;`), in one pass. */
+function unescapeHtml(value: string): string {
+	return value.replace(
+		/&(?:amp|lt|gt|quot|apos|#39|#x27);/g,
+		(entity) => HTML_UNESCAPES[entity] ?? entity,
+	)
+}
+
 /**
  * Interpolate merge tags into an HTML body, escaping each substituted value so
  * customer data cannot inject markup. Use the plain `interpolateMergeTags` for
  * the text part.
+ *
+ * A fallback is part of the HTML template, so it usually arrives escaped
+ * (React escaped it when the email was designed). It is unescaped first, so
+ * escaped and raw fallbacks both come out escaped once.
  */
 export function interpolateMergeTagsHtml(
 	template: string,
 	vars: Record<string, string | null | undefined>,
 ): string {
 	return replaceMergeTokens(template, (tag, fallback) =>
-		escapeHtml(resolveWithFallback(vars[tag], fallback)),
+		escapeHtml(resolveWithFallback(vars[tag], unescapeHtml(fallback))),
 	)
 }
 

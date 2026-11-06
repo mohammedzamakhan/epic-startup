@@ -31,6 +31,7 @@ import {
 	sanitizeCommentContent,
 	sanitizeTextContent,
 } from '#app/utils/content-sanitization.server.ts'
+import { attachLibraryAssetToComment } from '#app/utils/media/library-attach.server.ts'
 import {
 	getNoteFavoriteUserIds,
 	invalidateFavoritesCaches,
@@ -950,14 +951,20 @@ export async function handleAddCommentIntent({
 					await tx.insert(NoteCommentImage).values(uploadedImages)
 				}
 
-				if (libraryAssets.length > 0) {
-					await tx.insert(NoteCommentImage).values(
-						libraryAssets.map((asset) => ({
-							commentId,
-							objectKey: asset.objectKey,
-							altText: asset.altText,
-						})),
-					)
+				for (const asset of libraryAssets) {
+					const attached = await attachLibraryAssetToComment(tx, {
+						organizationId: note.organizationId,
+						assetId: asset.id,
+						objectKey: asset.objectKey,
+						commentId,
+						altText: asset.altText,
+					})
+					// Deleted or replaced in the media library since it was picked.
+					// D1 has no rollback, so remove the comment by hand.
+					if (!attached) {
+						await tx.delete(NoteComment).where(eq(NoteComment.id, commentId))
+						throw new Error('A library image is no longer available')
+					}
 				}
 			})
 		} catch (error) {

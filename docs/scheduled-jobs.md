@@ -31,6 +31,7 @@ as the Admin cache route).
 | `0 2 * * *` | `/resources/jobs/audit-log-archival`        | Archive old audit logs                          |
 | `0 3 * * *` | `/resources/jobs/mcp-token-cleanup`         | Remove expired MCP tokens                       |
 | `0 3 * * *` | `/resources/jobs/job-postings-expiry`       | Mark job postings past their closing date       |
+| `0 3 * * *` | `/resources/jobs/seat-reconcile`            | Sync Stripe seat counts with active members     |
 | `0 4 * * *` | `/resources/jobs/gdpr-erasure`              | Process pending GDPR erasures                   |
 | `0 4 * * *` | `/resources/jobs/voice-retention`           | Delete expired call recordings and caller data  |
 | `0 4 * * *` | `/resources/jobs/staffing-outbox`           | Deliver staffing link, unlink, and erase events |

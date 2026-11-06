@@ -54,7 +54,12 @@ export function useKioskRuntime(urls: TenantApiUrls) {
 	const [online, setOnline] = useState(true)
 	const [counts, setCounts] = useState({ queued: 0, failed: 0 })
 	const [indicator, setIndicator] = useState<SyncIndicator>('idle')
-	const [serverOffset, setServerOffset] = useState(0)
+	const [serverOffset, setServerOffsetState] = useState(0)
+	const serverOffsetRef = useRef(0)
+	const setServerOffset = useCallback((offset: number) => {
+		serverOffsetRef.current = offset
+		setServerOffsetState(offset)
+	}, [])
 	const [removed, setRemoved] = useState(false)
 
 	const queue: KioskQueue = useMemo(() => createKioskQueue(), [])
@@ -84,6 +89,20 @@ export function useKioskRuntime(urls: TenantApiUrls) {
 			// a broken IndexedDB must never take the clock down
 		}
 	}, [queue])
+
+	/**
+	 * Sets aside punches too old for the server to record, deleting their PINs.
+	 * Runs whether or not the tablet can reach the server, so an unpaired or
+	 * offline tablet does not keep PINs beside their key for good.
+	 */
+	const expireStale = useCallback(async () => {
+		try {
+			await queue.expire(Date.now() + serverOffsetRef.current)
+		} catch {
+			// a broken IndexedDB must never take the clock down
+		}
+		await refreshCounts()
+	}, [queue, refreshCounts])
 
 	const handleRemoved = useCallback(async () => {
 		clearKioskDevice()
@@ -157,8 +176,8 @@ export function useKioskRuntime(urls: TenantApiUrls) {
 		setDevice(loadKioskDevice())
 		setOnline(typeof navigator === 'undefined' ? true : navigator.onLine)
 		setHydrated(true)
-		void refreshCounts()
-	}, [refreshCounts])
+		void expireStale()
+	}, [expireStale])
 
 	// Browser connectivity hints. They are hints: a request failing is the truth.
 	useEffect(() => {
@@ -183,6 +202,8 @@ export function useKioskRuntime(urls: TenantApiUrls) {
 		if (!api) return
 		let live = true
 		async function beat() {
+			// Never let a slow IndexedDB hold up the heartbeat and sync.
+			void expireStale()
 			try {
 				const config = await api!.config()
 				if (!live) return
@@ -218,7 +239,7 @@ export function useKioskRuntime(urls: TenantApiUrls) {
 			live = false
 			clearInterval(timer)
 		}
-	}, [api, sync, handleRemoved, confirmGone])
+	}, [api, sync, handleRemoved, confirmGone, expireStale, setServerOffset])
 
 	useEffect(
 		() => () => {
@@ -272,7 +293,7 @@ export function useKioskRuntime(urls: TenantApiUrls) {
 			setDevice(result.device)
 			return { ok: true }
 		},
-		[urls],
+		[urls, setServerOffset],
 	)
 
 	return {

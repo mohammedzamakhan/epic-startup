@@ -87,6 +87,18 @@ export class ChatStore {
 				deleted_at INTEGER
 			)`,
 		)
+		// Added after launch: the sender's idempotency key, so a send retried
+		// after a lost ack returns the first message instead of a duplicate.
+		const hasClientId = this.all<{ name: string }>(
+			`PRAGMA table_info(messages)`,
+		).some((column) => column.name === 'client_id')
+		if (!hasClientId) {
+			this.run(`ALTER TABLE messages ADD COLUMN client_id TEXT`)
+		}
+		this.run(
+			`CREATE UNIQUE INDEX IF NOT EXISTS messages_author_client
+				ON messages (author_id, client_id) WHERE client_id IS NOT NULL`,
+		)
 		this.run(
 			`CREATE INDEX IF NOT EXISTS messages_channel_top
 				ON messages (channel_id, id) WHERE parent_id IS NULL`,
@@ -273,6 +285,16 @@ export class ChatStore {
 		})
 	}
 
+	/** The message this author already sent with this idempotency key. */
+	findByClientId(author: string, clientId: string): ChatMessage | null {
+		const [row] = this.all<{ id: number }>(
+			`SELECT id FROM messages WHERE author_id = ? AND client_id = ?`,
+			author,
+			clientId,
+		)
+		return row ? this.getMessage(row.id) : null
+	}
+
 	getMessage(id: number): ChatMessage | null {
 		const [row] = this.all<MessageRow>(
 			`SELECT * FROM messages WHERE id = ?`,
@@ -288,6 +310,8 @@ export class ChatStore {
 		attachmentKeys?: string[]
 		parent?: number
 		now: number
+		/** Sender's idempotency key; unique per author. */
+		clientId?: string
 	}): ChatMessage {
 		if (input.parent !== undefined) {
 			const parent = this.getMessage(input.parent)
@@ -312,13 +336,14 @@ export class ChatStore {
 			CHAT_LIMITS.attachmentsMax,
 		)
 		const [{ id }] = this.all<{ id: number }>(
-			`INSERT INTO messages (channel_id, parent_id, author_id, body, created_at)
-				VALUES (?, ?, ?, ?, ?) RETURNING id`,
+			`INSERT INTO messages (channel_id, parent_id, author_id, body, created_at, client_id)
+				VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
 			input.channel,
 			input.parent ?? null,
 			input.author,
 			input.body,
 			input.now,
+			input.clientId ?? null,
 		) as [{ id: number }]
 		for (const [index, objectKey] of keys.entries()) {
 			this.run(

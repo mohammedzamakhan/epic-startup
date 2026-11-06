@@ -905,6 +905,32 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 			)
 		}
 
+		// KSA organizations get no tenant-api (no sign-in, forms or applications)
+		// without this, never the US node. Not in the committed [vars], so it is
+		// added after TENANT_API_URL when absent.
+		const tenantApiUrlKsa = readUrlSetting(
+			'TENANT_API_URL_KSA',
+			'tenant_api_url_ksa',
+			deployEnv,
+			launchConfig,
+		)
+		if (tenantApiUrlKsa) {
+			const label = `TENANT_API_URL_KSA ← TENANT_API_URL_KSA${suffix}`
+			if (
+				!applyToml(
+					/(TENANT_API_URL_KSA\s*=\s*")[^"]*(")/,
+					`$1${tenantApiUrlKsa}$2`,
+					label,
+				)
+			) {
+				applyToml(
+					/^(TENANT_API_URL\s*=\s*"[^"]*")$/m,
+					`$1\nTENANT_API_URL_KSA = "${tenantApiUrlKsa}"`,
+					label,
+				)
+			}
+		}
+
 		const rootApp = readUrlSetting(
 			'ROOT_APP',
 			'root_app',
@@ -1102,6 +1128,11 @@ function patchAstroTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 	if (appKey === 'sites') {
 		patchUrlVar('vars.PUBLIC_APP_URL', 'PUBLIC_APP_URL', 'public_app_url')
 		patchUrlVar('vars.TENANT_API_URL', 'TENANT_API_URL', 'tenant_api_url')
+		patchUrlVar(
+			'vars.TENANT_API_URL_KSA',
+			'TENANT_API_URL_KSA',
+			'tenant_api_url_ksa',
+		)
 		patchUrlVar('vars.ROOT_APP', 'ROOT_APP', 'root_app')
 		patchUrlVar(
 			'vars.PUBLIC_SITE_HOST_SUFFIXES',

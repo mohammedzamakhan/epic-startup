@@ -1,6 +1,7 @@
 import { SignJWT } from 'jose'
 import { brand } from '@repo/config/brand'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mintOperatorAnalyticsToken } from '@repo/reports/token'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TenantApiWorkerEnv } from './bindings.ts'
 
 const resolveOrganizationForBrowserAuth = vi.hoisted(() => vi.fn())
@@ -261,5 +262,99 @@ describe('resolveOrgId for consent, subscription and public form routes', () => 
 		})
 		expect(await resolveOrgId(request, env)).toBeNull()
 		expect(resolveOrganizationForBrowserAuth).not.toHaveBeenCalled()
+	})
+})
+
+describe('resolveOrgId for schedule links and analytics tokens', () => {
+	const secret = 'a'.repeat(64)
+	const link = (orgId: string) => `slk1.${orgId}.linkid1234.${secret}`
+
+	it('routes /schedule-link by the link token org prefix only', async () => {
+		const get = new Request(`${base}/schedule-link/me`, {
+			headers: { Authorization: `Bearer ${link(ORG)}` },
+		})
+		expect(await resolveOrgId(get, env)).toBe(ORG)
+		const post = new Request(
+			`${base}/schedule-link/me/time-off?orgId=${OTHER}`,
+			{
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${link(ORG)}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ orgId: OTHER }),
+			},
+		)
+		expect(await resolveOrgId(post, env)).toBe(ORG)
+	})
+
+	it('routes a missing or malformed link token nowhere', async () => {
+		for (const headers of [
+			{},
+			{ Authorization: 'Bearer nonsense' },
+			{ Authorization: `Bearer slk1.${ORG}.short.${secret}` },
+		] as Record<string, string>[]) {
+			const request = new Request(`${base}/schedule-link/me`, {
+				method: 'POST',
+				headers: { ...headers, 'Content-Type': 'application/json' },
+				body: JSON.stringify({ orgId: OTHER }),
+			})
+			expect(await resolveOrgId(request, env)).toBeNull()
+		}
+	})
+
+	describe('/analytics', () => {
+		const previous = {
+			op: process.env.OPERATOR_ANALYTICS_TOKEN,
+			internal: process.env.INTERNAL_COMMAND_TOKEN,
+		}
+		const opSecret = 'operator-analytics-secret-0123456789'
+		beforeEach(() => {
+			process.env.OPERATOR_ANALYTICS_TOKEN = opSecret
+			process.env.INTERNAL_COMMAND_TOKEN = 'internal-command-token-9876543210'
+		})
+		afterEach(() => {
+			for (const [key, value] of [
+				['OPERATOR_ANALYTICS_TOKEN', previous.op],
+				['INTERNAL_COMMAND_TOKEN', previous.internal],
+			] as const) {
+				if (value === undefined) delete process.env[key]
+				else process.env[key] = value
+			}
+		})
+
+		const query = (token: string) =>
+			new Request(`${base}/analytics/query`, {
+				method: 'POST',
+				headers: { Authorization: `Bearer ${token}` },
+				body: '{}',
+			})
+
+		it('resolves an operator analytics token to its org', async () => {
+			const { token } = await mintOperatorAnalyticsToken({
+				signingSecret: opSecret,
+				userId: 'user1',
+				orgId: ORG,
+				role: 'operator',
+			})
+			expect(await resolveOrgId(query(token), env)).toBe(ORG)
+		})
+
+		it('does not resolve a customer access JWT or a wrongly signed token', async () => {
+			const customer = await new SignJWT({ orgId: ORG, type: 'access' })
+				.setProtectedHeader({ alg: 'HS256' })
+				.setIssuer(brand.slug)
+				.setAudience('tenant-api')
+				.setExpirationTime('5m')
+				.sign(new TextEncoder().encode(env.JWT_SECRET))
+			expect(await resolveOrgId(query(customer), env)).toBeNull()
+			const { token } = await mintOperatorAnalyticsToken({
+				signingSecret: 'some-other-secret-0123456789',
+				userId: 'user1',
+				orgId: ORG,
+				role: 'operator',
+			})
+			expect(await resolveOrgId(query(token), env)).toBeNull()
+		})
 	})
 })

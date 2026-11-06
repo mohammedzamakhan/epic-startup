@@ -307,11 +307,22 @@ export async function retrieveCheckoutShopPayment(
 export function checkoutPaymentStatusToOrderStatus(
 	paid: boolean,
 	status?: string,
-): 'paid' | 'pending' | 'failed' {
+): 'paid' | 'pending' | 'failed' | 'refunded' {
+	// A refunded or voided payment still reads `approved`: its status wins.
+	if (status === 'Refunded') return 'refunded'
+	if (status === 'Voided' || status === 'Expired') return 'failed'
 	if (paid) return 'paid'
 	if (status === 'Declined' || status === 'Canceled') return 'failed'
 	return 'pending'
 }
+
+/** Events that change a payment after it was taken (refund, void). */
+export const CHECKOUT_ADJUSTMENT_EVENT_TYPES = new Set([
+	'payment_refunded',
+	'payment_voided',
+	'payment_canceled',
+	'payment_expired',
+])
 
 export function mapCheckoutShopPayment(payment: CheckoutShopPayment) {
 	return payment
@@ -351,11 +362,21 @@ export function mapCheckoutWebhookToPayment(event: {
 		'payment_captured',
 		'payment_declined',
 		'payment_pending',
+		...CHECKOUT_ADJUSTMENT_EVENT_TYPES,
 	])
 	if (!relevantTypes.has(event.type)) return null
 
 	const data = event.data as RawCheckoutPayment
 	if (!data.id) return null
+
+	// On a refund or void, `approved` is the action's, not the payment's.
+	if (CHECKOUT_ADJUSTMENT_EVENT_TYPES.has(event.type)) {
+		return {
+			...toCheckoutShopPayment(data, data.id),
+			paid: false,
+			status: event.type === 'payment_refunded' ? 'Refunded' : 'Voided',
+		}
+	}
 
 	const paid =
 		event.type === 'payment_approved' ||

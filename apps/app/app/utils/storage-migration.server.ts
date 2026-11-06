@@ -13,11 +13,13 @@ import {
 	OrganizationS3Config,
 	sql,
 	StorageMigration,
+	StorageMigrationItem,
 } from '@repo/database'
 import { decrypt, encrypt, getSSOMasterKey } from '@repo/security'
 import {
 	getSignedDeleteRequestInfo,
 	getSignedGetRequestInfo,
+	getSignedHeadRequestInfo,
 	getSignedPutRequestInfoForKey,
 	type StorageConfig,
 } from '@repo/storage'
@@ -119,17 +121,58 @@ export type StorageMigrationPlan = {
 	dest: CustomStorageSnapshot
 }
 
+function normalizeStorageEndpoint(endpoint: string) {
+	const trimmed = endpoint.trim()
+	try {
+		const url = new URL(trimmed)
+		return `${url.protocol}//${url.host}${url.pathname.replace(/\/+$/, '')}`.toLowerCase()
+	} catch {
+		return trimmed.replace(/\/+$/, '').toLowerCase()
+	}
+}
+
+/**
+ * Two storage sides are the same place when they name the same bucket on the
+ * same endpoint, whatever credentials or region string reach it. Moving media
+ * between them would copy each object onto itself and then delete it.
+ */
+export function isSameStorageLocation(
+	a: { endpoint: string; bucket: string },
+	b: { endpoint: string; bucket: string },
+) {
+	return (
+		a.bucket.trim() === b.bucket.trim() &&
+		normalizeStorageEndpoint(a.endpoint) ===
+			normalizeStorageEndpoint(b.endpoint)
+	)
+}
+
+/**
+ * Returns null when nothing has to move: the new settings only change how the
+ * same bucket is reached (access key, secret, region).
+ */
 export function resolveStorageMigrationPlan({
 	existingConfig,
 	dest,
 }: {
 	existingConfig?: typeof OrganizationS3Config.$inferSelect | null
 	dest: CustomStorageSnapshot
-}): StorageMigrationPlan {
+}): StorageMigrationPlan | null {
 	if (
 		existingConfig?.isEnabled &&
 		s3BucketSettingsChanged(existingConfig, dest)
 	) {
+		if (
+			isSameStorageLocation(
+				{
+					endpoint: existingConfig.endpoint,
+					bucket: existingConfig.bucketName,
+				},
+				{ endpoint: dest.endpoint, bucket: dest.bucketName },
+			)
+		) {
+			return null
+		}
 		return {
 			sourceType: 'custom',
 			source: snapshotFromS3ConfigRow(existingConfig),
@@ -478,11 +521,8 @@ export async function createAndStartStorageMigration({
 		organizationId,
 		sourceType,
 	)
-	const objectKeys = await collectOrgMediaObjectKeys(
-		organizationId,
-		collectOptions,
-	)
-	if (objectKeys.length === 0) {
+	const objects = await collectOrgMediaObjects(organizationId, collectOptions)
+	if (objects.length === 0) {
 		throw new Error('No org media files found to migrate')
 	}
 
@@ -491,6 +531,16 @@ export async function createAndStartStorageMigration({
 	}
 	if (destType === 'custom' && !dest) {
 		throw new Error('Custom destination storage configuration is required')
+	}
+	if (
+		source &&
+		dest &&
+		isSameStorageLocation(
+			{ endpoint: source.endpoint, bucket: source.bucketName },
+			{ endpoint: dest.endpoint, bucket: dest.bucketName },
+		)
+	) {
+		throw new Error('Source and destination are the same bucket')
 	}
 
 	const [migration] = await db
@@ -514,13 +564,17 @@ export async function createAndStartStorageMigration({
 				? encryptSnapshotSecret(dest.secretAccessKey)
 				: null,
 			destRegion: dest?.region,
-			totalObjects: objectKeys.length,
+			totalObjects: objects.length,
 		})
 		.returning()
 
 	if (!migration) {
 		throw new Error('Failed to create storage migration record')
 	}
+
+	// The list is fixed here: later batches work through it, whatever media is
+	// added or removed meanwhile.
+	await insertMigrationItems(migration.id, objects)
 
 	try {
 		const instanceId = await triggerStorageMigrationWorkflow(migration.id)
@@ -547,6 +601,85 @@ export async function createAndStartStorageMigration({
 	return migration
 }
 
+/** The object is in neither bucket: nothing to move (or it was lost). */
+class SourceObjectMissingError extends Error {
+	constructor(status: number) {
+		super(`Source fetch failed: ${status}`)
+	}
+}
+
+/** Rows per insert: D1 caps the bound parameters of one statement. */
+const ITEM_INSERT_CHUNK = 15
+
+async function insertMigrationItems(
+	migrationId: string,
+	objects: ReadonlyArray<{ objectKey: string; contentType: string }>,
+) {
+	for (let i = 0; i < objects.length; i += ITEM_INSERT_CHUNK) {
+		await db
+			.insert(StorageMigrationItem)
+			.values(
+				objects.slice(i, i + ITEM_INSERT_CHUNK).map((object) => ({
+					migrationId,
+					objectKey: object.objectKey,
+					contentType: object.contentType,
+				})),
+			)
+			.onConflictDoNothing()
+	}
+}
+
+async function countMigrationItems(migrationId: string) {
+	const rows = await db
+		.select({
+			status: StorageMigrationItem.status,
+			count: sql<number>`count(*)`,
+		})
+		.from(StorageMigrationItem)
+		.where(eq(StorageMigrationItem.migrationId, migrationId))
+		.groupBy(StorageMigrationItem.status)
+	const by = new Map(rows.map((row) => [row.status, Number(row.count)]))
+	const done = by.get('done') ?? 0
+	const failed = by.get('failed') ?? 0
+	const pending = by.get('pending') ?? 0
+	return { total: done + failed + pending, done, failed, pending }
+}
+
+/** Progress columns follow the item counts, so they never drift. */
+async function syncMigrationProgress(migrationId: string) {
+	const counts = await countMigrationItems(migrationId)
+	await db
+		.update(StorageMigration)
+		.set({
+			totalObjects: counts.total,
+			processedObjects: counts.done,
+			failedObjects: counts.failed,
+			cursor: counts.done + counts.failed,
+		})
+		.where(eq(StorageMigration.id, migrationId))
+	return counts
+}
+
+/** Marks a pending item; an item another batch already settled is left alone. */
+async function settleMigrationItem(
+	itemId: string,
+	outcome: { status: 'done' } | { status: 'failed'; error: string },
+) {
+	await db
+		.update(StorageMigrationItem)
+		.set({
+			status: outcome.status,
+			attempts: sql`${StorageMigrationItem.attempts} + 1`,
+			lastError: outcome.status === 'failed' ? outcome.error : null,
+		})
+		.where(
+			and(
+				eq(StorageMigrationItem.id, itemId),
+				eq(StorageMigrationItem.status, 'pending'),
+			),
+		)
+}
+
 async function copyStorageObject({
 	objectKey,
 	contentType,
@@ -567,6 +700,22 @@ async function copyStorageObject({
 		headers: sourceHeaders,
 		redirect: 'manual',
 	})
+	if (sourceResponse.status === 404) {
+		// A retried step (or an overlapping run) may already have moved this
+		// object: it is gone from the source and present at the destination.
+		// That is a finished move, not a failure.
+		const { url: headUrl, headers: headHeaders } = getSignedHeadRequestInfo(
+			objectKey,
+			destConfig,
+		)
+		const headResponse = await fetch(headUrl, {
+			method: 'HEAD',
+			headers: headHeaders,
+			redirect: 'manual',
+		}).catch(() => null)
+		if (headResponse?.ok) return
+		throw new SourceObjectMissingError(sourceResponse.status)
+	}
 	if (!sourceResponse.ok) {
 		throw new Error(`Source fetch failed: ${sourceResponse.status}`)
 	}
@@ -633,24 +782,17 @@ export async function processStorageMigrationBatch(migrationId: string) {
 			.where(eq(StorageMigration.id, migrationId))
 	}
 
-	const allObjects = await collectOrgMediaObjects(
-		migration.organizationId,
-		await collectOptionsForMigration(
-			migration.organizationId,
-			migration.sourceType as StorageMigrationSideType,
-		),
-	)
-	const batchObjects = allObjects.slice(
-		migration.cursor,
-		migration.cursor + STORAGE_MIGRATION_BATCH_SIZE,
-	)
+	const sourceConfig = resolveSideConfig(migration, 'source')
+	const destConfig = resolveSideConfig(migration, 'dest')
 
-	if (batchObjects.length === 0) {
+	// Copying an object onto itself and then deleting the "source" destroys
+	// the only copy. Refuse before touching any object.
+	if (isSameStorageLocation(sourceConfig, destConfig)) {
 		await completeStorageMigration({
 			migrationId,
-			failed: migration.failedObjects > 0,
+			failed: true,
+			error: 'Source and destination are the same bucket',
 		})
-
 		return {
 			done: true,
 			totalObjects: migration.totalObjects,
@@ -659,80 +801,107 @@ export async function processStorageMigrationBatch(migrationId: string) {
 		}
 	}
 
-	const sourceConfig = resolveSideConfig(migration, 'source')
-	const destConfig = resolveSideConfig(migration, 'dest')
+	// A migration started before items existed lists its objects now, once.
+	const [anyItem] = await db
+		.select({ id: StorageMigrationItem.id })
+		.from(StorageMigrationItem)
+		.where(eq(StorageMigrationItem.migrationId, migrationId))
+		.limit(1)
+	if (!anyItem) {
+		await insertMigrationItems(
+			migrationId,
+			await collectOrgMediaObjects(
+				migration.organizationId,
+				await collectOptionsForMigration(
+					migration.organizationId,
+					migration.sourceType as StorageMigrationSideType,
+				),
+			),
+		)
+	}
+
+	const batchItems = await db
+		.select({
+			id: StorageMigrationItem.id,
+			objectKey: StorageMigrationItem.objectKey,
+			contentType: StorageMigrationItem.contentType,
+		})
+		.from(StorageMigrationItem)
+		.where(
+			and(
+				eq(StorageMigrationItem.migrationId, migrationId),
+				eq(StorageMigrationItem.status, 'pending'),
+			),
+		)
+		.orderBy(StorageMigrationItem.objectKey)
+		.limit(STORAGE_MIGRATION_BATCH_SIZE)
 
 	let processedCount = 0
 	let failedCount = 0
 	const errors: Array<{ objectKey: string; error: string }> = []
+	// Read only when an object is missing from both buckets.
+	let stillReferenced: Set<string> | null = null
 
-	for (const { objectKey, contentType } of batchObjects) {
+	for (const item of batchItems) {
 		try {
 			await copyStorageObject({
-				objectKey,
-				contentType,
+				objectKey: item.objectKey,
+				contentType: item.contentType,
 				sourceConfig,
 				destConfig,
 			})
+			await settleMigrationItem(item.id, { status: 'done' })
 			processedCount++
 		} catch (error) {
+			if (error instanceof SourceObjectMissingError) {
+				// Deleted from the organization since the list was made: there is
+				// nothing to move, which is not a failure.
+				stillReferenced ??= new Set(
+					await collectOrgMediaObjectKeys(migration.organizationId),
+				)
+				if (!stillReferenced.has(item.objectKey)) {
+					await settleMigrationItem(item.id, { status: 'done' })
+					processedCount++
+					continue
+				}
+			}
+			const message = error instanceof Error ? error.message : String(error)
+			await settleMigrationItem(item.id, { status: 'failed', error: message })
 			failedCount++
-			errors.push({
-				objectKey,
-				error: error instanceof Error ? error.message : String(error),
+			errors.push({ objectKey: item.objectKey, error: message })
+		}
+	}
+
+	const counts = await syncMigrationProgress(migrationId)
+	if (errors.length > 0) {
+		await db
+			.update(StorageMigration)
+			.set({
+				lastError: errors
+					.map((entry) => `${entry.objectKey}: ${entry.error}`)
+					.join('\n'),
 			})
-		}
+			.where(eq(StorageMigration.id, migrationId))
 	}
 
-	const progress = await reportStorageMigrationProgress({
-		migrationId,
-		processedCount,
-		failedCount,
-		errors,
-	})
-
-	const [updatedMigration] = await db
-		.select({
-			totalObjects: StorageMigration.totalObjects,
-			processedObjects: StorageMigration.processedObjects,
-			failedObjects: StorageMigration.failedObjects,
-		})
-		.from(StorageMigration)
-		.where(eq(StorageMigration.id, migrationId))
-		.limit(1)
-
-	const failedObjects =
-		updatedMigration?.failedObjects ?? migration.failedObjects
-	const processedObjects =
-		updatedMigration?.processedObjects ?? migration.processedObjects
-	const totalObjects = updatedMigration?.totalObjects ?? migration.totalObjects
-
-	if (progress.cursor >= allObjects.length) {
-		await completeStorageMigration({
-			migrationId,
-			failed: failedObjects > 0,
-		})
-
-		return {
-			done: true,
-			cursor: progress.cursor,
-			totalObjects,
-			processedObjects,
-			failedObjects,
-			batchProcessed: processedCount,
-			batchFailed: failedCount,
-		}
-	}
-
-	return {
-		done: false,
-		cursor: progress.cursor,
-		totalObjects,
-		processedObjects,
-		failedObjects,
+	const result = {
+		cursor: counts.done + counts.failed,
+		totalObjects: counts.total,
+		processedObjects: counts.done,
+		failedObjects: counts.failed,
 		batchProcessed: processedCount,
 		batchFailed: failedCount,
 	}
+
+	if (counts.pending === 0) {
+		await completeStorageMigration({
+			migrationId,
+			failed: counts.failed > 0,
+		})
+		return { done: true, ...result }
+	}
+
+	return { done: false, ...result }
 }
 
 export async function reportStorageMigrationProgress({
@@ -740,39 +909,55 @@ export async function reportStorageMigrationProgress({
 	processedCount,
 	failedCount,
 	errors,
+	expectedCursor,
 }: {
 	migrationId: string
 	processedCount: number
 	failedCount: number
 	errors?: Array<{ objectKey: string; error: string }>
+	/**
+	 * The cursor the batch started from. When given, the update applies only if
+	 * the cursor is still there, so a batch that overlapped another one (or a
+	 * replayed report) does not advance the cursor or the counters twice.
+	 */
+	expectedCursor?: number
 }) {
-	const [migration] = await db
-		.select()
-		.from(StorageMigration)
-		.where(eq(StorageMigration.id, migrationId))
-		.limit(1)
-
-	if (!migration) {
-		throw new Error('Storage migration not found')
-	}
-
-	const nextCursor = migration.cursor + processedCount + failedCount
+	const step = processedCount + failedCount
 	const lastError =
 		errors && errors.length > 0
 			? errors.map((entry) => `${entry.objectKey}: ${entry.error}`).join('\n')
-			: migration.lastError
+			: undefined
 
-	await db
+	// One conditional statement: the increments happen in SQL, so concurrent
+	// reports cannot overwrite each other with values read earlier.
+	const [updated] = await db
 		.update(StorageMigration)
 		.set({
-			cursor: nextCursor,
-			processedObjects: migration.processedObjects + processedCount,
-			failedObjects: migration.failedObjects + failedCount,
-			lastError,
+			cursor: sql`${StorageMigration.cursor} + ${step}`,
+			processedObjects: sql`${StorageMigration.processedObjects} + ${processedCount}`,
+			failedObjects: sql`${StorageMigration.failedObjects} + ${failedCount}`,
+			...(lastError !== undefined ? { lastError } : {}),
 		})
-		.where(eq(StorageMigration.id, migrationId))
+		.where(
+			and(
+				eq(StorageMigration.id, migrationId),
+				expectedCursor !== undefined
+					? eq(StorageMigration.cursor, expectedCursor)
+					: undefined,
+			),
+		)
+		.returning({ cursor: StorageMigration.cursor })
+	if (updated) return { cursor: updated.cursor }
 
-	return { cursor: nextCursor }
+	const [current] = await db
+		.select({ cursor: StorageMigration.cursor })
+		.from(StorageMigration)
+		.where(eq(StorageMigration.id, migrationId))
+		.limit(1)
+	if (!current) {
+		throw new Error('Storage migration not found')
+	}
+	return { cursor: current.cursor }
 }
 
 export async function completeStorageMigration({

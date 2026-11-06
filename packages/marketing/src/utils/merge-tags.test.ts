@@ -1,5 +1,7 @@
+import { resolveEmailTheme } from '@repo/common/email-theme'
 import { describe, expect, it } from 'vitest'
 
+import { renderMarketingEmail } from '../server/email-render.server'
 import {
 	escapeHtml,
 	interpolateMergeTags,
@@ -52,5 +54,44 @@ describe('merge tag interpolation', () => {
 				firstName: '<script>',
 			}),
 		).toBe('<p>&lt;script&gt;</p>')
+	})
+
+	it('escapes the fallback of a designed email once', async () => {
+		// React escapes the fallback when the email is designed.
+		const { html } = await renderMarketingEmail({
+			blocks: [
+				{
+					id: 'block-1',
+					type: 'body',
+					config: { text: `Hey {{firstName|friend's & co}}` },
+				},
+			],
+			theme: resolveEmailTheme({ organizationName: 'Acme' }),
+		})
+		expect(html).toContain('{{firstName|friend&#x27;s &amp; co}}')
+
+		const sent = interpolateMergeTagsHtml(html, { firstName: '' })
+		expect(sent).toContain('Hey friend&#39;s &amp; co')
+		expect(sent).not.toContain('&amp;amp;')
+		expect(sent).not.toContain('&amp;#x27;')
+	})
+
+	it('treats an escaped and a raw fallback alike', () => {
+		const escaped = '<p>{{firstName|a &lt;b&gt; &amp; &quot;c&quot;}}</p>'
+		const raw = '<p>{{firstName|a <b> & "c"}}</p>'
+		const expected = '<p>a &lt;b&gt; &amp; &quot;c&quot;</p>'
+		expect(interpolateMergeTagsHtml(escaped, { firstName: '' })).toBe(expected)
+		expect(interpolateMergeTagsHtml(raw, { firstName: '' })).toBe(expected)
+		expect(interpolateMergeTagsHtml('{{missing|&lt;i&gt;}}', {})).toBe(
+			'&lt;i&gt;',
+		)
+	})
+
+	it('escapes recipient values as they are, entities included', () => {
+		expect(
+			interpolateMergeTagsHtml('<p>{{firstName|friend}}</p>', {
+				firstName: 'AT&amp;T <b>',
+			}),
+		).toBe('<p>AT&amp;amp;T &lt;b&gt;</p>')
 	})
 })

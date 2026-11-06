@@ -197,8 +197,12 @@ describe('Home dashboard loader', () => {
 
 	it('counts every contributor, not only those on the leaderboard', async () => {
 		const { organization, cookie } = await setupTestOrgWithUser('admin')
+		// Note authors are members: the leaderboard ranks active members only.
 		const writers = await Promise.all(
-			Array.from({ length: 8 }, () => insertTestUser()),
+			Array.from({ length: 8 }, async () => {
+				const { user } = await insertTestMember(organization.id)
+				return user
+			}),
 		)
 		for (const writer of writers) {
 			await createTestNote(organization.id, writer.id)

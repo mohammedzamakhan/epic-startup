@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray } from 'drizzle-orm'
+import { count, desc, eq, inArray } from 'drizzle-orm'
 import { Hono, type Context } from 'hono'
 import { jwtVerify } from 'jose'
 import { randomUUID } from 'node:crypto'
@@ -8,50 +8,27 @@ import {
 	getOciMarketingMetrics,
 	isOciEngagementLoggingConfigured,
 } from '@repo/email'
-import { sendSms } from '@repo/sms'
 import {
 	customers,
 	getTenantDb,
-	interpolateMergeTags,
-	interpolateMergeTagsHtml,
 	marketingCampaigns,
 	marketingMessages,
 } from '@repo/tenant-db'
 import { z } from 'zod'
-import { checkGlobalSendCap } from '../lib/rate-limit.ts'
 import { getBearerToken, getOperatorToken } from '../lib/secrets.ts'
-import { sendTenantEmail } from '../lib/tenant-email.ts'
+import {
+	broadcastLease,
+	dispatchBroadcast,
+} from '../services/broadcast-dispatch.ts'
 import { ensureEmailEngagementSynced } from '../services/email-engagement-sync.ts'
 import {
 	erasePerson,
 	PersonErasureError,
 } from '../services/person-erasure-service.ts'
-import {
-	consentBaseUrl,
-	listUnsubscribeHeaders,
-	unsubscribeUrl,
-} from '../lib/email-consent.ts'
-import {
-	BROADCAST_TOPIC,
-	loadBroadcastAudience,
-} from '../services/marketing-audience.ts'
-import { inJsonList } from '../lib/chunked-in.ts'
-import { insertRowsInChunks } from '../lib/chunked-in.ts'
 
 export const operatorRoutes = new Hono()
 
 const OPERATOR_LIST_LIMIT = 100
-
-// The fallback email body wraps plain text that contains customer-controlled
-// merge-tag values (names), so it must be escaped before becoming HTML.
-function escapeHtml(value: string) {
-	return value
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#39;')
-}
 
 /**
  * Browser-held operator tokens name the one area they were minted for (the
@@ -526,7 +503,9 @@ operatorRoutes.post('/marketing/campaigns', async (c) => {
 		const db = await getTenantDb(orgId)
 		const campaignId = randomUUID()
 		const isScheduled = scheduledAt && new Date(scheduledAt) > new Date()
-		const status = isScheduled ? 'Draft' : 'Processing'
+		// A scheduled broadcast is started by the regional tick once it is due.
+		const status = isScheduled ? 'Scheduled' : 'Processing'
+		const lease = broadcastLease(Date.now())
 
 		await db.insert(marketingCampaigns).values({
 			id: campaignId,
@@ -541,10 +520,12 @@ operatorRoutes.post('/marketing/campaigns', async (c) => {
 			status,
 			segmentationRules: JSON.stringify({ audience }),
 			scheduledAt: isScheduled ? new Date(scheduledAt) : null,
+			updatedAt: lease,
 		})
 
 		if (!isScheduled) {
-			void dispatchCampaign(orgId, campaignId)
+			// The tick resumes it if this isolate stops mid-send.
+			void dispatchBroadcast(orgId, campaignId, lease)
 		}
 
 		return c.json({ success: true, campaignId, status })
@@ -553,222 +534,3 @@ operatorRoutes.post('/marketing/campaigns', async (c) => {
 		return c.json({ error: 'Internal Server Error' }, 500)
 	}
 })
-
-async function dispatchCampaign(orgId: string, campaignId: string) {
-	try {
-		const db = await getTenantDb(orgId)
-		const campaignArr = await db
-			.select()
-			.from(marketingCampaigns)
-			.where(eq(marketingCampaigns.id, campaignId))
-			.all()
-		const campaign = campaignArr[0]
-		if (!campaign) return
-
-		// 1. Fetch the consented audience (active subscription for this channel
-		// and topic; texts also need a verified phone) and apply the rules.
-		let rulesAudience: string | undefined
-		if (campaign.segmentationRules) {
-			try {
-				const rules =
-					typeof campaign.segmentationRules === 'string'
-						? (JSON.parse(campaign.segmentationRules) as {
-								audience?: string
-							})
-						: (campaign.segmentationRules as { audience?: string })
-				rulesAudience = rules?.audience
-			} catch {
-				// Fallback to everyone subscribed
-			}
-		}
-		const targetCustomers = await loadBroadcastAudience(db, {
-			channel: campaign.channel === 'sms' ? 'sms' : 'email',
-			audience: rulesAudience,
-		})
-
-		// Update target audience count
-		await db
-			.update(marketingCampaigns)
-			.set({ targetAudienceCount: targetCustomers.length })
-			.where(eq(marketingCampaigns.id, campaignId))
-
-		let hitCap = false
-		const BATCH_SIZE = 25
-
-		// The unsubscribe link carries a signed token, so its origin must be the
-		// configured one. Without it no email can go out: fail the campaign now,
-		// before any per-recipient work, so the operator sees a Failed broadcast
-		// instead of a Completed one that delivered nothing. The campaign row has
-		// no reason column, so the generic reason goes to the log (ids only).
-		const consentOrigin = campaign.channel === 'email' ? consentBaseUrl() : null
-		if (campaign.channel === 'email' && !consentOrigin) {
-			console.error('Broadcast failed: TENANT_API_URL is not set', {
-				orgId,
-				campaignId,
-			})
-			await db
-				.update(marketingCampaigns)
-				.set({ status: 'Failed' })
-				.where(eq(marketingCampaigns.id, campaignId))
-			return
-		}
-
-		// 2. Dispatch in concurrency batches
-		for (let i = 0; i < targetCustomers.length; i += BATCH_SIZE) {
-			const chunk = targetCustomers.slice(i, i + BATCH_SIZE)
-
-			// Enforce the global send cap to prevent runaway Twilio/OCI costs.
-			const cap = checkGlobalSendCap()
-			if (cap.limited) {
-				console.warn(
-					`Campaign dispatch for ${campaignId} hit the global send cap; stopping early.`,
-				)
-				hitCap = true
-				break
-			}
-
-			// Pre-generate message IDs and bulk insert Processing rows
-			const chunkItems = chunk.map((customer) => ({
-				messageId: randomUUID(),
-				customer,
-			}))
-
-			await insertRowsInChunks(
-				marketingMessages,
-				chunkItems.map((item) => ({
-					id: item.messageId,
-					campaignId,
-					customerId: item.customer.id,
-					status: 'Processing',
-				})),
-				(part) => db.insert(marketingMessages).values(part),
-			)
-
-			// Process sends concurrently across the batch
-			const results = await Promise.allSettled(
-				chunkItems.map(async ({ messageId, customer }) => {
-					// Templating engine via standard interpolateMergeTags
-					const parsedContent = interpolateMergeTags(
-						campaign.content,
-						customer,
-						{},
-					)
-					const parsedSubject = campaign.subject
-						? interpolateMergeTags(campaign.subject, customer, {})
-						: ''
-
-					if (campaign.channel === 'email') {
-						if (!customer.email) throw new Error('No email address')
-						// Every broadcast carries a signed unsubscribe link, in the
-						// body and as List-Unsubscribe / one-click headers.
-						if (!consentOrigin) throw new Error('TENANT_API_URL is not set')
-						const optOutUrl = unsubscribeUrl(consentOrigin, {
-							orgId,
-							customerId: customer.id,
-							topic: BROADCAST_TOPIC,
-						})
-						const bodyHtml = campaign.contentHtml
-							? interpolateMergeTagsHtml(campaign.contentHtml, customer, {})
-							: `<p>${escapeHtml(parsedContent)}</p>`
-						const emailRes = await sendTenantEmail({
-							to: customer.email,
-							toName: customer.name,
-							subject: parsedSubject || 'Notification',
-							text: `${parsedContent}\n\nUnsubscribe: ${optOutUrl}`,
-							html: `${bodyHtml}<p style="font-size:12px;color:#666"><a href="${optOutUrl}">Unsubscribe</a></p>`,
-							extraHeaders: listUnsubscribeHeaders(optOutUrl),
-							context: {
-								orgId,
-								campaignId,
-								customerId: customer.id,
-								messageId,
-							},
-						})
-						if (emailRes.status === 'error') {
-							throw new Error(emailRes.error.message)
-						}
-					} else if (campaign.channel === 'sms') {
-						if (!customer.phone) throw new Error('No phone number')
-						await sendSms({
-							to: customer.phone,
-							message: parsedContent,
-						})
-					}
-					return messageId
-				}),
-			)
-
-			const sentIds: string[] = []
-			const failedIds: string[] = []
-
-			results.forEach((res, idx) => {
-				const id = chunkItems[idx]!.messageId
-				if (res.status === 'fulfilled') {
-					sentIds.push(id)
-				} else {
-					console.error(
-						`Failed to send to customer ${chunkItems[idx]!.customer.id}`,
-						res.reason,
-					)
-					failedIds.push(id)
-				}
-			})
-
-			// Bulk update outcomes for the batch
-			if (sentIds.length > 0) {
-				await db
-					.update(marketingMessages)
-					.set({ status: 'Sent', sentAt: new Date() })
-					.where(inJsonList(marketingMessages.id, sentIds))
-			}
-			if (failedIds.length > 0) {
-				await db
-					.update(marketingMessages)
-					.set({ status: 'Failed' })
-					.where(inJsonList(marketingMessages.id, failedIds))
-			}
-		}
-
-		// If hit send cap, mark any remaining processing messages as failed
-		if (hitCap) {
-			await db
-				.update(marketingMessages)
-				.set({ status: 'Failed' })
-				.where(
-					and(
-						eq(marketingMessages.campaignId, campaignId),
-						eq(marketingMessages.status, 'Processing'),
-					),
-				)
-		}
-
-		// Mark status
-		await db
-			.update(marketingCampaigns)
-			.set({ status: hitCap ? 'Failed' : 'Completed' })
-			.where(eq(marketingCampaigns.id, campaignId))
-	} catch (error) {
-		console.error(`Campaign dispatch failed for ${campaignId}`, error)
-		try {
-			const db = await getTenantDb(orgId)
-			await db
-				.update(marketingMessages)
-				.set({ status: 'Failed' })
-				.where(
-					and(
-						eq(marketingMessages.campaignId, campaignId),
-						eq(marketingMessages.status, 'Processing'),
-					),
-				)
-			await db
-				.update(marketingCampaigns)
-				.set({ status: 'Failed' })
-				.where(eq(marketingCampaigns.id, campaignId))
-		} catch (cleanupError) {
-			console.error(
-				'Failed to mark campaign and messages as failed:',
-				cleanupError,
-			)
-		}
-	}
-}

@@ -62,6 +62,7 @@ import {
 	startDomainClaim,
 } from '#app/utils/organization/verified-domain.server.ts'
 import { deleteSubscription } from '#app/utils/payments.server.ts'
+import { deprovisionTenantDatabase } from '#app/utils/sites/tenant-api.server.ts'
 import {
 	countOrgMediaObjectKeys,
 	createAndStartStorageMigration,
@@ -188,6 +189,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			size: true,
 			verifiedDomain: true,
 			stripeSubscriptionId: true,
+			dataRegion: true,
+			hasProvisionedDb: true,
+			customDomain: true,
 		}),
 		// Get user email for domain validation
 		db
@@ -490,7 +494,40 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	}
 
 	if (intent === 'delete-organization') {
+		// Customer data, staff records and call recordings live in the regional
+		// tenant database, which the control-plane cascade cannot reach. Delete it
+		// first (tenant-api still finds the organization by id), and keep the
+		// organization if that fails so the deletion can be retried.
+		// A database may exist even with the flag cleared (a failed region
+		// switch), and deleting a missing one is a no-op, so always ask.
 		try {
+			await deprovisionTenantDatabase({
+				orgId: organization.id,
+				dataRegion: organization.dataRegion,
+				slug: organization.slug,
+				customDomain: organization.customDomain,
+			})
+		} catch (error) {
+			console.error('Failed to delete the tenant database', {
+				organizationId: organization.id,
+				error: error instanceof Error ? error.message : String(error),
+			})
+			return Response.json(
+				{
+					error:
+						"The organization's customer data could not be deleted, so the organization was not deleted. Try again in a few minutes.",
+				},
+				{ status: 502 },
+			)
+		}
+
+		try {
+			// The database is gone; record it in case deleting the row fails below.
+			await db
+				.update(Organization)
+				.set({ hasProvisionedDb: false })
+				.where(eq(Organization.id, organization.id))
+
 			// Cancel Stripe subscription if it exists
 			if (organization.stripeSubscriptionId) {
 				try {
@@ -545,6 +582,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 				existingConfig: s3Config,
 				dest,
 			})
+			if (!plan) {
+				throw new Error('Your media is already in this bucket')
+			}
 
 			await createAndStartStorageMigration({
 				organizationId: organization.id,
@@ -701,10 +741,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
 							dest,
 						})
 
-						await createAndStartStorageMigration({
-							organizationId: organization.id,
-							...plan,
-						})
+						// null: only the credentials or region of the same
+						// bucket changed, so the media is already in place.
+						if (plan) {
+							await createAndStartStorageMigration({
+								organizationId: organization.id,
+								...plan,
+							})
+						}
 					} catch (error) {
 						const message =
 							error instanceof Error

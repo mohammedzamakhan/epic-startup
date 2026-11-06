@@ -24,6 +24,7 @@ export const JOB_ROUTES: Record<string, readonly string[]> = {
 	'0 3 * * *': [
 		'/resources/jobs/mcp-token-cleanup',
 		'/resources/jobs/job-postings-expiry',
+		'/resources/jobs/seat-reconcile',
 	],
 	'0 4 * * *': [
 		'/resources/jobs/gdpr-erasure',
