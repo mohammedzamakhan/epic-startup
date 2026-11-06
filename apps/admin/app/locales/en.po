@@ -80,7 +80,7 @@ msgstr "{excluded, plural, one {# record is left out of this ratio because it ha
 msgid "{field}"
 msgstr ""
 
-#: app/routes/_admin+/phone-numbers.tsx:401
+#: app/routes/_admin+/phone-numbers.tsx:408
 msgid "{numberCount} numbers"
 msgstr "{numberCount} numbers"
 
@@ -125,7 +125,7 @@ msgid "{unit}"
 msgstr ""
 
 #: app/routes/_admin+/roles+/$roleId.tsx:577
-#: app/routes/_admin+/roles+/system.$roleId.tsx:353
+#: app/routes/_admin+/roles+/system.$roleId.tsx:381
 msgid "{userCount} users"
 msgstr ""
 
@@ -187,7 +187,7 @@ msgstr ""
 msgid "1 entry"
 msgstr "1 entry"
 
-#: app/routes/_admin+/phone-numbers.tsx:399
+#: app/routes/_admin+/phone-numbers.tsx:406
 msgid "1 number"
 msgstr "1 number"
 
@@ -273,16 +273,16 @@ msgstr ""
 msgid "Action failed"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:378
-#: app/components/admin/feature-flags.tsx:484
-#: app/components/admin/feature-flags.tsx:655
+#: app/components/admin/feature-flags.tsx:409
+#: app/components/admin/feature-flags.tsx:515
+#: app/components/admin/feature-flags.tsx:686
 #: app/components/sso-user-management.tsx:177
 #: app/routes/_admin+/cache.tsx:619
-#: app/routes/_admin+/gdpr-requests.tsx:508
+#: app/routes/_admin+/gdpr-requests.tsx:507
 #: app/routes/_admin+/ip-addresses+/$ip.tsx:251
 #: app/routes/_admin+/ip-addresses+/index.tsx:235
 #: app/routes/_admin+/marketing+/automations._index.tsx:219
-#: app/routes/_admin+/phone-numbers.tsx:357
+#: app/routes/_admin+/phone-numbers.tsx:364
 #: app/routes/_admin+/print-shop.tsx:377
 #: app/routes/_admin+/print-shop.tsx:803
 #: app/routes/_admin+/roles+/index.tsx:412
@@ -357,11 +357,11 @@ msgstr "Add a heading"
 msgid "Add a number"
 msgstr "Add a number"
 
-#: app/routes/_admin+/phone-numbers.tsx:339
+#: app/routes/_admin+/phone-numbers.tsx:346
 msgid "Add a number above to start the inventory."
 msgstr "Add a number above to start the inventory."
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:99
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:100
 msgid "Add at least one email block"
 msgstr "Add at least one email block"
 
@@ -375,8 +375,8 @@ msgstr "Add block"
 msgid "Add feature"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:95
-#: app/components/admin/feature-flags.tsx:761
+#: app/components/admin/feature-flags.tsx:126
+#: app/components/admin/feature-flags.tsx:792
 msgid "Add Flag"
 msgstr ""
 
@@ -388,14 +388,14 @@ msgstr "Add number"
 msgid "Add numbers bought in Twilio and routed to the LiveKit SIP trunk."
 msgstr "Add numbers bought in Twilio and routed to the LiveKit SIP trunk."
 
-#: app/components/admin/feature-flags.tsx:537
-#: app/components/admin/feature-flags.tsx:715
+#: app/components/admin/feature-flags.tsx:568
+#: app/components/admin/feature-flags.tsx:746
 msgid "Add Override"
 msgstr ""
 
 #: app/routes/_admin+/roles+/$roleId.tsx:829
 #: app/routes/_admin+/roles+/$roleId.tsx:922
-#: app/routes/_admin+/roles+/system.$roleId.tsx:385
+#: app/routes/_admin+/roles+/system.$roleId.tsx:412
 msgid "Add permission"
 msgstr ""
 
@@ -421,7 +421,7 @@ msgstr "Add waitlist points"
 #: app/components/sso-configuration-form.tsx:438
 #: app/components/sso-user-management.tsx:98
 #: app/routes/_admin+/roles+/$roleId.tsx:465
-#: app/routes/_admin+/roles+/system.$roleId.tsx:228
+#: app/routes/_admin+/roles+/system.$roleId.tsx:259
 msgid "Admin"
 msgstr ""
 
@@ -447,7 +447,7 @@ msgstr ""
 msgid "Alignment"
 msgstr "Alignment"
 
-#: app/routes/_admin+/marketing+/campaigns._index.tsx:23
+#: app/routes/_admin+/marketing+/campaigns._index.tsx:27
 msgid "All"
 msgstr ""
 
@@ -459,7 +459,7 @@ msgstr ""
 msgid "All checks passed. This workflow is ready to publish."
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:206
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:208
 msgid "All organizations"
 msgstr ""
 
@@ -480,7 +480,7 @@ msgstr ""
 #~ msgid "All statuses"
 #~ msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:192
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:194
 msgid "All Tenant Operators"
 msgstr ""
 
@@ -560,19 +560,19 @@ msgstr ""
 msgid "Are you sure you want to delete this role?"
 msgstr ""
 
-#: app/routes/_admin+/roles+/system.$roleId.tsx:274
+#: app/routes/_admin+/roles+/system.$roleId.tsx:305
 msgid "Are you sure you want to delete this system role?"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:461
+#: app/routes/_admin+/gdpr-requests.tsx:460
 msgid "Article 17 fulfilled"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:427
+#: app/routes/_admin+/gdpr-requests.tsx:426
 msgid "Article 20 requests"
 msgstr ""
 
-#: app/routes/_admin+/phone-numbers.tsx:282
+#: app/routes/_admin+/phone-numbers.tsx:289
 msgid "Assign"
 msgstr "Assign"
 
@@ -660,7 +660,7 @@ msgstr ""
 msgid "Awaiting line verification"
 msgstr "Awaiting line verification"
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:158
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:160
 msgid "Back"
 msgstr ""
 
@@ -720,7 +720,7 @@ msgid "Banning..."
 msgstr ""
 
 #: app/routes/_admin+/roles+/$roleId.tsx:520
-#: app/routes/_admin+/roles+/system.$roleId.tsx:292
+#: app/routes/_admin+/roles+/system.$roleId.tsx:323
 msgid "Basic information"
 msgstr ""
 
@@ -781,11 +781,11 @@ msgstr "Blocks"
 msgid "Body text"
 msgstr "Body text"
 
-#: app/components/admin/feature-flags.tsx:145
+#: app/components/admin/feature-flags.tsx:175
 msgid "Boolean"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns.$campaignId.tsx:18
+#: app/routes/_admin+/marketing+/campaigns.$campaignId.tsx:19
 msgid "Broadcast not found"
 msgstr ""
 
@@ -842,7 +842,7 @@ msgstr ""
 #: ../../packages/marketing/src/components/email/email-design-overlay.tsx:162
 #: app/components/admin-ban-user-dialog.tsx:166
 #: app/components/admin-cache-confirmation-dialog.tsx:111
-#: app/routes/_admin+/gdpr-requests.tsx:587
+#: app/routes/_admin+/gdpr-requests.tsx:586
 #: app/routes/_admin+/print-shop.tsx:193
 #: app/routes/_admin+/roles+/index.tsx:352
 #: app/routes/_admin+/waitlist.tsx:487
@@ -853,7 +853,7 @@ msgstr ""
 msgid "Canceled"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:365
+#: app/routes/_admin+/gdpr-requests.tsx:364
 #: app/routes/_admin+/print-shop.tsx:76
 msgid "Cancelled"
 msgstr ""
@@ -947,20 +947,20 @@ msgid "Compare wages as a share of sales across your workplaces."
 msgstr "Compare wages as a share of sales across your workplaces."
 
 #: ../../packages/marketing/src/i18n/campaign-labels.ts:9
-#: app/routes/_admin+/gdpr-requests.tsx:364
-#: app/routes/_admin+/marketing+/campaigns._index.tsx:24
+#: app/routes/_admin+/gdpr-requests.tsx:363
+#: app/routes/_admin+/marketing+/campaigns._index.tsx:28
 msgid "Completed"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:452
+#: app/routes/_admin+/gdpr-requests.tsx:451
 msgid "Completed Deletions"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:418
+#: app/routes/_admin+/gdpr-requests.tsx:417
 msgid "Completed Exports"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:560
+#: app/routes/_admin+/gdpr-requests.tsx:559
 msgid "Completed: {completedAt}"
 msgstr ""
 
@@ -1047,7 +1047,7 @@ msgstr ""
 #: app/components/admin-organizations-table.tsx:306
 #: app/components/admin-users-table.tsx:229
 #: app/routes/_admin+/audit-logs.tsx:125
-#: app/routes/_admin+/gdpr-requests.tsx:335
+#: app/routes/_admin+/gdpr-requests.tsx:334
 #: app/routes/_admin+/waitlist.tsx:262
 msgid "contains"
 msgstr "contains"
@@ -1056,11 +1056,11 @@ msgstr "contains"
 msgid "Contains (Partial Match)"
 msgstr ""
 
-#: app/routes/_admin+/roles+/system.$roleId.tsx:252
+#: app/routes/_admin+/roles+/system.$roleId.tsx:283
 msgid "Core System Role"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:101
+#: app/components/admin/feature-flags.tsx:132
 msgid "Create a new feature flag at system level."
 msgstr ""
 
@@ -1068,11 +1068,11 @@ msgstr ""
 msgid "Create a new role with custom permissions"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:250
+#: app/components/admin/feature-flags.tsx:282
 msgid "Create an override at organization level."
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:252
+#: app/components/admin/feature-flags.tsx:284
 msgid "Create an override at user level."
 msgstr ""
 
@@ -1080,11 +1080,11 @@ msgstr ""
 msgid "Create Automation"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns._index.tsx:113
+#: app/routes/_admin+/marketing+/campaigns._index.tsx:129
 msgid "Create Broadcast"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:189
+#: app/components/admin/feature-flags.tsx:221
 msgid "Create Flag"
 msgstr ""
 
@@ -1092,11 +1092,11 @@ msgstr ""
 msgid "Create New Role"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:347
+#: app/components/admin/feature-flags.tsx:378
 msgid "Create Override"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:243
+#: app/components/admin/feature-flags.tsx:275
 msgid "Create Override for \"{flagKey}\""
 msgstr ""
 
@@ -1112,7 +1112,7 @@ msgstr ""
 msgid "Create your first platform automation workflow."
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns._index.tsx:107
+#: app/routes/_admin+/marketing+/campaigns._index.tsx:123
 msgid "Create your first platform email campaign for tenant operators."
 msgstr ""
 
@@ -1123,7 +1123,7 @@ msgid "Created"
 msgstr ""
 
 #: app/routes/_admin+/roles+/$roleId.tsx:574
-#: app/routes/_admin+/roles+/system.$roleId.tsx:350
+#: app/routes/_admin+/roles+/system.$roleId.tsx:378
 msgid "Created {createdDate}"
 msgstr ""
 
@@ -1217,7 +1217,7 @@ msgstr ""
 #~ msgid "Data Subject Requests"
 #~ msgstr ""
 
-#: app/components/admin/feature-flags.tsx:148
+#: app/components/admin/feature-flags.tsx:178
 #: app/routes/_admin+/waitlist.tsx:290
 msgid "Date"
 msgstr ""
@@ -1250,7 +1250,7 @@ msgstr ""
 msgid "Delay unit is required."
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:409
+#: app/components/admin/feature-flags.tsx:440
 #: app/routes/_admin+/marketing+/automations._index.tsx:289
 msgid "Delete"
 msgstr ""
@@ -1281,7 +1281,7 @@ msgid "Delete node"
 msgstr ""
 
 #: app/routes/_admin+/roles+/$roleId.tsx:510
-#: app/routes/_admin+/roles+/system.$roleId.tsx:281
+#: app/routes/_admin+/roles+/system.$roleId.tsx:312
 msgid "Delete role"
 msgstr ""
 
@@ -1300,7 +1300,7 @@ msgstr ""
 #: app/routes/_admin+/roles+/index.tsx:314
 #: app/routes/_admin+/roles+/index.tsx:409
 #: app/routes/_admin+/roles+/index.tsx:451
-#: app/routes/_admin+/roles+/system.$roleId.tsx:327
+#: app/routes/_admin+/roles+/system.$roleId.tsx:358
 msgid "Description"
 msgstr ""
 
@@ -1312,7 +1312,7 @@ msgstr "Design email"
 msgid "Detailed information for IP {ip}"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:505
+#: app/routes/_admin+/gdpr-requests.tsx:504
 msgid "Details"
 msgstr "Details"
 
@@ -1447,7 +1447,7 @@ msgstr "Each day’s published hours and shifts next to the hours worked and the
 msgid "Each shippable product and size prints at one vendor. Changing the vendor here is how orders are rerouted: retrying a held order picks up the new mapping."
 msgstr "Each shippable product and size prints at one vendor. Changing the vendor here is how orders are rerouted: retrying a held order picks up the new mapping."
 
-#: app/components/admin/feature-flags.tsx:402
+#: app/components/admin/feature-flags.tsx:433
 #: app/components/roles/roles-table-rows.tsx:59
 #: app/components/sso-configuration-overview.tsx:118
 #: app/routes/_admin+/marketing+/automations._index.tsx:231
@@ -1458,25 +1458,25 @@ msgstr ""
 msgid "Edit design"
 msgstr "Edit design"
 
-#: app/components/admin/feature-flags.tsx:95
+#: app/components/admin/feature-flags.tsx:126
 msgid "Edit Flag"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:535
-#: app/components/admin/feature-flags.tsx:713
+#: app/components/admin/feature-flags.tsx:566
+#: app/components/admin/feature-flags.tsx:744
 msgid "Edit Override"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:241
+#: app/components/admin/feature-flags.tsx:273
 msgid "Edit Override for \"{flagKey}\""
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:99
+#: app/components/admin/feature-flags.tsx:130
 msgid "Edit the details of the feature flag."
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:478
-#: app/components/admin/feature-flags.tsx:649
+#: app/components/admin/feature-flags.tsx:509
+#: app/components/admin/feature-flags.tsx:680
 msgid "Effective Value"
 msgstr ""
 
@@ -1520,7 +1520,7 @@ msgstr ""
 msgid "Email tenant operators"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:336
+#: app/routes/_admin+/gdpr-requests.tsx:335
 msgid "Email, username, or name"
 msgstr "Email, username, or name"
 
@@ -1557,7 +1557,7 @@ msgstr ""
 msgid "Enable SSO"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:306
+#: app/components/admin/feature-flags.tsx:337
 #: app/components/sso-configuration-overview.tsx:101
 #: app/routes/_admin+/organizations+/$organizationId_+/audit-retention.tsx:415
 #: app/routes/_admin+/organizations+/$organizationId_+/audit-retention.tsx:440
@@ -1592,11 +1592,11 @@ msgstr ""
 msgid "Enter feature name"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:452
+#: app/components/admin/feature-flags.tsx:483
 msgid "Enter Organization ID"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:607
+#: app/components/admin/feature-flags.tsx:638
 msgid "Enter Organization ID (optional - for per-org overrides)"
 msgstr ""
 
@@ -1624,7 +1624,7 @@ msgstr ""
 msgid "Enter the vendor order id."
 msgstr "Enter the vendor order id."
 
-#: app/components/admin/feature-flags.tsx:598
+#: app/components/admin/feature-flags.tsx:629
 msgid "Enter User ID (required)"
 msgstr ""
 
@@ -1636,11 +1636,11 @@ msgstr ""
 msgid "Epic Startup Team"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:540
+#: app/routes/_admin+/gdpr-requests.tsx:539
 msgid "Erasure"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:349
+#: app/routes/_admin+/gdpr-requests.tsx:348
 msgid "Erasure (Article 17)"
 msgstr ""
 
@@ -1668,7 +1668,7 @@ msgstr ""
 msgid "Exactly Equals"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:605
+#: app/routes/_admin+/gdpr-requests.tsx:604
 msgid "Expedite Now"
 msgstr ""
 
@@ -1684,11 +1684,11 @@ msgstr ""
 msgid "Expires: {expiresAt}"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:538
+#: app/routes/_admin+/gdpr-requests.tsx:537
 msgid "Export"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:348
+#: app/routes/_admin+/gdpr-requests.tsx:347
 msgid "Export (Article 20)"
 msgstr ""
 
@@ -1701,13 +1701,13 @@ msgid "Export JSON"
 msgstr ""
 
 #: ../../packages/marketing/src/i18n/campaign-labels.ts:10
-#: app/routes/_admin+/gdpr-requests.tsx:366
-#: app/routes/_admin+/marketing+/campaigns._index.tsx:26
+#: app/routes/_admin+/gdpr-requests.tsx:365
+#: app/routes/_admin+/marketing+/campaigns._index.tsx:30
 #: app/routes/_admin+/print-shop.tsx:75
 msgid "Failed"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:469
+#: app/routes/_admin+/gdpr-requests.tsx:468
 msgid "Failed Requests"
 msgstr ""
 
@@ -1715,7 +1715,7 @@ msgstr ""
 msgid "Failed to create automation"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:137
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:139
 msgid "Failed to create campaign"
 msgstr ""
 
@@ -1736,7 +1736,7 @@ msgstr "Fallback"
 msgid "False"
 msgstr "False"
 
-#: app/components/admin/feature-flags.tsx:739
+#: app/components/admin/feature-flags.tsx:770
 msgid "Feature flags"
 msgstr "Feature flags"
 
@@ -1789,24 +1789,24 @@ msgstr ""
 msgid "Fix validation errors before publishing"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:123
+#: app/components/admin/feature-flags.tsx:152
 msgid "Flag Key"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:155
-#: app/components/admin/feature-flags.tsx:164
+#: app/components/admin/feature-flags.tsx:185
+#: app/components/admin/feature-flags.tsx:194
 msgid "Flag Value"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:468
+#: app/components/admin/feature-flags.tsx:499
 msgid "Flags for Organization: {searchedOrgId}"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:637
+#: app/components/admin/feature-flags.tsx:668
 msgid "Flags for User: {searchedUserId} (Global)"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:633
+#: app/components/admin/feature-flags.tsx:664
 msgid "Flags for User: {searchedUserId} (Org: {searchedOrgId})"
 msgstr ""
 
@@ -1847,7 +1847,7 @@ msgstr ""
 msgid "Full width"
 msgstr "Full width"
 
-#: app/routes/_admin+/gdpr-requests.tsx:408
+#: app/routes/_admin+/gdpr-requests.tsx:407
 msgid "GDPR Data Requests"
 msgstr ""
 
@@ -2011,7 +2011,7 @@ msgstr "Image URL"
 msgid "Impersonate"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:444
+#: app/routes/_admin+/gdpr-requests.tsx:443
 msgid "In grace period"
 msgstr ""
 
@@ -2093,8 +2093,8 @@ msgstr ""
 #: app/components/admin-organizations-table.tsx:327
 #: app/components/admin-users-table.tsx:238
 #: app/routes/_admin+/audit-logs.tsx:152
-#: app/routes/_admin+/gdpr-requests.tsx:344
-#: app/routes/_admin+/gdpr-requests.tsx:357
+#: app/routes/_admin+/gdpr-requests.tsx:343
+#: app/routes/_admin+/gdpr-requests.tsx:356
 #: app/routes/_admin+/waitlist.tsx:271
 #: app/routes/_admin+/waitlist.tsx:284
 msgid "is"
@@ -2125,15 +2125,15 @@ msgstr "Keep editing"
 msgid "Keep forever"
 msgstr "Keep forever"
 
-#: app/components/admin/feature-flags.tsx:372
-#: app/components/admin/feature-flags.tsx:475
-#: app/components/admin/feature-flags.tsx:646
+#: app/components/admin/feature-flags.tsx:403
+#: app/components/admin/feature-flags.tsx:506
+#: app/components/admin/feature-flags.tsx:677
 #: app/routes/_admin+/cache.tsx:607
 #: app/routes/_admin+/roles+/$roleId.tsx:492
 #: app/routes/_admin+/roles+/$roleId.tsx:541
 #: app/routes/_admin+/roles+/$roleId.tsx:775
-#: app/routes/_admin+/roles+/system.$roleId.tsx:260
-#: app/routes/_admin+/roles+/system.$roleId.tsx:314
+#: app/routes/_admin+/roles+/system.$roleId.tsx:291
+#: app/routes/_admin+/roles+/system.$roleId.tsx:345
 msgid "Key"
 msgstr ""
 
@@ -2222,7 +2222,7 @@ msgstr ""
 msgid "Launch status is currently <0>{launchStatus}</0>. The waitlist is only active when LAUNCH_STATUS is set to CLOSED_BETA."
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:619
+#: app/components/admin/feature-flags.tsx:650
 msgid "Leave Organization ID empty to view/set global user overrides. Enter an Organization ID to view/set overrides for that specific organization."
 msgstr ""
 
@@ -2284,7 +2284,7 @@ msgstr ""
 msgid "Manage Cache →"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:410
+#: app/routes/_admin+/gdpr-requests.tsx:409
 msgid "Manage data export and deletion requests for compliance"
 msgstr ""
 
@@ -2381,7 +2381,7 @@ msgstr ""
 msgid "Message"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:112
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:113
 msgid "Message content is required"
 msgstr "Message content is required"
 
@@ -2402,7 +2402,7 @@ msgstr ""
 msgid "Minutes"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:248
+#: app/components/admin/feature-flags.tsx:280
 msgid "Modify the override value."
 msgstr ""
 
@@ -2436,7 +2436,7 @@ msgstr ""
 #: app/routes/_admin+/roles+/$roleId.tsx:530
 #: app/routes/_admin+/roles+/$roleId.tsx:763
 #: app/routes/_admin+/roles+/$roleId.tsx:854
-#: app/routes/_admin+/roles+/system.$roleId.tsx:302
+#: app/routes/_admin+/roles+/system.$roleId.tsx:333
 msgid "Name"
 msgstr ""
 
@@ -2466,11 +2466,11 @@ msgstr ""
 msgid "New Automation"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:165
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:167
 msgid "New broadcast"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns._index.tsx:65
+#: app/routes/_admin+/marketing+/campaigns._index.tsx:81
 msgid "New Broadcast"
 msgstr ""
 
@@ -2515,7 +2515,7 @@ msgstr ""
 msgid "No automations found"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns._index.tsx:105
+#: app/routes/_admin+/marketing+/campaigns._index.tsx:121
 msgid "No broadcasts found"
 msgstr ""
 
@@ -2548,12 +2548,12 @@ msgstr ""
 msgid "No description"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:495
-#: app/components/admin/feature-flags.tsx:666
+#: app/components/admin/feature-flags.tsx:526
+#: app/components/admin/feature-flags.tsx:697
 msgid "No flags configured"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:628
+#: app/routes/_admin+/gdpr-requests.tsx:627
 msgid "No GDPR requests found"
 msgstr ""
 
@@ -2573,7 +2573,7 @@ msgstr ""
 #~ msgid "No numbers in the inventory yet."
 #~ msgstr "No numbers in the inventory yet."
 
-#: app/routes/_admin+/phone-numbers.tsx:338
+#: app/routes/_admin+/phone-numbers.tsx:345
 msgid "No numbers yet"
 msgstr "No numbers yet"
 
@@ -2622,7 +2622,7 @@ msgstr ""
 msgid "No Subscription"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:389
+#: app/components/admin/feature-flags.tsx:420
 msgid "No system flags configured"
 msgstr ""
 
@@ -2686,8 +2686,8 @@ msgstr ""
 msgid "Notes Created"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:142
-#: app/routes/_admin+/phone-numbers.tsx:348
+#: app/components/admin/feature-flags.tsx:172
+#: app/routes/_admin+/phone-numbers.tsx:355
 msgid "Number"
 msgstr ""
 
@@ -2768,13 +2768,13 @@ msgstr ""
 
 #: app/components/admin-organizations-table.tsx:139
 #: app/components/admin-users-table.tsx:235
-#: app/components/admin/feature-flags.tsx:753
-#: app/routes/_admin+/phone-numbers.tsx:354
+#: app/components/admin/feature-flags.tsx:784
+#: app/routes/_admin+/phone-numbers.tsx:361
 #: app/routes/_admin+/print-shop.tsx:796
 msgid "Organization"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:202
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:204
 msgid "Organization (optional)"
 msgstr ""
 
@@ -2783,7 +2783,7 @@ msgstr ""
 msgid "Organization Created"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:520
+#: app/components/admin/feature-flags.tsx:551
 msgid "Organization Override"
 msgstr ""
 
@@ -2799,11 +2799,11 @@ msgstr ""
 msgid "Organization roles apply within specific organizations, while system roles are global."
 msgstr ""
 
-#: app/routes/_admin+/phone-numbers.tsx:276
+#: app/routes/_admin+/phone-numbers.tsx:283
 msgid "Organization slug or ID"
 msgstr "Organization slug or ID"
 
-#: app/routes/_admin+/phone-numbers.tsx:277
+#: app/routes/_admin+/phone-numbers.tsx:284
 msgid "Organization slug or ID for {e164}"
 msgstr "Organization slug or ID for {e164}"
 
@@ -2825,8 +2825,8 @@ msgstr "Organizations will appear here once they are created."
 msgid "Outline"
 msgstr "Outline"
 
-#: app/components/admin/feature-flags.tsx:285
-#: app/components/admin/feature-flags.tsx:294
+#: app/components/admin/feature-flags.tsx:315
+#: app/components/admin/feature-flags.tsx:324
 msgid "Override Value"
 msgstr ""
 
@@ -2934,7 +2934,7 @@ msgstr ""
 msgid "Pending Access"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:435
+#: app/routes/_admin+/gdpr-requests.tsx:434
 msgid "Pending Deletions"
 msgstr ""
 
@@ -2953,7 +2953,7 @@ msgstr ""
 #: app/routes/_admin+/roles+/$roleId.tsx:588
 #: app/routes/_admin+/roles+/index.tsx:406
 #: app/routes/_admin+/roles+/index.tsx:448
-#: app/routes/_admin+/roles+/system.$roleId.tsx:364
+#: app/routes/_admin+/roles+/system.$roleId.tsx:392
 msgid "Permissions"
 msgstr ""
 
@@ -2975,7 +2975,7 @@ msgid "Phone Number"
 msgstr ""
 
 #: app/components/admin-sidebar.tsx:93
-#: app/routes/_admin+/phone-numbers.tsx:325
+#: app/routes/_admin+/phone-numbers.tsx:332
 msgid "Phone numbers"
 msgstr "Phone numbers"
 
@@ -3029,7 +3029,7 @@ msgstr ""
 msgid "Platform Automations"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns._index.tsx:59
+#: app/routes/_admin+/marketing+/campaigns._index.tsx:75
 msgid "Platform Broadcasts"
 msgstr ""
 
@@ -3045,7 +3045,7 @@ msgstr ""
 msgid "Platform test runs are not yet wired to execution."
 msgstr ""
 
-#: app/routes/_admin+/phone-numbers.tsx:327
+#: app/routes/_admin+/phone-numbers.tsx:334
 msgid "Platform-owned numbers for the AI phone agent. Organizations can only connect numbers assigned to them here."
 msgstr "Platform-owned numbers for the AI phone agent. Organizations can only connect numbers assigned to them here."
 
@@ -3091,8 +3091,8 @@ msgid "Pro"
 msgstr ""
 
 #: ../../packages/marketing/src/i18n/campaign-labels.ts:8
-#: app/routes/_admin+/gdpr-requests.tsx:362
-#: app/routes/_admin+/marketing+/campaigns._index.tsx:25
+#: app/routes/_admin+/gdpr-requests.tsx:361
+#: app/routes/_admin+/marketing+/campaigns._index.tsx:29
 msgid "Processing"
 msgstr ""
 
@@ -3227,6 +3227,10 @@ msgstr ""
 msgid "Recipients"
 msgstr ""
 
+#: app/routes/_admin+/marketing+/campaigns.$campaignId.tsx:37
+msgid "Recipients not confirmed: {unconfirmed}. Their send was cut off or timed out, so the email may or may not have arrived. They stay Processing below and are not sent again."
+msgstr "Recipients not confirmed: {unconfirmed}. Their send was cut off or timed out, so the email may or may not have arrived. They stay Processing below and are not sent again."
+
 #: app/routes/_admin+/print-shop.tsx:641
 msgid "Record and track"
 msgstr "Record and track"
@@ -3314,7 +3318,7 @@ msgstr "Remove block"
 msgid "Remove design"
 msgstr "Remove design"
 
-#: app/components/admin/feature-flags.tsx:340
+#: app/components/admin/feature-flags.tsx:371
 msgid "Remove Override"
 msgstr ""
 
@@ -3330,7 +3334,7 @@ msgstr "Rendering…"
 msgid "Reports"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:341
+#: app/routes/_admin+/gdpr-requests.tsx:340
 msgid "Request type"
 msgstr "Request type"
 
@@ -3338,8 +3342,8 @@ msgstr "Request type"
 #~ msgid "Request Type"
 #~ msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:361
-#: app/routes/_admin+/gdpr-requests.tsx:502
+#: app/routes/_admin+/gdpr-requests.tsx:360
+#: app/routes/_admin+/gdpr-requests.tsx:501
 msgid "Requested"
 msgstr ""
 
@@ -3356,7 +3360,7 @@ msgstr "Require a verified email"
 msgid "Required. The identity provider can only create accounts and sign people in for email addresses on these domains."
 msgstr "Required. The identity provider can only create accounts and sign people in for email addresses on these domains."
 
-#: app/routes/_admin+/gdpr-requests.tsx:478
+#: app/routes/_admin+/gdpr-requests.tsx:477
 msgid "Requires attention"
 msgstr ""
 
@@ -3388,11 +3392,11 @@ msgstr "Retention policy"
 msgid "Retention: {retentionDays} days ({retentionYears} years)"
 msgstr ""
 
-#: app/routes/_admin+/phone-numbers.tsx:309
+#: app/routes/_admin+/phone-numbers.tsx:316
 msgid "Retire"
 msgstr "Retire"
 
-#: app/routes/_admin+/phone-numbers.tsx:302
+#: app/routes/_admin+/phone-numbers.tsx:309
 msgid "Retire {e164}? It can't be assigned again, and any agent using it stops answering."
 msgstr "Retire {e164}? It can't be assigned again, and any agent using it stops answering."
 
@@ -3442,12 +3446,12 @@ msgid "Role"
 msgstr ""
 
 #: app/routes/_admin+/roles+/$roleId.tsx:560
-#: app/routes/_admin+/roles+/system.$roleId.tsx:333
+#: app/routes/_admin+/roles+/system.$roleId.tsx:364
 msgid "Role description"
 msgstr ""
 
 #: app/routes/_admin+/roles+/$roleId.tsx:536
-#: app/routes/_admin+/roles+/system.$roleId.tsx:308
+#: app/routes/_admin+/roles+/system.$roleId.tsx:339
 msgid "Role name"
 msgstr ""
 
@@ -3458,7 +3462,7 @@ msgstr ""
 #: app/components/admin-sidebar.tsx:99
 #: app/routes/_admin+/roles+/$roleId.tsx:473
 #: app/routes/_admin+/roles+/index.tsx:376
-#: app/routes/_admin+/roles+/system.$roleId.tsx:236
+#: app/routes/_admin+/roles+/system.$roleId.tsx:267
 msgid "Roles"
 msgstr ""
 
@@ -3545,7 +3549,7 @@ msgid "Save"
 msgstr "Save"
 
 #: app/routes/_admin+/roles+/$roleId.tsx:566
-#: app/routes/_admin+/roles+/system.$roleId.tsx:341
+#: app/routes/_admin+/roles+/system.$roleId.tsx:370
 msgid "Save Changes"
 msgstr ""
 
@@ -3596,7 +3600,7 @@ msgid "Saving…"
 msgstr "Saving…"
 
 #: ../../packages/marketing/src/i18n/campaign-labels.ts:7
-#: app/routes/_admin+/gdpr-requests.tsx:363
+#: app/routes/_admin+/gdpr-requests.tsx:362
 msgid "Scheduled"
 msgstr ""
 
@@ -3604,7 +3608,7 @@ msgstr ""
 msgid "Scheduled vs actual hours and clock-ins"
 msgstr "Scheduled vs actual hours and clock-ins"
 
-#: app/routes/_admin+/gdpr-requests.tsx:555
+#: app/routes/_admin+/gdpr-requests.tsx:554
 msgid "Scheduled: {scheduledFor}"
 msgstr ""
 
@@ -3618,8 +3622,8 @@ msgstr ""
 
 #: app/components/admin-organizations-table.tsx:303
 #: app/components/admin-users-table.tsx:226
-#: app/components/admin/feature-flags.tsx:458
-#: app/components/admin/feature-flags.tsx:615
+#: app/components/admin/feature-flags.tsx:489
+#: app/components/admin/feature-flags.tsx:646
 #: app/routes/_admin+/audit-logs.tsx:122
 #: app/routes/_admin+/waitlist.tsx:259
 msgid "Search"
@@ -3637,7 +3641,7 @@ msgstr ""
 msgid "Search cache keys..."
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns._index.tsx:73
+#: app/routes/_admin+/marketing+/campaigns._index.tsx:89
 msgid "Search campaigns..."
 msgstr ""
 
@@ -3645,7 +3649,7 @@ msgstr ""
 #~ msgid "Search details or action..."
 #~ msgstr ""
 
-#: app/components/admin/feature-flags.tsx:446
+#: app/components/admin/feature-flags.tsx:477
 msgid "Search Organization"
 msgstr ""
 
@@ -3653,7 +3657,7 @@ msgstr ""
 #~ msgid "Search organizations..."
 #~ msgstr ""
 
-#: app/components/admin/feature-flags.tsx:591
+#: app/components/admin/feature-flags.tsx:622
 msgid "Search User"
 msgstr ""
 
@@ -3683,11 +3687,11 @@ msgstr ""
 msgid "Select attribute"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:188
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:190
 msgid "Select audience"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:132
+#: app/components/admin/feature-flags.tsx:162
 msgid "Select flag type"
 msgstr ""
 
@@ -3712,7 +3716,7 @@ msgstr ""
 msgid "Select which event initiates this automated journey."
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:168
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:170
 msgid "Send a one-time message to tenant operators."
 msgstr ""
 
@@ -3724,7 +3728,7 @@ msgstr ""
 msgid "Send now"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns._index.tsx:60
+#: app/routes/_admin+/marketing+/campaigns._index.tsx:76
 msgid "Send one-time emails to tenant operators."
 msgstr ""
 
@@ -3771,7 +3775,7 @@ msgstr ""
 msgid "Set expiration date (optional)"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:741
+#: app/components/admin/feature-flags.tsx:772
 msgid "Set system defaults and override them for an organization or a user."
 msgstr "Set system defaults and override them for an organization or a user."
 
@@ -3796,7 +3800,7 @@ msgstr "Shorter retention periods permanently remove older messages on the next 
 msgid "Showing {showing} of {totalEvents} events"
 msgstr ""
 
-#: app/routes/_admin+/gdpr-requests.tsx:618
+#: app/routes/_admin+/gdpr-requests.tsx:617
 msgid "Showing {showing} of {totalRequests} requests"
 msgstr ""
 
@@ -3868,6 +3872,10 @@ msgstr ""
 msgid "Solid"
 msgstr "Solid"
 
+#: app/routes/_admin+/marketing+/campaigns.$campaignId.tsx:34
+msgid "Some sends were not confirmed"
+msgstr "Some sends were not confirmed"
+
 #: app/routes/_admin+/print-shop.tsx:94
 msgid "Some vendor orders were cancelled and others are printing: refund what was cancelled"
 msgstr "Some vendor orders were cancelled and others are printing: refund what was cancelled"
@@ -3888,12 +3896,12 @@ msgstr "Sort by"
 #~ msgid "Sort by Rank"
 #~ msgstr ""
 
-#: app/components/admin/feature-flags.tsx:481
-#: app/components/admin/feature-flags.tsx:652
+#: app/components/admin/feature-flags.tsx:512
+#: app/components/admin/feature-flags.tsx:683
 msgid "Source"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:195
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:197
 msgid "Specific Organization"
 msgstr ""
 
@@ -3959,12 +3967,12 @@ msgstr "Start with a template"
 #: app/components/admin-users-table.tsx:161
 #: app/components/sso-configuration-overview.tsx:232
 #: app/components/sso-user-management.tsx:174
-#: app/routes/_admin+/gdpr-requests.tsx:354
-#: app/routes/_admin+/gdpr-requests.tsx:499
+#: app/routes/_admin+/gdpr-requests.tsx:353
+#: app/routes/_admin+/gdpr-requests.tsx:498
 #: app/routes/_admin+/ip-addresses+/$ip.tsx:114
 #: app/routes/_admin+/ip-addresses+/$ip.tsx:239
 #: app/routes/_admin+/ip-addresses+/index.tsx:217
-#: app/routes/_admin+/phone-numbers.tsx:351
+#: app/routes/_admin+/phone-numbers.tsx:358
 #: app/routes/_admin+/print-shop.tsx:797
 #: app/routes/_admin+/waitlist.tsx:365
 msgid "Status"
@@ -3995,7 +4003,7 @@ msgstr "Stop shipping {item}"
 msgid "Stop shipping this size?"
 msgstr "Stop shipping this size?"
 
-#: app/components/admin/feature-flags.tsx:139
+#: app/components/admin/feature-flags.tsx:169
 msgid "String"
 msgstr ""
 
@@ -4065,17 +4073,17 @@ msgstr ""
 msgid "Swap variable"
 msgstr "Swap variable"
 
-#: app/components/admin/feature-flags.tsx:750
+#: app/components/admin/feature-flags.tsx:781
 #: app/routes/resources+/theme-switch.tsx:80
 msgid "System"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:522
-#: app/components/admin/feature-flags.tsx:699
+#: app/components/admin/feature-flags.tsx:553
+#: app/components/admin/feature-flags.tsx:730
 msgid "System Default"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:365
+#: app/components/admin/feature-flags.tsx:396
 msgid "System Flags"
 msgstr ""
 
@@ -4084,8 +4092,8 @@ msgid "System Management"
 msgstr ""
 
 #: app/routes/_admin+/roles+/$roleId.tsx:598
-#: app/routes/_admin+/roles+/system.$roleId.tsx:374
-#: app/routes/_admin+/roles+/system.$roleId.tsx:381
+#: app/routes/_admin+/roles+/system.$roleId.tsx:402
+#: app/routes/_admin+/roles+/system.$roleId.tsx:409
 msgid "System permissions"
 msgstr ""
 
@@ -4105,11 +4113,11 @@ msgstr ""
 msgid "System theme"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:277
+#: app/components/admin/feature-flags.tsx:307
 msgid "System value:"
 msgstr ""
 
-#: app/routes/_admin+/roles+/system.$roleId.tsx:367
+#: app/routes/_admin+/roles+/system.$roleId.tsx:395
 msgid "System-wide permissions for this role"
 msgstr ""
 
@@ -4122,7 +4130,7 @@ msgstr ""
 msgid "Tags"
 msgstr ""
 
-#: app/routes/_admin+/marketing+/campaigns.new.tsx:184
+#: app/routes/_admin+/marketing+/campaigns.new.tsx:186
 msgid "Target Audience"
 msgstr ""
 
@@ -4414,7 +4422,7 @@ msgstr "True"
 #: app/components/admin-organizations-table.tsx:395
 #: app/components/admin-users-table.tsx:305
 #: app/routes/_admin+/audit-logs.tsx:347
-#: app/routes/_admin+/gdpr-requests.tsx:629
+#: app/routes/_admin+/gdpr-requests.tsx:628
 #: app/routes/_admin+/waitlist.tsx:335
 msgid "Try different filters or clear them."
 msgstr "Try different filters or clear them."
@@ -4423,16 +4431,16 @@ msgstr "Try different filters or clear them."
 msgid "TTL"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:135
-#: app/routes/_admin+/gdpr-requests.tsx:496
+#: app/components/admin/feature-flags.tsx:165
+#: app/routes/_admin+/gdpr-requests.tsx:495
 msgid "Type"
 msgstr ""
 
-#: app/routes/_admin+/phone-numbers.tsx:265
+#: app/routes/_admin+/phone-numbers.tsx:272
 msgid "Unassign"
 msgstr "Unassign"
 
-#: app/routes/_admin+/phone-numbers.tsx:258
+#: app/routes/_admin+/phone-numbers.tsx:265
 msgid "Unassign {e164}? The organization's agent stops answering it right away."
 msgstr "Unassign {e164}? The organization's agent stops answering it right away."
 
@@ -4483,11 +4491,11 @@ msgstr "Update {item}"
 msgid "Update Configuration"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:189
+#: app/components/admin/feature-flags.tsx:221
 msgid "Update Flag"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:345
+#: app/components/admin/feature-flags.tsx:376
 msgid "Update Override"
 msgstr ""
 
@@ -4516,11 +4524,11 @@ msgid "Used when the value is empty"
 msgstr "Used when the value is empty"
 
 #: app/components/admin-users-table.tsx:92
-#: app/components/admin/feature-flags.tsx:756
+#: app/components/admin/feature-flags.tsx:787
 #: app/components/sso-user-management.tsx:162
 #: app/routes/_admin+/audit-logs.tsx:283
-#: app/routes/_admin+/gdpr-requests.tsx:332
-#: app/routes/_admin+/gdpr-requests.tsx:493
+#: app/routes/_admin+/gdpr-requests.tsx:331
+#: app/routes/_admin+/gdpr-requests.tsx:492
 #: app/routes/_admin+/ip-addresses+/$ip.tsx:233
 #: app/routes/_admin+/waitlist.tsx:347
 msgid "User"
@@ -4530,7 +4538,7 @@ msgstr ""
 msgid "User is not a member of any organizations"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:696
+#: app/components/admin/feature-flags.tsx:727
 msgid "User Override"
 msgstr ""
 
@@ -4538,7 +4546,7 @@ msgstr ""
 msgid "User Provisioning"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:694
+#: app/components/admin/feature-flags.tsx:725
 msgid "User+Org Override"
 msgstr ""
 
@@ -4575,7 +4583,7 @@ msgstr "Users will appear here once they sign up."
 msgid "Validation passed"
 msgstr ""
 
-#: app/components/admin/feature-flags.tsx:375
+#: app/components/admin/feature-flags.tsx:406
 msgid "Value"
 msgstr ""
 

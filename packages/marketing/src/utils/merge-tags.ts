@@ -1,5 +1,6 @@
 import {
 	replaceMergeTokens,
+	replaceMergeTokensInHtml,
 	resolveWithFallback,
 } from '@repo/common/merge-tags'
 
@@ -50,12 +51,15 @@ function unescapeHtml(value: string): string {
  * A fallback is part of the HTML template, so it usually arrives escaped
  * (React escaped it when the email was designed). It is unescaped first, so
  * escaped and raw fallbacks both come out escaped once.
+ *
+ * In a URL attribute (`href`, `src`, ...) the result must also be a relative
+ * URL or use http, https, mailto or tel, or the attribute is emptied.
  */
 export function interpolateMergeTagsHtml(
 	template: string,
 	vars: Record<string, string | null | undefined>,
 ): string {
-	return replaceMergeTokens(template, (tag, fallback) =>
+	return replaceMergeTokensInHtml(template, (tag, fallback) =>
 		escapeHtml(resolveWithFallback(vars[tag], unescapeHtml(fallback))),
 	)
 }

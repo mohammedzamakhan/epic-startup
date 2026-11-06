@@ -6,11 +6,13 @@ import { organizationSlugSchema } from '@repo/common'
 import { markStepCompleted } from '@repo/common/onboarding'
 import { redirectWithToast } from '@repo/common/toast'
 import {
+	and,
 	db,
 	eq,
 	Organization,
 	OrganizationImage,
 	OrganizationS3Config,
+	sql,
 	User,
 } from '@repo/database'
 import {
@@ -500,10 +502,47 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		// organization if that fails so the deletion can be retried.
 		// A database may exist even with the flag cleared (a failed region
 		// switch), and deleting a missing one is a no-op, so always ask.
+		const changedConcurrently = () =>
+			Response.json(
+				{
+					error:
+						'The organization was changed by someone else while it was being deleted. Reload the page and try again.',
+				},
+				{ status: 409 },
+			)
+
+		// Claim the organization before deleting anything. A region switch only
+		// proceeds while the row is exactly as it read it, so this write (which
+		// moves `updatedAt` forward) makes a concurrent switch stop, and a switch
+		// that already moved the region makes this claim fail.
+		const [claimed] = await db
+			.update(Organization)
+			.set({
+				hasProvisionedDb: false,
+				updatedAt: sql`max(${Organization.updatedAt} + 1, ${Date.now()})`,
+			})
+			.where(
+				and(
+					eq(Organization.id, organization.id),
+					eq(Organization.dataRegion, organization.dataRegion),
+					eq(Organization.hasProvisionedDb, organization.hasProvisionedDb),
+				),
+			)
+			.returning({
+				dataRegion: Organization.dataRegion,
+				updatedAt: Organization.updatedAt,
+			})
+		if (!claimed) return changedConcurrently()
+		const claimedAt = claimed.updatedAt
+		const unchangedSinceClaim = and(
+			eq(Organization.id, organization.id),
+			eq(Organization.updatedAt, claimedAt),
+		)
+
 		try {
 			await deprovisionTenantDatabase({
 				orgId: organization.id,
-				dataRegion: organization.dataRegion,
+				dataRegion: claimed.dataRegion,
 				slug: organization.slug,
 				customDomain: organization.customDomain,
 			})
@@ -512,6 +551,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
 				organizationId: organization.id,
 				error: error instanceof Error ? error.message : String(error),
 			})
+			// Give the flag back, unless someone else has written since the claim.
+			await db
+				.update(Organization)
+				.set({ hasProvisionedDb: organization.hasProvisionedDb })
+				.where(
+					and(unchangedSinceClaim, eq(Organization.hasProvisionedDb, false)),
+				)
+				.catch(() => {})
 			return Response.json(
 				{
 					error:
@@ -522,11 +569,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		}
 
 		try {
-			// The database is gone; record it in case deleting the row fails below.
-			await db
-				.update(Organization)
-				.set({ hasProvisionedDb: false })
-				.where(eq(Organization.id, organization.id))
+			// Delete the organization - cascade deletes will handle all related
+			// data. Only the row this request claimed: a region switch that wrote
+			// since then may have provisioned a database this request did not wipe,
+			// so the organization must stay to own it.
+			const [deleted] = await db
+				.delete(Organization)
+				.where(unchangedSinceClaim)
+				.returning({ id: Organization.id })
+			if (!deleted) return changedConcurrently()
 
 			// Cancel Stripe subscription if it exists
 			if (organization.stripeSubscriptionId) {
@@ -536,9 +587,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 					// Don't fail the deletion if subscription cancellation fails
 				}
 			}
-
-			// Delete the organization - cascade deletes will handle all related data
-			await db.delete(Organization).where(eq(Organization.id, organization.id))
 
 			await invalidateUserOrganizationsCache(userId)
 

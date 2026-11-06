@@ -76,6 +76,16 @@ export function useKioskRuntime(urls: TenantApiUrls) {
 	)
 
 	const syncing = useRef(false)
+	/**
+	 * The tail of the queue's work: expiry and sync each wait for the one
+	 * before, so they never act on the same queued punch at once.
+	 */
+	const queueWork = useRef<Promise<unknown>>(Promise.resolve())
+	const exclusive = useCallback(<T>(task: () => Promise<T>): Promise<T> => {
+		const run = queueWork.current.then(task, task)
+		queueWork.current = run.catch(() => undefined)
+		return run
+	}, [])
 	const failures = useRef(0)
 	const goneStrikes = useRef(0)
 	const lastStrikeAt = useRef(0)
@@ -93,16 +103,19 @@ export function useKioskRuntime(urls: TenantApiUrls) {
 	/**
 	 * Sets aside punches too old for the server to record, deleting their PINs.
 	 * Runs whether or not the tablet can reach the server, so an unpaired or
-	 * offline tablet does not keep PINs beside their key for good.
+	 * offline tablet does not keep PINs beside their key for good. Takes its
+	 * turn with sync, so a punch is never sent while it is being set aside.
 	 */
 	const expireStale = useCallback(async () => {
-		try {
-			await queue.expire(Date.now() + serverOffsetRef.current)
-		} catch {
-			// a broken IndexedDB must never take the clock down
-		}
+		await exclusive(async () => {
+			try {
+				await queue.expire(Date.now() + serverOffsetRef.current)
+			} catch {
+				// a broken IndexedDB must never take the clock down
+			}
+		})
 		await refreshCounts()
-	}, [queue, refreshCounts])
+	}, [exclusive, queue, refreshCounts])
 
 	const handleRemoved = useCallback(async () => {
 		clearKioskDevice()
@@ -131,45 +144,48 @@ export function useKioskRuntime(urls: TenantApiUrls) {
 		if (!api || syncing.current) return
 		syncing.current = true
 		try {
-			const pending = await queue
-				.counts()
-				.catch(() => ({ queued: 0, failed: 0 }))
-			if (pending.queued === 0) return
-			setIndicator('syncing')
-			const outcome = await syncQueue({ queue, api })
-			await refreshCounts()
-			if (outcome.deviceGone && confirmGone(outcome.deviceGoneCode)) {
-				await handleRemoved()
-				return
-			}
-			if (!outcome.deviceGone) goneStrikes.current = 0
-			if (outcome.synced > 0) {
-				failures.current = 0
-				setOnline(true)
-				setIndicator('synced')
-				if (flashTimer.current) clearTimeout(flashTimer.current)
-				flashTimer.current = setTimeout(
-					() => setIndicator('idle'),
-					SYNCED_FLASH_MS,
-				)
-			} else {
-				setIndicator('idle')
-			}
-			if (outcome.remaining > 0) {
-				// Something is still waiting: try again, later and later.
-				failures.current += 1
-				const wait = Math.max(
-					SYNC_RETRY_FLOOR_MS,
-					(outcome.retryAfterSeconds ?? 0) * 1000,
-					syncBackoffMs(failures.current),
-				)
-				if (retryTimer.current) clearTimeout(retryTimer.current)
-				retryTimer.current = setTimeout(() => void sync(), wait)
-			}
+			// Waits for an expiry run in progress, and holds the next one off.
+			await exclusive(async () => {
+				const pending = await queue
+					.counts()
+					.catch(() => ({ queued: 0, failed: 0 }))
+				if (pending.queued === 0) return
+				setIndicator('syncing')
+				const outcome = await syncQueue({ queue, api })
+				await refreshCounts()
+				if (outcome.deviceGone && confirmGone(outcome.deviceGoneCode)) {
+					await handleRemoved()
+					return
+				}
+				if (!outcome.deviceGone) goneStrikes.current = 0
+				if (outcome.synced > 0) {
+					failures.current = 0
+					setOnline(true)
+					setIndicator('synced')
+					if (flashTimer.current) clearTimeout(flashTimer.current)
+					flashTimer.current = setTimeout(
+						() => setIndicator('idle'),
+						SYNCED_FLASH_MS,
+					)
+				} else {
+					setIndicator('idle')
+				}
+				if (outcome.remaining > 0) {
+					// Something is still waiting: try again, later and later.
+					failures.current += 1
+					const wait = Math.max(
+						SYNC_RETRY_FLOOR_MS,
+						(outcome.retryAfterSeconds ?? 0) * 1000,
+						syncBackoffMs(failures.current),
+					)
+					if (retryTimer.current) clearTimeout(retryTimer.current)
+					retryTimer.current = setTimeout(() => void sync(), wait)
+				}
+			})
 		} finally {
 			syncing.current = false
 		}
-	}, [api, queue, refreshCounts, handleRemoved, confirmGone])
+	}, [api, exclusive, queue, refreshCounts, handleRemoved, confirmGone])
 
 	// Mount: read the saved pairing, then the queue.
 	useEffect(() => {
@@ -202,7 +218,8 @@ export function useKioskRuntime(urls: TenantApiUrls) {
 		if (!api) return
 		let live = true
 		async function beat() {
-			// Never let a slow IndexedDB hold up the heartbeat and sync.
+			// Never let a slow IndexedDB hold up the check-in. The sync below
+			// still waits its turn behind this expiry run.
 			void expireStale()
 			try {
 				const config = await api!.config()

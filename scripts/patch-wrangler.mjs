@@ -280,6 +280,27 @@ function patchRoutesForApp(appKey, deployEnv, target, launchConfig, patches) {
 	}
 }
 
+/**
+ * Replacer for `/(prefix")[^"]*(")/` patterns. A replacement string would
+ * expand `$&`, `$1` or `$'` inside the value (valid in URL query strings).
+ * @param {string} value
+ */
+function keepAround(value) {
+	return (_match, before, after) => `${before}${value}${after}`
+}
+
+// Set when the deploy target has no TENANT_API_URL_KSA. KSA deploys are
+// optional (and paused in CI), so this warns instead of failing.
+let ksaTenantApiUrlUnset = false
+
+function warnKsaTenantApiUrlUnset(appKey, deployEnv, requireBindings) {
+	if (!requireBindings || !ksaTenantApiUrlUnset) return
+	const name = `TENANT_API_URL_KSA${envSuffix(deployEnv)}`
+	const message = `${name} is not set for ${appKey} (${deployEnv}): organizations whose customer data region is KSA get no tenant-api (no sign-in, forms or applications) until it is.`
+	// GitHub Actions shows ::warning:: lines as annotations on the run.
+	console.warn(`::warning title=${name} not set::${message}`)
+}
+
 const TOML_ROUTES_BEGIN = '# BEGIN patch-wrangler routes'
 const TOML_ROUTES_END = '# END patch-wrangler routes'
 
@@ -517,6 +538,22 @@ function applyTargetPatches(
 		if (value) {
 			target.vars[key] = value
 			patches.push(`vars.${key} [${targetEnv}] ← ${envBase}${suffix || ''}`)
+			return true
+		}
+		return false
+	}
+
+	// `missing` is passed only for the env being deployed.
+	function patchKsaTenantApiUrl() {
+		if (
+			!patchVar(
+				'TENANT_API_URL_KSA',
+				'TENANT_API_URL_KSA',
+				'tenant_api_url_ksa',
+			) &&
+			missing
+		) {
+			ksaTenantApiUrlUnset = true
 		}
 	}
 
@@ -601,7 +638,7 @@ function applyTargetPatches(
 		}
 		patchVar('ROOT_APP', 'ROOT_APP', 'root_app')
 		patchVar('TENANT_API_URL', 'TENANT_API_URL', 'tenant_api_url')
-		patchVar('TENANT_API_URL_KSA', 'TENANT_API_URL_KSA', 'tenant_api_url_ksa')
+		patchKsaTenantApiUrl()
 
 		if (appKey === 'app') {
 			const tenantApiWorkerName = readEnv(
@@ -631,7 +668,7 @@ function applyTargetPatches(
 		)
 		patchVar('APP_BASE_URL', 'APP_BASE_URL', 'app_base_url')
 		patchVar('TENANT_API_URL', 'TENANT_API_URL', 'tenant_api_url')
-		patchVar('TENANT_API_URL_KSA', 'TENANT_API_URL_KSA', 'tenant_api_url_ksa')
+		patchKsaTenantApiUrl()
 	}
 
 	if (appKey === 'tenant-api') {
@@ -779,6 +816,8 @@ function patchJsoncApp(appKey, deployEnv, launchConfig, requireBindings) {
 		process.exit(1)
 	}
 
+	warnKsaTenantApiUrlUnset(appKey, deployEnv, requireBindings)
+
 	if (patches.length > 0) {
 		console.log(patches.map((line) => `  • ${line}`).join('\n'))
 	} else {
@@ -820,7 +859,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		if (d1Id) {
 			applyToml(
 				/(database_id\s*=\s*")[^"]+(")/,
-				`$1${d1Id}$2`,
+				keepAround(d1Id),
 				`database_id ← WEB_D1_DATABASE_ID${suffix}`,
 			)
 		} else if (requireBindings) {
@@ -835,7 +874,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		if (bucket) {
 			applyToml(
 				/(bucket_name\s*=\s*")[^"]+(")/,
-				`$1${bucket}$2`,
+				keepAround(bucket),
 				`bucket_name ← WEB_R2_BUCKET_NAME${suffix}`,
 			)
 		}
@@ -857,7 +896,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		if (deployEnv === 'preview') {
 			applyToml(
 				/^name\s*=\s*"[^"]+"/m,
-				`name = "${previewWebWorkerName(launchConfig)}"`,
+				() => `name = "${previewWebWorkerName(launchConfig)}"`,
 				'name ← WEB_WORKER_NAME_PREVIEW',
 			)
 		} else {
@@ -869,7 +908,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 			if (workerName) {
 				applyToml(
 					/^name\s*=\s*"[^"]+"/m,
-					`name = "${workerName}"`,
+					() => `name = "${workerName}"`,
 					`name ← WEB_WORKER_NAME${suffix}`,
 				)
 			}
@@ -886,7 +925,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		if (publicAppUrl) {
 			applyToml(
 				/(PUBLIC_APP_URL\s*=\s*")[^"]+(")/,
-				`$1${publicAppUrl}$2`,
+				keepAround(publicAppUrl),
 				`PUBLIC_APP_URL ← PUBLIC_APP_URL${suffix}`,
 			)
 		}
@@ -900,7 +939,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		if (tenantApiUrl) {
 			applyToml(
 				/(TENANT_API_URL\s*=\s*")[^"]+(")/,
-				`$1${tenantApiUrl}$2`,
+				keepAround(tenantApiUrl),
 				`TENANT_API_URL ← TENANT_API_URL${suffix}`,
 			)
 		}
@@ -919,16 +958,19 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 			if (
 				!applyToml(
 					/(TENANT_API_URL_KSA\s*=\s*")[^"]*(")/,
-					`$1${tenantApiUrlKsa}$2`,
+					keepAround(tenantApiUrlKsa),
 					label,
 				)
 			) {
 				applyToml(
 					/^(TENANT_API_URL\s*=\s*"[^"]*")$/m,
-					`$1\nTENANT_API_URL_KSA = "${tenantApiUrlKsa}"`,
+					(_match, line) =>
+						`${line}\nTENANT_API_URL_KSA = "${tenantApiUrlKsa}"`,
 					label,
 				)
 			}
+		} else {
+			ksaTenantApiUrlUnset = true
 		}
 
 		const rootApp = readUrlSetting(
@@ -940,7 +982,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		if (rootApp) {
 			applyToml(
 				/(ROOT_APP\s*=\s*")[^"]+(")/,
-				`$1${rootApp}$2`,
+				keepAround(rootApp),
 				`ROOT_APP ← ROOT_APP${suffix}`,
 			)
 		}
@@ -954,7 +996,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		if (hostSuffixes) {
 			applyToml(
 				/(PUBLIC_SITE_HOST_SUFFIXES\s*=\s*")[^"]+(")/,
-				`$1${hostSuffixes}$2`,
+				keepAround(hostSuffixes),
 				`PUBLIC_SITE_HOST_SUFFIXES ← PUBLIC_SITE_HOST_SUFFIXES${suffix}`,
 			)
 		}
@@ -967,7 +1009,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		if (workerName) {
 			applyToml(
 				/^name\s*=\s*"[^"]+"/m,
-				`name = "${workerName}"`,
+				() => `name = "${workerName}"`,
 				`name ← SITES_WORKER_NAME${suffix}`,
 			)
 		}
@@ -997,7 +1039,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 				const stagingKvPattern =
 					/(\[\[env\.staging\.kv_namespaces\]\]\s*\n\s*binding\s*=\s*"SITES_DATA_KV"\s*\n\s*id\s*=\s*")[^"]+(")/
 				if (stagingKvPattern.test(content)) {
-					content = content.replace(stagingKvPattern, `$1${sitesDataKvId}$2`)
+					content = content.replace(stagingKvPattern, keepAround(sitesDataKvId))
 				} else {
 					content += `\n[[env.staging.kv_namespaces]]\nbinding = "SITES_DATA_KV"\nid = "${sitesDataKvId}"\n`
 				}
@@ -1007,7 +1049,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 			} else {
 				applyToml(
 					/(binding\s*=\s*"SITES_DATA_KV"\s*\n\s*id\s*=\s*")[^"]+(")/,
-					`$1${sitesDataKvId}$2`,
+					keepAround(sitesDataKvId),
 					`SITES_DATA_KV id ← SITES_DATA_KV_ID${suffix}`,
 				)
 			}
@@ -1022,6 +1064,7 @@ function patchTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		)
 		process.exit(1)
 	}
+	warnKsaTenantApiUrlUnset(appKey, deployEnv, requireBindings)
 
 	const routes = collectRoutesForApp(appKey, deployEnv, launchConfig)
 	content = injectTomlRoutes(content, deployEnv, routes)
@@ -1128,11 +1171,15 @@ function patchAstroTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 	if (appKey === 'sites') {
 		patchUrlVar('vars.PUBLIC_APP_URL', 'PUBLIC_APP_URL', 'public_app_url')
 		patchUrlVar('vars.TENANT_API_URL', 'TENANT_API_URL', 'tenant_api_url')
-		patchUrlVar(
-			'vars.TENANT_API_URL_KSA',
-			'TENANT_API_URL_KSA',
-			'tenant_api_url_ksa',
-		)
+		if (
+			!patchUrlVar(
+				'vars.TENANT_API_URL_KSA',
+				'TENANT_API_URL_KSA',
+				'tenant_api_url_ksa',
+			)
+		) {
+			ksaTenantApiUrlUnset = true
+		}
 		patchUrlVar('vars.ROOT_APP', 'ROOT_APP', 'root_app')
 		patchUrlVar(
 			'vars.PUBLIC_SITE_HOST_SUFFIXES',
@@ -1194,6 +1241,7 @@ function patchAstroTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		console.error('Set GitHub repository variables or run npm run launch:setup')
 		process.exit(1)
 	}
+	warnKsaTenantApiUrlUnset(appKey, deployEnv, requireBindings)
 
 	delete config.account_id
 

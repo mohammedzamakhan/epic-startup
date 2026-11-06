@@ -61,6 +61,15 @@ function mockSelectResult(result: unknown) {
 	return chain
 }
 
+/** A select that finds nothing (existing messages, unconfirmed count). */
+function emptySelect() {
+	return {
+		from: vi.fn().mockReturnValue({
+			where: vi.fn().mockResolvedValue([]),
+		}),
+	}
+}
+
 function mockInsertChain() {
 	const chain = {
 		values: vi.fn().mockReturnValue({
@@ -120,6 +129,8 @@ describe('dispatchPlatformCampaign', () => {
 					},
 				]),
 			)
+			.mockReturnValueOnce(emptySelect())
+			.mockReturnValueOnce(emptySelect())
 
 		mockInsertChain()
 		mockUpdateChain()
@@ -177,6 +188,8 @@ describe('dispatchPlatformCampaign', () => {
 					},
 				]),
 			)
+			.mockReturnValueOnce(emptySelect())
+			.mockReturnValueOnce(emptySelect())
 
 		mockInsertChain()
 		const updateChain = mockUpdateChain()
@@ -226,8 +239,15 @@ describe('dispatchPlatformCampaign', () => {
 					where: vi.fn().mockResolvedValue(existingMessages),
 				}),
 			})
+			// After the send, the interrupted row is still Processing.
+			.mockReturnValueOnce({
+				from: vi.fn().mockReturnValue({
+					where: vi.fn().mockResolvedValue([{ id: 'message-unknown' }]),
+				}),
+			})
 		const insertChain = mockInsertChain()
 		const updateChain = mockUpdateChain()
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
 		await dispatchPlatformCampaign('campaign-3')
 
@@ -239,6 +259,14 @@ describe('dispatchPlatformCampaign', () => {
 			expect.objectContaining({ userId: 'user-new' }),
 		)
 		expect(updateChain.set).toHaveBeenCalledWith({ status: 'Completed' })
+		// A resume keeps the audience count of the first dispatch.
+		expect(updateChain.set).not.toHaveBeenCalledWith(
+			expect.objectContaining({ targetAudienceCount: expect.anything() }),
+		)
+		expect(warn).toHaveBeenCalledWith(
+			expect.stringContaining('1 unconfirmed recipient'),
+		)
+		warn.mockRestore()
 	})
 
 	it('does not dispatch a campaign that is no longer Processing', async () => {

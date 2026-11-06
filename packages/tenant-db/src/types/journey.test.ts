@@ -674,3 +674,46 @@ describe('interpolateMergeTagsHtml', () => {
 		)
 	})
 })
+
+describe('interpolateMergeTagsHtml in URL attributes', () => {
+	it('refuses unsafe schemes from customer and context values', () => {
+		for (const value of [
+			'javascript:alert(1)',
+			'JAVASCRIPT:alert(1)',
+			' \tjava\nscript:alert(1)',
+			'data:text/html,<b>',
+			'vbscript:x',
+		]) {
+			expect(
+				interpolateMergeTagsHtml('<a href="{{name}}">x</a>', { name: value }),
+			).toBe('<a href="">x</a>')
+			expect(
+				interpolateMergeTagsHtml('<img src="{{link}}">', {}, { link: value }),
+			).toBe('<img src="">')
+		}
+	})
+
+	it('keeps safe URLs and leaves other attributes and text alone', () => {
+		expect(
+			interpolateMergeTagsHtml(
+				'<a href="{{link}}" title="{{link}}">{{link}}</a>',
+				{},
+				{ link: 'https://x.test/?a=1&b=2' },
+			),
+		).toBe(
+			'<a href="https://x.test/?a=1&amp;b=2" title="https://x.test/?a=1&amp;b=2">https://x.test/?a=1&amp;b=2</a>',
+		)
+		expect(
+			interpolateMergeTagsHtml('<a href="mailto:{{email}}">x</a>', {
+				email: 'a@example.com',
+			}),
+		).toBe('<a href="mailto:a@example.com">x</a>')
+		expect(
+			interpolateMergeTagsHtml(
+				'<p title="{{link}}">{{link}}</p>',
+				{},
+				{ link: 'javascript:alert(1)' },
+			),
+		).toBe('<p title="javascript:alert(1)">javascript:alert(1)</p>')
+	})
+})

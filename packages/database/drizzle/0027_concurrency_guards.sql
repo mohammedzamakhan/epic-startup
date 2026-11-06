@@ -1,3 +1,8 @@
+-- Rollout note: this migration deletes duplicate ConfigFlag rows (the most
+-- recently updated one is kept) and duplicate PlatformMarketingMessage rows
+-- before it adds unique indexes. Removed PlatformMarketingMessage rows are
+-- copied to `__archived_PlatformMarketingMessage_0027` first. See
+-- docs/platform-marketing-email.md, "Migration archives".
 CREATE TABLE `StaffingAlertEmail` (
 	`id` text PRIMARY KEY NOT NULL,
 	`organizationId` text NOT NULL,
@@ -128,18 +133,35 @@ WHERE `rowid` NOT IN (
 -- Written by hand: drizzle-kit splits the expressions at their commas.
 CREATE UNIQUE INDEX `ConfigFlag_key_level_scope_key` ON `ConfigFlag` (`key`,`level`,coalesce(`organizationId`, ''),coalesce(`userId`, ''));--> statement-breakpoint
 DROP INDEX `PlatformMarketingMessage_campaignId_idx`;--> statement-breakpoint
--- Two dispatches that both wrote a row for a user: keep the oldest.
-DELETE FROM `PlatformMarketingMessage`
-WHERE `rowid` NOT IN (
+-- Two dispatches that both wrote a row for a user: keep the most engaged row
+-- (Clicked, Opened, Sent, Processing (outcome unknown), then Failed; the
+-- oldest on a tie). The others are copied to
+-- `__archived_PlatformMarketingMessage_0027` before they are deleted, so the
+-- deletion can be undone. Nothing references PlatformMarketingMessage.
+CREATE TABLE `__archived_PlatformMarketingMessage_0027` AS
+SELECT * FROM `PlatformMarketingMessage`
+WHERE `rowid` IN (
 	SELECT `rowid` FROM (
 		SELECT
 			`rowid`,
 			ROW_NUMBER() OVER (
 				PARTITION BY `campaignId`, `userId`
-				ORDER BY `createdAt`, `rowid`
+				ORDER BY
+					CASE `status`
+						WHEN 'Clicked' THEN 0
+						WHEN 'Opened' THEN 1
+						WHEN 'Sent' THEN 2
+						WHEN 'Processing' THEN 3
+						WHEN 'Failed' THEN 5
+						ELSE 4
+					END,
+					`createdAt`,
+					`rowid`
 			) AS `rn`
 		FROM `PlatformMarketingMessage`
 	) AS `ranked`
-	WHERE `rn` = 1
+	WHERE `rn` > 1
 );--> statement-breakpoint
+DELETE FROM `PlatformMarketingMessage`
+WHERE `id` IN (SELECT `id` FROM `__archived_PlatformMarketingMessage_0027`);--> statement-breakpoint
 CREATE UNIQUE INDEX `PlatformMarketingMessage_campaignId_userId_key` ON `PlatformMarketingMessage` (`campaignId`,`userId`);

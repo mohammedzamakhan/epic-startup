@@ -369,13 +369,12 @@ export function mapCheckoutWebhookToPayment(event: {
 	const data = event.data as RawCheckoutPayment
 	if (!data.id) return null
 
-	// On a refund or void, `approved` is the action's, not the payment's.
+	// On a refund or void, `approved` is the action's, not the payment's, and
+	// the event does not say what the payment is now (`payment_refunded` is
+	// also sent for a partial refund). No status is derived from the event
+	// type: the caller reads the payment from Checkout.com before recording.
 	if (CHECKOUT_ADJUSTMENT_EVENT_TYPES.has(event.type)) {
-		return {
-			...toCheckoutShopPayment(data, data.id),
-			paid: false,
-			status: event.type === 'payment_refunded' ? 'Refunded' : 'Voided',
-		}
+		return { ...toCheckoutShopPayment(data, data.id), paid: false }
 	}
 
 	const paid =

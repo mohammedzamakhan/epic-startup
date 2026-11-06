@@ -374,4 +374,64 @@ describe('website tenant database lifecycle', () => {
 		expect(deprovisionTenantDatabase).not.toHaveBeenCalled()
 		expect(provisionTenantDatabase).not.toHaveBeenCalled()
 	})
+
+	it('lets only one of two retries of an unfinished switch wipe and provision', async () => {
+		const { organization, submit } = await setup(false)
+		// tenant-api, as a set of the regions that hold this organization's database.
+		const databases = new Set<string>(['us'])
+		vi.mocked(deprovisionTenantDatabase).mockImplementation(
+			async ({ dataRegion }) => {
+				databases.delete(dataRegion ?? 'us')
+				return { region: dataRegion as 'us' }
+			},
+		)
+		vi.mocked(provisionTenantDatabase).mockImplementation(
+			async ({ dataRegion }) => {
+				databases.add(dataRegion ?? 'us')
+				return { region: dataRegion as 'ksa' }
+			},
+		)
+		const retry = () =>
+			submit({ intent: 'update-site-data-region', dataRegion: 'ksa' })
+
+		// Both requests read the organization with the flag cleared. The second
+		// runs to completion just before the first one's first write.
+		let second: Response | undefined
+		const update = databaseMocks.update.getMockImplementation()!
+		databaseMocks.update.mockImplementationOnce((table) => {
+			const pending = retry().then((response) => {
+				second = response
+			})
+			return {
+				set: (values: Record<string, unknown>) => ({
+					where: (condition: unknown) => ({
+						returning: async (fields: unknown) => {
+							await pending
+							return update(table)
+								.set(values)
+								.where(condition)
+								.returning(fields)
+						},
+						then: async (resolve: (value: unknown) => void) => {
+							await pending
+							resolve(await update(table).set(values).where(condition))
+						},
+					}),
+				}),
+			}
+		})
+
+		const first = await retry()
+
+		expect(second?.status).toBe(302)
+		expect(first.status).toBe(409)
+		expect(deprovisionTenantDatabase).toHaveBeenCalledOnce()
+		expect(provisionTenantDatabase).toHaveBeenCalledOnce()
+		expect([...databases]).toEqual(['ksa'])
+		expect(
+			await db.query.Organization.findFirst({
+				where: eq(Organization.id, organization.id),
+			}),
+		).toMatchObject({ dataRegion: 'ksa', hasProvisionedDb: true })
+	})
 })

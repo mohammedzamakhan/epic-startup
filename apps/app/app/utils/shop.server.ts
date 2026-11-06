@@ -923,9 +923,16 @@ export async function recordShopOrderFromCheckoutWebhook(
 		commerce.verifyCheckoutWebhook(payload, signature),
 	)
 	if (!event) return null
-	if (event.type === 'adjustment' && event.order.processorPaymentId) {
-		// A refund event does not say whether the payment is now refunded in
-		// full: read the payment as it is now.
+	if (event.type === 'adjustment') {
+		// A refund or void event does not say what the payment is now (a
+		// partial refund sends `payment_refunded` too): read the payment as it
+		// is now, and record nothing without its id.
+		if (!event.order.processorPaymentId) {
+			console.warn(
+				'Ignored Checkout.com adjustment webhook: the event has no payment id',
+			)
+			return null
+		}
 		const current = await commerce.getOrderStatus({
 			processor: 'checkout',
 			organizationId: event.order.orgId,

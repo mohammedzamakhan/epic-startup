@@ -1,6 +1,8 @@
+import { createHmac } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { db, eq, Organization } from '@repo/database'
+import { MOCK_CHECKOUT_WEBHOOK_SECRET } from '@repo/payments/mock'
 import {
 	customers,
 	getTenantDb,
@@ -25,6 +27,7 @@ import {
 	handleConnectAccountUpdated,
 	listOrganizationShopOrders,
 	recordShopOrder,
+	recordShopOrderFromCheckoutWebhook,
 } from '#app/utils/shop.server.ts'
 import { consoleError } from '#tests/setup/setup-test-env.ts'
 import { getPaymentsEmulator } from './emulator.server.ts'
@@ -299,6 +302,90 @@ describe('shop orders on the payment mock', () => {
 		expect((await listOrganizationShopOrders(org.id))[0]?.status).toBe(
 			'refunded',
 		)
+	})
+
+	function signedCheckoutEvent(type: string, data: unknown) {
+		const payload = JSON.stringify({ type, data })
+		const signature = createHmac('sha256', MOCK_CHECKOUT_WEBHOOK_SECRET)
+			.update(payload)
+			.digest('hex')
+		return recordShopOrderFromCheckoutWebhook(payload, signature)
+	}
+
+	it('a late Checkout.com payment_approved never undoes a refund', async () => {
+		const org = await createOrg('mock-cko-stale', 'us')
+		await mockOnboardOrganization({ orgSlug: org.slug, provider: 'checkout' })
+		const { session } = await createPublicShopCheckoutSession({
+			request: request(),
+			slug: org.slug,
+		})
+		const emulator = getPaymentsEmulator()
+		const { paymentId } = (await emulator.testing.completeHostedPayment(
+			session.id,
+		)) as { paymentId: string }
+		const checkout = (
+			getShopCommerce() as unknown as {
+				getCheckoutShop(): {
+					payments: {
+						get(id: string): Promise<Record<string, unknown>>
+						refund(id: string, body: object): Promise<unknown>
+					}
+				}
+			}
+		).getCheckoutShop()
+		// The payment as it looked when it was approved.
+		const approved = await checkout.payments.get(paymentId)
+		await checkout.payments.refund(paymentId, {})
+		await emulator.testing.advanceClock(5)
+		expect((await listOrganizationShopOrders(org.id))[0]?.status).toBe(
+			'refunded',
+		)
+
+		await signedCheckoutEvent('payment_approved', approved)
+		await signedCheckoutEvent('payment_captured', approved)
+		expect((await listOrganizationShopOrders(org.id))[0]?.status).toBe(
+			'refunded',
+		)
+	})
+
+	it('records nothing for a Checkout.com adjustment without a payment id', async () => {
+		const org = await createOrg('mock-cko-noid', 'us')
+		const commerce = getShopCommerce()
+		vi.spyOn(commerce, 'verifyCheckoutWebhook').mockReturnValue({
+			type: 'payment_refunded',
+			data: {},
+		})
+		const getOrderStatus = vi.spyOn(commerce, 'getOrderStatus')
+		vi.spyOn(commerce, 'parseCheckoutWebhookEvent').mockReturnValue({
+			type: 'adjustment',
+			order: {
+				orgId: org.id,
+				customerIdFromMetadata: null,
+				productName: 'Starter pack',
+				amountCents: 2500,
+				platformFeeCents: 0,
+				orgPayoutCents: 2500,
+				currency: 'usd',
+				processor: 'checkout',
+				processorCheckoutId: 'ps_noid',
+				processorPaymentId: null,
+				processorOrderId: null,
+				status: 'refunded',
+			},
+		} as never)
+		const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+		try {
+			expect(
+				await recordShopOrderFromCheckoutWebhook('{}', 'signature'),
+			).toBeNull()
+			expect(getOrderStatus).not.toHaveBeenCalled()
+			expect(await listOrganizationShopOrders(org.id)).toHaveLength(0)
+			expect(consoleWarn).toHaveBeenCalledWith(
+				expect.stringContaining('no payment id'),
+			)
+		} finally {
+			vi.restoreAllMocks()
+		}
 	})
 
 	it('joins a polled order to the webhook that brings its other id', async () => {
