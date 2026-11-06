@@ -111,20 +111,67 @@ describe('resolveOrgId for consent, subscription and public form routes', () => 
 		).toBe(ORG)
 	})
 
-	it('does not parse a public body that is missing its length or too large', async () => {
-		resolveOrganizationForBrowserAuth.mockResolvedValue({ id: ORG })
-		const big = JSON.stringify({ slug: 'acme', pad: 'x'.repeat(20_000) })
+	it('routes a large form submission the route itself would accept', async () => {
+		resolveOrganizationForBrowserAuth.mockImplementation(
+			async (_o, identity) => (identity.slug === 'acme' ? { id: ORG } : null),
+		)
+		const answers = JSON.stringify({
+			slug: 'acme',
+			message: 'x'.repeat(200_000),
+		})
 		const request = new Request(`${base}/forms/f1/submissions`, {
 			method: 'POST',
 			headers: {
 				Origin: 'https://acme.example',
 				'Content-Type': 'application/json',
-				'Content-Length': String(big.length),
 			},
-			body: big,
+			body: answers,
 		})
+		expect(await resolveOrgId(request, env)).toBe(ORG)
+	})
+
+	it('uses the query identity without reading the body', async () => {
+		resolveOrganizationForBrowserAuth.mockImplementation(
+			async (_o, identity) => (identity.slug === 'acme' ? { id: ORG } : null),
+		)
+		const request = new Request(`${base}/forms/f1/submissions?slug=acme`, {
+			method: 'POST',
+			headers: { Origin: 'https://acme.example' },
+			body: 'not json',
+		})
+		expect(await resolveOrgId(request, env)).toBe(ORG)
+	})
+
+	it('stops reading a streamed body over the limit (length is not trusted)', async () => {
+		resolveOrganizationForBrowserAuth.mockImplementation(
+			async (_o, identity) => (identity.slug === 'acme' ? { id: ORG } : null),
+		)
+		let pulled = 0
+		// Starts like a valid body naming the org, then never ends.
+		let first = true
+		const chunk = new TextEncoder().encode('x'.repeat(64 * 1024))
+		const opening = new TextEncoder().encode('{"slug":"acme","pad":"')
+		const stream = new ReadableStream<Uint8Array>({
+			pull(controller) {
+				const next = first ? opening : chunk
+				first = false
+				pulled += next.byteLength
+				controller.enqueue(next)
+				if (pulled > 4 * 1024 * 1024) controller.close()
+			},
+		})
+		const request = new Request(`${base}/forms/f1/submissions`, {
+			method: 'POST',
+			headers: {
+				Origin: 'https://acme.example',
+				'Content-Type': 'application/json',
+			},
+			body: stream,
+			duplex: 'half',
+		} as RequestInit)
+		// The slug in the body is never parsed: reading stopped at the limit.
 		expect(await resolveOrgId(request, env)).toBeNull()
-		expect(resolveOrganizationForBrowserAuth).not.toHaveBeenCalled()
+		expect(pulled).toBeLessThan(2 * 1024 * 1024)
 	})
 
 	it('routes nowhere for a malformed token, and ignores a body orgId', async () => {

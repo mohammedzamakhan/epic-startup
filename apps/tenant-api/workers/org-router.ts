@@ -129,12 +129,49 @@ async function orgIdFromKioskRequest(
 	return parseKioskDeviceSecret(secret)?.orgId ?? null
 }
 
-/** Public bodies parsed at the edge, before any verification, stay small. */
-const MAX_EDGE_BODY_BYTES = 16 * 1024
+/**
+ * Public bodies read at the edge, before any verification. The same ceiling
+ * as the public routes' own body limit (app.ts), so a request the route would
+ * accept is never refused here; consent-token forms are tiny.
+ */
+const MAX_PUBLIC_BODY_BYTES = 1024 * 1024
+const MAX_TOKEN_FORM_BYTES = 16 * 1024
 
-function hasSmallBody(request: Request) {
-	const length = Number(request.headers.get('content-length'))
-	return Number.isFinite(length) && length > 0 && length <= MAX_EDGE_BODY_BYTES
+/**
+ * Reads a clone of the body as text, counting bytes as they arrive: a
+ * spoofed small Content-Length cannot make the edge buffer more than `max`.
+ * Null when the body is missing or over the limit.
+ */
+async function readBoundedText(
+	request: Request,
+	max: number,
+): Promise<string | null> {
+	const declared = Number(request.headers.get('content-length'))
+	if (Number.isFinite(declared) && declared > max) return null
+	const body = request.clone().body
+	if (!body) return null
+	const reader = body.getReader()
+	const chunks: Uint8Array[] = []
+	let total = 0
+	for (;;) {
+		const { done, value } = await reader.read()
+		if (done) break
+		total += value.byteLength
+		if (total > max) {
+			// Not awaited: cancelling one branch of a cloned (tee'd) body only
+			// settles once the other branch is cancelled too.
+			void reader.cancel().catch(() => {})
+			return null
+		}
+		chunks.push(value)
+	}
+	const bytes = new Uint8Array(total)
+	let offset = 0
+	for (const chunk of chunks) {
+		bytes.set(chunk, offset)
+		offset += chunk.byteLength
+	}
+	return new TextDecoder().decode(bytes)
 }
 
 /**
@@ -150,13 +187,9 @@ async function orgIdFromConsentToken(
 	kind: ConsentTokenKind,
 ): Promise<string | null> {
 	let token = url.searchParams.get('token')
-	if (!token && request.method === 'POST' && hasSmallBody(request)) {
-		const form = await request
-			.clone()
-			.formData()
-			.catch(() => null)
-		const value = form?.get('token')
-		token = typeof value === 'string' ? value : null
+	if (!token && request.method === 'POST') {
+		const text = await readBoundedText(request, MAX_TOKEN_FORM_BYTES)
+		token = text ? new URLSearchParams(text).get('token') : null
 	}
 	if (!token) return null
 	const payload = verifyConsentToken(token, kind, 0)
@@ -176,12 +209,16 @@ async function orgIdFromPublicForm(
 		slug: url.searchParams.get('slug') ?? undefined,
 		host: url.searchParams.get('host') ?? undefined,
 	}
-	if (request.method === 'POST') {
-		if (!hasSmallBody(request)) return null
-		const body = await request
-			.clone()
-			.json()
-			.catch(() => null)
+	// The submission POST carries slug and host in its JSON body; a query
+	// identity, when present, is enough and the body is not read.
+	if (request.method === 'POST' && !identity.slug && !identity.host) {
+		const text = await readBoundedText(request, MAX_PUBLIC_BODY_BYTES)
+		let body: unknown = null
+		try {
+			body = text ? JSON.parse(text) : null
+		} catch {
+			body = null
+		}
 		if (body && typeof body === 'object') {
 			const { slug, host } = body as { slug?: unknown; host?: unknown }
 			identity = {
