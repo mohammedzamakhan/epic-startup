@@ -66,8 +66,9 @@ export async function checkOperatorTurnstile(
 const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com'
 
 /**
- * CSP sources for the challenge (`frame-src`, plus a `script-src` fallback for
- * browsers without `'strict-dynamic'`). Empty while Turnstile is off.
+ * CSP sources for the challenge (`frame-src`, `connect-src`, plus a
+ * `script-src` fallback for browsers without `'strict-dynamic'`). Empty while
+ * Turnstile is off.
  */
 export function turnstileCspSources(): string[] {
 	return getOperatorTurnstileSiteKey() ? [TURNSTILE_ORIGIN] : []

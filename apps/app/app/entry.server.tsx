@@ -128,6 +128,8 @@ export function applyContentSecurity(
 						"'self'",
 						...tenantApiConnectSrc(ENV),
 						...liveKitConnectSrc(ENV.LIVEKIT_URL),
+						// The Turnstile widget talks to its origin from the page too.
+						...turnstileCspSources(),
 					],
 					'font-src': ["'self'"],
 					'frame-src': [
