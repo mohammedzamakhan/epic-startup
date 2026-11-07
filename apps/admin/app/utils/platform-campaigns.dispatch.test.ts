@@ -151,7 +151,9 @@ describe('platform campaign dispatch', () => {
 			if (to === hung) await new Promise(() => {})
 		}
 
-		await dispatchPlatformCampaign(campaign.id, { sendTimeoutMs: 100 })
+		// Only the hung send may time out: leave normal sends (and a slow CI
+		// runner's database writes) plenty of room.
+		await dispatchPlatformCampaign(campaign.id, { sendTimeoutMs: 1_500 })
 
 		expect((await campaignRow(campaign.id)).status).toBe('Completed')
 		const detail = await getPlatformCampaign(campaign.id)
