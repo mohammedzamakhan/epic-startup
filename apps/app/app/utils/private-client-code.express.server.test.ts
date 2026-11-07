@@ -71,9 +71,11 @@ beforeAll(async () => {
 	port = (server.address() as AddressInfo).port
 })
 
-// Real requests to this test server, not something MSW should answer.
+// Every request in this file goes to the test server, not to anything MSW
+// should answer. Match all URLs: MSW reads the raw path //assets/... as a
+// protocol-relative URL (host "assets"), so an origin pattern would miss it.
 beforeEach(() => {
-	mswServer.use(mswHttp.all(`http://127.0.0.1:${port}/*`, () => passthrough()))
+	mswServer.use(mswHttp.all('*', () => passthrough()))
 })
 
 afterAll(async () => {

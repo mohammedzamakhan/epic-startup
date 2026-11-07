@@ -33,6 +33,10 @@ export const PUBLIC_ROUTE_PATTERNS: readonly string[] = [
 	// both work without an operator login.
 	'kiosk',
 	'my-schedule.tsx',
+	// Payment mock pages stand in for Stripe and Checkout.com hosted pages,
+	// which a buyer opens without an App session. Dev and E2E only: the
+	// Cloudflare build strips the folder (`STRIP_DEV_MOCKS` in app/routes.ts).
+	'mock-payments+/',
 	// Mobile sign-in API and health checks.
 	'api+/auth.',
 	'api+/health',
