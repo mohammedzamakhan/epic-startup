@@ -33,6 +33,12 @@ import { capturePostHogServerException } from './utils/posthog.server.ts'
 
 export const streamTimeout = 5000
 
+/**
+ * For the Node server (`server/index.ts`), which gates `/assets/app/*` and
+ * `/__manifest` like the Worker but cannot load `@repo/auth` from source.
+ */
+export { hasActiveSession }
+
 const MODE = ENV.NODE_ENV ?? 'development'
 
 function createNonce() {

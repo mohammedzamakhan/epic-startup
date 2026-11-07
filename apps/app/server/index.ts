@@ -319,8 +319,10 @@ if (IS_DEV) {
 	// See docs/security.md#private-client-code.
 	const { filterRouteDiscovery, ROUTE_DISCOVERY_PATH, serveGatedAsset } =
 		await import('../app/utils/private-client-code.server.ts')
-	const { hasActiveSession } =
-		await import('../app/utils/session-gate.server.ts')
+	// From the server build: `@repo/auth` cannot be loaded from source here.
+	const { hasActiveSession } = build.entry.module as {
+		hasActiveSession: (request: Request) => Promise<boolean>
+	}
 	const toFetchRequest = (req: express.Request) => {
 		const headers = new Headers()
 		for (const [name, value] of Object.entries(req.headers)) {
