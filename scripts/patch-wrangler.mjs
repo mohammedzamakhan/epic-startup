@@ -466,28 +466,33 @@ function writeJsonc(path, value) {
 function setPath(target, path, value) {
 	const parts = path.split('.')
 	let node = target
-	for (let i = 0; i < parts.length - 1; i++) {
-		const key = parts[i]
-		const match = key.match(/^(.+)\[(\d+)\]$/)
+	for (let i = 0; i < parts.length; i++) {
+		const part = parts[i]
+		const match = part.match(/^(.+)\[(\d+)\]$/)
+		const key = match ? match[1] : part
+		// Paths are written in this file, but never let one reach a prototype.
+		if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+			throw new Error(`Refusing to set unsafe config path: ${path}`)
+		}
+		const isLast = i === parts.length - 1
 		if (match) {
-			const [, arrayKey, index] = match
-			if (!Array.isArray(node[arrayKey])) node[arrayKey] = []
-			if (!node[arrayKey][Number(index)]) node[arrayKey][Number(index)] = {}
-			node = node[arrayKey][Number(index)]
+			const index = Number(match[2])
+			if (!Array.isArray(node[key])) node[key] = []
+			if (isLast) {
+				node[key][index] = value
+				return
+			}
+			if (!node[key][index]) node[key][index] = {}
+			node = node[key][index]
 			continue
+		}
+		if (isLast) {
+			node[key] = value
+			return
 		}
 		if (!node[key] || typeof node[key] !== 'object') node[key] = {}
 		node = /** @type {Record<string, unknown>} */ (node[key])
 	}
-	const last = parts[parts.length - 1]
-	const lastMatch = last.match(/^(.+)\[(\d+)\]$/)
-	if (lastMatch) {
-		const [, arrayKey, index] = lastMatch
-		if (!Array.isArray(node[arrayKey])) node[arrayKey] = []
-		node[arrayKey][Number(index)] = value
-		return
-	}
-	node[last] = value
 }
 
 function ensureEnvSection(config, deployEnv) {
@@ -658,6 +663,22 @@ function applyTargetPatches(
 				)
 			}
 		}
+
+		if (appKey === 'admin') {
+			// Admin asks the App to run GDPR erasures and print-shop commands. A
+			// Worker's fetch to the App's public URL on the same zone hangs, so
+			// Admin uses a service binding. Without APP_WORKER_NAME it falls back
+			// to APP_URL.
+			const appWorkerName = readEnv(
+				`APP_WORKER_NAME${suffix}`,
+				launchConfig,
+				`bindings.${bindingEnv}.app.worker_name`,
+			)
+			if (appWorkerName) {
+				target.services = [{ binding: 'APP', service: appWorkerName }]
+				patches.push(`services.APP [${targetEnv}] ← ${appWorkerName}`)
+			}
+		}
 	}
 
 	if (appKey === 'jobs-cron') {
@@ -752,6 +773,12 @@ function patchJsoncApp(appKey, deployEnv, launchConfig, requireBindings) {
 		const viteConfig = JSON.parse(
 			readFileSync(viteBuiltWranglerPath(appKey), 'utf8'),
 		)
+		const source = parseJsonc(sourcePath)
+		// Cron Triggers (Admin's platform campaign resume) come from the source
+		// config; keep them even if the build output dropped them.
+		if (source.triggers && !viteConfig.triggers) {
+			viteConfig.triggers = structuredClone(source.triggers)
+		}
 
 		// Patch production on top-level
 		applyTargetPatches(
@@ -764,7 +791,6 @@ function patchJsoncApp(appKey, deployEnv, launchConfig, requireBindings) {
 		)
 
 		// Patch staging on env.staging
-		const source = parseJsonc(sourcePath)
 		if (source.env?.staging) {
 			viteConfig.env = { staging: structuredClone(source.env.staging) }
 		} else {

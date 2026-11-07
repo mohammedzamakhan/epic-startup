@@ -5,6 +5,7 @@ import { Hono } from 'hono'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+	customers,
 	destroyTenantDb,
 	getTenantDb,
 	provisionTenantDb,
@@ -112,6 +113,33 @@ describe('send-code from the customer app (no Turnstile widget)', () => {
 		expect(res.status).toBe(429)
 		expect(sendSms).not.toHaveBeenCalled()
 	})
+
+	it('still sends to a returning customer when header traffic filled the organization hour', async () => {
+		const db = await getTenantDb(orgId)
+		await db
+			.insert(customers)
+			.values({
+				id: 'cust_returning',
+				name: 'Returning',
+				phone: '+15551230004',
+				phoneVerified: true,
+			})
+			.run()
+		for (let i = 0; i < NATIVE_SEND_LIMITS.perOrganizationPerHour; i++) {
+			await reserveSmsSend(db, {
+				kind: 'native',
+				phone: `+1555000${String(i).padStart(4, '0')}`,
+				ip: `198.51.100.${i % 250}`,
+			})
+		}
+		const known = await sendCode('+15551230004', { 'X-Epic-Customer-App': '1' })
+		expect(known.status).toBe(200)
+		const unknown = await sendCode('+15551230005', {
+			'X-Epic-Customer-App': '1',
+		})
+		expect(unknown.status).toBe(429)
+		expect(sendSms).toHaveBeenCalledTimes(1)
+	})
 })
 
 describe('native send limits', () => {
@@ -173,6 +201,47 @@ describe('native send limits', () => {
 				(await native(`+1555008${String(i).padStart(4, '0')}`, null)).ok,
 			).toBe(true)
 		}
+	})
+
+	it('counts an IPv6 client by its /64, so rotating the host part buys nothing', async () => {
+		for (let i = 0; i < NATIVE_SEND_LIMITS.perIpPerHour; i++) {
+			expect(
+				(
+					await native(
+						`+1555007${String(i).padStart(4, '0')}`,
+						`2001:db8:1:2::${(i + 1).toString(16)}`,
+					)
+				).ok,
+			).toBe(true)
+		}
+		expect((await native('+15550005555', '2001:db8:1:2:ffff::1')).ok).toBe(
+			false,
+		)
+		// Another /64 is another bucket.
+		expect((await native('+15550005556', '2001:db8:1:3::1')).ok).toBe(true)
+	})
+
+	it('exempts a known customer from the organization ceiling, not from the phone one', async () => {
+		const db = await getTenantDb(orgId)
+		for (let i = 0; i < NATIVE_SEND_LIMITS.perOrganizationPerHour; i++) {
+			await reserveSmsSend(db, {
+				kind: 'native',
+				phone: `+1555006${String(i).padStart(4, '0')}`,
+				ip: `198.51.100.${i % 250}`,
+			})
+		}
+		expect((await native('+15550007777', '203.0.113.50')).ok).toBe(false)
+		const known = () =>
+			reserveSmsSend(db, {
+				kind: 'native',
+				phone: '+15550008888',
+				ip: '203.0.113.51',
+				knownCustomer: true,
+			})
+		for (let i = 0; i < NATIVE_SEND_LIMITS.perPhonePerHour; i++) {
+			expect((await known()).ok).toBe(true)
+		}
+		expect((await known()).ok).toBe(false)
 	})
 
 	it('holds the ceiling under a parallel burst', async () => {

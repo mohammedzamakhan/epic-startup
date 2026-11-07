@@ -303,6 +303,47 @@ describe('subscription webhooks delivered late or out of order', () => {
 		})
 	})
 
+	it('keeps the newer subscription when an event for the older one arrives while both are live', async () => {
+		const organization = await setupOrg('cus_order')
+		stripeState.subscriptions.set('sub_A', {
+			status: 'active',
+			customerId: 'cus_order',
+			productId: 'prod_pro',
+			created: 1,
+		})
+		await handleSubscriptionChange(
+			event('sub_A', 'active', 'cus_order', 'prod_pro'),
+		)
+		stripeState.subscriptions.set('sub_B', {
+			status: 'active',
+			customerId: 'cus_order',
+			productId: 'prod_team',
+			created: 2,
+		})
+		// B's handler records B, then fails to cancel A: both stay live until
+		// Stripe retries B's event.
+		stripeState.failCancel.add('sub_A')
+		await expect(
+			handleSubscriptionChange(
+				event('sub_B', 'active', 'cus_order', 'prod_team'),
+			),
+		).rejects.toThrow()
+		stripeState.failCancel.clear()
+
+		// Meanwhile an event for A (a retry, or one delivered in parallel).
+		await handleSubscriptionChange(
+			event('sub_A', 'active', 'cus_order', 'prod_pro'),
+		)
+
+		expect(stripeState.cancelled).not.toContain('sub_B')
+		expect(billable('cus_order')).toEqual(['sub_B'])
+		expect(await orgBilling(organization.id)).toMatchObject({
+			stripeSubscriptionId: 'sub_B',
+			subscriptionStatus: 'active',
+			planName: 'Team',
+		})
+	})
+
 	it('keeps one subscription when two "created" events are handled at once', async () => {
 		const organization = await setupOrg('cus_race')
 		stripeState.subscriptions.set('sub_old', {

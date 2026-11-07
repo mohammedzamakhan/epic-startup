@@ -36,6 +36,12 @@ const OPERATOR_LIST_LIMIT = 100
  * accepted only by routes that pass that same area, so the weakest page's
  * permission cannot unlock another area's routes. Tokens without an `area` are
  * the server-side ones App signs per request and never hands to a browser.
+ *
+ * This is the only verifier for `tenant-api-operator` tokens: every
+ * `/operator/*` route except the staffing ones (their own audience, see
+ * `lib/staff-auth.ts`) must authenticate here, so a token bound to an area or
+ * a scope is refused by default on any route that does not name it
+ * (`operator.area-binding.test.ts` walks every route).
  */
 export type OperatorArea = 'marketing' | 'customers'
 

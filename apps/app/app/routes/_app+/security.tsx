@@ -40,7 +40,7 @@ import {
 	getActiveErasureRequest,
 	getLatestExportRequest,
 } from '#app/utils/gdpr.server.ts'
-import { refuseCredentialChangeWhileImpersonating } from '#app/utils/impersonation-guard.server.ts'
+import { refuseWhileImpersonating } from '#app/utils/impersonation-guard.server.ts'
 import { checkSSOEnforcementByUserId } from '#app/utils/sso/enforcement.server.ts'
 import { parseUserAgent } from '#app/utils/user-agent.server.ts'
 import { getUserSecuritySelect } from '#app/utils/user-security.server.ts'
@@ -279,13 +279,28 @@ const CREDENTIAL_INTENTS = new Set<string>([
 	deletePasskeyActionIntent,
 ])
 
+/**
+ * Erasure requests outlive an impersonation grant (they end every session and
+ * schedule deletion) and are logged as the user's own request.
+ */
+const DATA_DELETION_INTENTS = new Set<string>([
+	requestDataDeletionActionIntent,
+	cancelDataDeletionActionIntent,
+])
+
 export async function action({ request }: ActionFunctionArgs) {
 	const userId = await requireUserId(request)
 	const formData = await request.formData()
 	const intent = formData.get('intent')
 
 	if (typeof intent === 'string' && CREDENTIAL_INTENTS.has(intent)) {
-		await refuseCredentialChangeWhileImpersonating(request)
+		await refuseWhileImpersonating(request)
+	}
+	if (typeof intent === 'string' && DATA_DELETION_INTENTS.has(intent)) {
+		await refuseWhileImpersonating(
+			request,
+			'Stop impersonating before requesting or cancelling account deletion',
+		)
 	}
 
 	switch (intent) {

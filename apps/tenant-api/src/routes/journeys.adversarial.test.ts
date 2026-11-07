@@ -632,7 +632,7 @@ describe('Adversarial Stress Testing: Journey Service, Step Execution, Auth & PI
 				})
 				expect(res.status).toBe(401)
 				const json = await res.json()
-				expect(json.error).toContain('Invalid or expired operator token')
+				expect(json.error).toBe('Unauthorized')
 			})
 
 			it('rejects expired operator JWT with 401', async () => {
@@ -662,14 +662,14 @@ describe('Adversarial Stress Testing: Journey Service, Step Execution, Auth & PI
 				expect(res.status).toBe(401)
 			})
 
-			it('rejects JWT with non-operator role (role: "admin" or "customer") with 403', async () => {
+			it('rejects JWT with non-operator role (role: "admin" or "customer") with 401', async () => {
 				const adminToken = await mintOperatorJwt(orgId, 'admin')
 				const res = await app.request('/operator/journeys', {
 					headers: { Authorization: `Bearer ${adminToken}` },
 				})
-				expect(res.status).toBe(403)
+				expect(res.status).toBe(401)
 				const json = await res.json()
-				expect(json.error).toContain('Invalid role')
+				expect(json.error).toBe('Unauthorized')
 			})
 		})
 	})

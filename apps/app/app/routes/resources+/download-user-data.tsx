@@ -5,11 +5,17 @@ import {
 	generateUserDataExport,
 	markExportRequestFailed,
 } from '#app/utils/gdpr.server.ts'
+import { refuseWhileImpersonating } from '#app/utils/impersonation-guard.server.ts'
 import { collectStaffExportsForUser } from '#app/utils/staffing/dsar.server.ts'
 import { type Route } from './+types/download-user-data.ts'
 
 export async function loader({ request }: Route.LoaderArgs) {
 	const userId = await requireUserId(request)
+	// The export is the user's full record, logged as their own request.
+	await refuseWhileImpersonating(
+		request,
+		"Stop impersonating before downloading the user's data",
+	)
 
 	const result = await createExportRequest(userId, request)
 

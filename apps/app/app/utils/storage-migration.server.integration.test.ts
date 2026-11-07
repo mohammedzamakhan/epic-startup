@@ -8,18 +8,79 @@ import {
 	OrganizationNoteUpload,
 	type OrganizationS3Config,
 	StorageMigration,
+	StorageMigrationItem,
 } from '@repo/database'
 import { encrypt, getSSOMasterKey } from '@repo/security'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createTestOrganization, createTestUser } from '#tests/test-utils.ts'
 import {
+	buildMigrationItemInsert,
 	collectOrgMediaObjects,
 	countOrgMediaObjectKeys,
+	createAndStartStorageMigration,
+	ITEM_INSERT_CHUNK,
 	processStorageMigrationBatch,
 	reportStorageMigrationProgress,
 	resolveStorageMigrationPlan,
+	STORAGE_MIGRATION_PROBE_DIR,
 } from './storage-migration.server.ts'
+
+function isProbeRequest(url: unknown) {
+	return String(url).includes(`/${STORAGE_MIGRATION_PROBE_DIR}/`)
+}
+
+/** Answers the same-bucket probe the way two separate buckets would. */
+function separateBucketsProbeResponse(url: unknown, method: string) {
+	if (!isProbeRequest(url)) return null
+	// The marker was written to the destination: the source cannot see it.
+	if (method === 'HEAD') return new Response(null, { status: 404 })
+	return new Response(null, { status: 200 })
+}
+
+/**
+ * One bucket reached through two different endpoint hostnames: objects are
+ * keyed by path only, so a write through either host is visible through both.
+ */
+function mockOneBucketBehindTwoHosts(initialKeys: string[]) {
+	const objects = new Set(initialKeys)
+	const deletedKeys: string[] = []
+	const spy = vi
+		.spyOn(globalThis, 'fetch')
+		.mockImplementation(async (url, init) => {
+			const method = init?.method ?? 'GET'
+			const path = decodeURIComponent(new URL(String(url)).pathname)
+			if (method === 'PUT') {
+				objects.add(path)
+				return new Response(null, { status: 200 })
+			}
+			if (method === 'DELETE') {
+				objects.delete(path)
+				deletedKeys.push(path)
+				return new Response(null, { status: 204 })
+			}
+			if (!objects.has(path)) return new Response(null, { status: 404 })
+			return new Response(method === 'HEAD' ? null : 'bytes', { status: 200 })
+		})
+	return { objects, deletedKeys, spy }
+}
+
+describe('migration item inserts', () => {
+	it('binds at most 100 parameters per statement, the D1 limit', () => {
+		const rows = Array.from({ length: ITEM_INSERT_CHUNK }, (_, i) => ({
+			objectKey: `orgs/org/media/${i}.png`,
+			contentType: 'image/png',
+		}))
+		const { params } = buildMigrationItemInsert('migration', rows).toSQL()
+
+		expect(ITEM_INSERT_CHUNK).toBeGreaterThan(1)
+		expect(params.length).toBeLessThanOrEqual(100)
+		// The chunk is as large as the limit allows: one more row would not fit.
+		expect(
+			(params.length / ITEM_INSERT_CHUNK) * (ITEM_INSERT_CHUNK + 1),
+		).toBeGreaterThan(100)
+	})
+})
 
 describe('countOrgMediaObjectKeys', () => {
 	it('counts distinct media keys without loading the object list', async () => {
@@ -273,6 +334,8 @@ describe('retried and overlapping migration steps', () => {
 		const migration = await setupMigration()
 		vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
 			const method = init?.method ?? 'GET'
+			const probe = separateBucketsProbeResponse(url, method)
+			if (probe) return probe
 			// Gone from the source, present at the destination.
 			if (method === 'GET') return new Response('missing', { status: 404 })
 			if (method === 'HEAD' && String(url).includes('new-media'))
@@ -315,6 +378,8 @@ describe('retried and overlapping migration steps', () => {
 		const putKeys: string[] = []
 		vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
 			const method = init?.method ?? 'GET'
+			const probe = separateBucketsProbeResponse(url, method)
+			if (probe) return probe
 			if (method === 'PUT') {
 				putKeys.push(new URL(String(url)).pathname.split('/media/')[1]!)
 			}
@@ -361,5 +426,158 @@ describe('retried and overlapping migration steps', () => {
 			.from(StorageMigration)
 			.where(eq(StorageMigration.id, migration.id))
 		expect(stored).toMatchObject({ cursor: 3, processedObjects: 3 })
+	})
+})
+
+describe('one bucket behind two endpoint hostnames', () => {
+	beforeEach(() => {
+		vi.stubEnv('SSO_ENCRYPTION_KEY', 'a'.repeat(64))
+	})
+	afterEach(() => {
+		vi.unstubAllEnvs()
+		vi.restoreAllMocks()
+	})
+
+	const GLOBAL_ENDPOINT = 'https://s3.amazonaws.com'
+	const REGIONAL_ENDPOINT = 'https://s3.us-east-1.amazonaws.com'
+
+	async function setupOrgWithMedia(count = 1) {
+		const user = await createTestUser()
+		const organization = await createTestOrganization(user.id, 'admin')
+		const keys: string[] = []
+		for (let i = 0; i < count; i++) {
+			const objectKey = `orgs/${organization.id}/media/only-copy-${String(i).padStart(2, '0')}.png`
+			keys.push(objectKey)
+			await db.insert(OrganizationMediaAsset).values({
+				organizationId: organization.id,
+				objectKey,
+				mimeType: 'image/png',
+				fileName: `only-copy-${i}.png`,
+				fileSize: 512,
+				source: 'library',
+				createdById: user.id,
+			})
+		}
+		return { organization, keys }
+	}
+
+	const snapshot = (endpoint: string, bucketName = 'org-media') => ({
+		endpoint,
+		bucketName,
+		accessKeyId: 'KEY',
+		secretAccessKey: 'secret',
+		region: 'us-east-1',
+	})
+
+	it('refuses to start a migration when the source can see what the destination wrote', async () => {
+		const { organization, keys } = await setupOrgWithMedia()
+		const bucket = mockOneBucketBehindTwoHosts(
+			keys.map((key) => `/org-media/${key}`),
+		)
+
+		await expect(
+			createAndStartStorageMigration({
+				organizationId: organization.id,
+				sourceType: 'custom',
+				source: snapshot(GLOBAL_ENDPOINT),
+				destType: 'custom',
+				dest: snapshot(REGIONAL_ENDPOINT),
+			}),
+		).rejects.toThrow('Source and destination are the same bucket')
+
+		const migrations = await db
+			.select()
+			.from(StorageMigration)
+			.where(eq(StorageMigration.organizationId, organization.id))
+		expect(migrations).toEqual([])
+		// The media is untouched and the marker is gone.
+		expect([...bucket.objects]).toEqual(keys.map((key) => `/org-media/${key}`))
+		expect(bucket.deletedKeys.every(isProbeRequest)).toBe(true)
+	})
+
+	it('starts a migration between separate buckets and lists every object', async () => {
+		// More objects than one item insert holds.
+		const { organization } = await setupOrgWithMedia(ITEM_INSERT_CHUNK + 1)
+		vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+			const probe = separateBucketsProbeResponse(url, init?.method ?? 'GET')
+			if (probe) return probe
+			if (String(url).endsWith('/workflows/storage-migration/start')) {
+				return Response.json({ instanceId: 'workflow-1' })
+			}
+			return new Response('unexpected', { status: 500 })
+		})
+
+		const migration = await createAndStartStorageMigration({
+			organizationId: organization.id,
+			sourceType: 'custom',
+			source: snapshot(GLOBAL_ENDPOINT, 'old-media'),
+			destType: 'custom',
+			dest: snapshot(GLOBAL_ENDPOINT, 'new-media'),
+		})
+
+		const [stored] = await db
+			.select()
+			.from(StorageMigration)
+			.where(eq(StorageMigration.id, migration.id))
+		expect(stored).toMatchObject({
+			status: 'running',
+			workflowInstanceId: 'workflow-1',
+		})
+		const items = await db
+			.select()
+			.from(StorageMigrationItem)
+			.where(eq(StorageMigrationItem.migrationId, migration.id))
+		expect(items).toHaveLength(ITEM_INSERT_CHUNK + 1)
+	})
+
+	it('fails a stored migration before its first batch deletes anything', async () => {
+		const { organization, keys } = await setupOrgWithMedia()
+		const side = (endpoint: string) => ({
+			Endpoint: endpoint,
+			BucketName: 'org-media',
+			AccessKeyId: 'KEY',
+			SecretAccessKey: encrypt('secret', getSSOMasterKey()),
+			Region: 'us-east-1',
+		})
+		const source = side(GLOBAL_ENDPOINT)
+		const dest = side(REGIONAL_ENDPOINT)
+		const [migration] = await db
+			.insert(StorageMigration)
+			.values({
+				organizationId: organization.id,
+				status: 'running',
+				sourceType: 'custom',
+				sourceEndpoint: source.Endpoint,
+				sourceBucketName: source.BucketName,
+				sourceAccessKeyId: source.AccessKeyId,
+				sourceSecretAccessKey: source.SecretAccessKey,
+				sourceRegion: source.Region,
+				destType: 'custom',
+				destEndpoint: dest.Endpoint,
+				destBucketName: dest.BucketName,
+				destAccessKeyId: dest.AccessKeyId,
+				destSecretAccessKey: dest.SecretAccessKey,
+				destRegion: dest.Region,
+				totalObjects: 1,
+			})
+			.returning()
+		const bucket = mockOneBucketBehindTwoHosts(
+			keys.map((key) => `/org-media/${key}`),
+		)
+
+		const result = await processStorageMigrationBatch(migration!.id)
+
+		expect(result.done).toBe(true)
+		expect([...bucket.objects]).toEqual(keys.map((key) => `/org-media/${key}`))
+		expect(bucket.deletedKeys.every(isProbeRequest)).toBe(true)
+		const [stored] = await db
+			.select()
+			.from(StorageMigration)
+			.where(eq(StorageMigration.id, migration!.id))
+		expect(stored).toMatchObject({
+			status: 'failed',
+			lastError: 'Source and destination are the same bucket',
+			processedObjects: 0,
+		})
 	})
 })

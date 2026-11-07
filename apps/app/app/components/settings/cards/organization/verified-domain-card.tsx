@@ -39,7 +39,10 @@ export default function VerifiedDomainCard({
 	}
 	actionData?: any
 }) {
-	const [isChecked, setIsChecked] = useState(!!organization.verifiedDomain)
+	// A pending claim keeps the card open so its DNS record stays visible.
+	const [isChecked, setIsChecked] = useState(
+		Boolean(organization.verifiedDomain || organization.domainClaim),
+	)
 	const saveFetcher = useFetcher()
 
 	const [form, fields] = useForm({
@@ -54,7 +57,8 @@ export default function VerifiedDomainCard({
 		// Hidden inputs belong in the defaults, or Conform reports the form dirty.
 		defaultValue: {
 			intent: 'verified-domain',
-			verifiedDomain: organization.verifiedDomain || '',
+			verifiedDomain:
+				organization.verifiedDomain || organization.domainClaim?.domain || '',
 			organizationId: organization.id,
 		},
 	})
@@ -70,10 +74,6 @@ export default function VerifiedDomainCard({
 	const claim: DomainClaim | null = organization.domainClaim ?? null
 	const verifiedDomain = organization.verifiedDomain
 	const claimDomain = claim?.domain
-	const needsReverification =
-		Boolean(organization.verifiedDomain) &&
-		!organization.verifiedDomainProvedAt &&
-		!claim
 
 	const handleSwitchChange = (checked: boolean) => {
 		setIsChecked(checked)
@@ -108,15 +108,6 @@ export default function VerifiedDomainCard({
 					<p className="flex items-center gap-1.5 text-sm">
 						<Icon name="check" className="size-4" />
 						<Trans>{verifiedDomain} is verified.</Trans>
-					</p>
-				) : null}
-				{needsReverification ? (
-					<p className="text-muted-foreground text-sm">
-						<Trans>
-							{verifiedDomain} was added before DNS proof was required. Save it
-							again below to get a DNS record, then check it to finish
-							verifying.
-						</Trans>
 					</p>
 				) : null}
 			</CardHeader>

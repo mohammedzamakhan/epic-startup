@@ -4,6 +4,7 @@ import {
 	and,
 	db,
 	eq,
+	isNotNull,
 	isNull,
 	ne,
 	Organization,
@@ -73,7 +74,7 @@ function escapeLike(value: string) {
 	return value.replace(/[\\%_]/g, (char) => `\\${char}`)
 }
 
-/** Whether another organization already holds the domain. */
+/** Whether another organization has proven the domain. */
 export async function isDomainClaimedElsewhere(
 	domain: string,
 	organizationId: string,
@@ -84,6 +85,7 @@ export async function isDomainClaimedElsewhere(
 		.where(
 			and(
 				eq(Organization.verifiedDomain, domain),
+				isNotNull(Organization.verifiedDomainProvedAt),
 				ne(Organization.id, organizationId),
 			),
 		)

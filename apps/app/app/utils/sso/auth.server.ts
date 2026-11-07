@@ -33,6 +33,7 @@ import {
 } from '@repo/sso'
 import { OAuth2Strategy, CodeChallengeMethod } from 'remix-auth-oauth2'
 import { ssoConfigurationService } from './configuration.server.ts'
+import { SSOProvisioningError } from './provisioning-error.ts'
 
 /** Issuer as stored on SSOIdentity: trimmed, without a trailing slash. */
 export function normalizeIssuer(issuerUrl: string) {
@@ -231,18 +232,20 @@ export class SSOAuthService {
 			userInfo.sub
 
 		if (!email) {
-			throw new Error(
+			throw new SSOProvisioningError(
 				'Email is required for user provisioning. Ensure the "email" scope is requested and the email attribute is mapped correctly.',
 			)
 		}
 
 		if (!baseUsername) {
-			throw new Error('Username is required for user provisioning')
+			throw new SSOProvisioningError(
+				'Username is required for user provisioning',
+			)
 		}
 
 		const subject = userInfo.sub ? String(userInfo.sub) : ''
 		if (!subject) {
-			throw new Error(
+			throw new SSOProvisioningError(
 				'The identity provider did not send a user identifier (sub claim).',
 			)
 		}
@@ -250,7 +253,7 @@ export class SSOAuthService {
 		// An IdP is trusted only for the domains its organization listed. With
 		// none listed it could create or sign in accounts for any address.
 		if (parseAllowedEmailDomains(config).length === 0) {
-			throw new Error(
+			throw new SSOProvisioningError(
 				'Single sign-on for this organization has no allowed email domains yet. Ask your administrator to add them.',
 			)
 		}
@@ -261,14 +264,16 @@ export class SSOAuthService {
 		const issuer = normalizeIssuer(config.issuerUrl)
 		const normalizedEmail = email.toLowerCase()
 
-		// 1. This IdP account signed in before: it is that user, whatever email
-		// the IdP sends now.
+		// 1. This IdP account signed in through this configuration before: it is
+		// that user, whatever email the IdP sends now. Links are per
+		// configuration, not per issuer: IdPs such as Entra ID send a different
+		// (pairwise) subject for each application.
 		const [identity] = await db
 			.select({ userId: SSOIdentityTable.userId })
 			.from(SSOIdentityTable)
 			.where(
 				and(
-					eq(SSOIdentityTable.issuer, issuer),
+					eq(SSOIdentityTable.ssoConfigId, config.id),
 					eq(SSOIdentityTable.subject, subject),
 				),
 			)
@@ -278,7 +283,7 @@ export class SSOAuthService {
 				!config.autoProvision &&
 				!(await this.isMember(identity.userId, config.organizationId))
 			) {
-				throw new Error(
+				throw new SSOProvisioningError(
 					'User exists but is not a member of this organization. Auto-provisioning is disabled.',
 				)
 			}
@@ -293,14 +298,15 @@ export class SSOAuthService {
 			.limit(1)
 
 		if (existingUser) {
-			// The account is already linked to a different account at this IdP:
-			// the same email from another IdP user must not take it over.
+			// The account is already linked to a different account at this IdP
+			// application: the same email from another IdP user must not take it
+			// over. A platform admin can reset the link (Admin, SSO users).
 			const [linked] = await db
 				.select({ id: SSOIdentityTable.id })
 				.from(SSOIdentityTable)
 				.where(
 					and(
-						eq(SSOIdentityTable.issuer, issuer),
+						eq(SSOIdentityTable.ssoConfigId, config.id),
 						eq(SSOIdentityTable.userId, existingUser.id),
 					),
 				)
@@ -309,7 +315,7 @@ export class SSOAuthService {
 				console.warn(
 					`SSO sign-in refused for ${config.providerName}: the account is linked to a different identity-provider user`,
 				)
-				throw new Error(
+				throw new SSOProvisioningError(
 					'This account is linked to a different identity provider account. Ask an administrator for help.',
 				)
 			}
@@ -321,7 +327,7 @@ export class SSOAuthService {
 
 			// If user exists but is not a member, only add them if autoProvision is enabled
 			if (!isMember && !config.autoProvision) {
-				throw new Error(
+				throw new SSOProvisioningError(
 					'User exists but is not a member of this organization. Auto-provisioning is disabled.',
 				)
 			}
@@ -335,17 +341,19 @@ export class SSOAuthService {
 				console.warn(
 					`SSO link refused for ${config.providerName}: the IdP did not send email_verified=true`,
 				)
-				throw new Error(
+				throw new SSOProvisioningError(
 					'This account already exists and cannot be linked by this organization. Ask an administrator to invite you.',
 				)
 			}
 
-			await this.linkIdentity(issuer, subject, existingUser.id)
+			await this.linkIdentity(config.id, issuer, subject, existingUser.id)
 			return this.updateUserFromSSO(existingUser.id, userInfo, config)
 		}
 
 		if (!config.autoProvision) {
-			throw new Error('User does not exist and auto-provisioning is disabled')
+			throw new SSOProvisioningError(
+				'User does not exist and auto-provisioning is disabled',
+			)
 		}
 
 		// Generate a unique username to avoid collisions
@@ -375,7 +383,7 @@ export class SSOAuthService {
 			.returning()
 		const insertLink = db
 			.insert(SSOIdentityTable)
-			.values({ issuer, subject, userId })
+			.values({ ssoConfigId: config.id, issuer, subject, userId })
 		let user: User | undefined
 		try {
 			const [users] = userRole
@@ -394,13 +402,13 @@ export class SSOAuthService {
 				.from(SSOIdentityTable)
 				.where(
 					and(
-						eq(SSOIdentityTable.issuer, issuer),
+						eq(SSOIdentityTable.ssoConfigId, config.id),
 						eq(SSOIdentityTable.subject, subject),
 					),
 				)
 				.limit(1)
 			if (linked) {
-				throw new Error(
+				throw new SSOProvisioningError(
 					'This account is linked to a different identity provider account. Ask an administrator for help.',
 				)
 			}
@@ -433,14 +441,19 @@ export class SSOAuthService {
 	}
 
 	/**
-	 * Binds (issuer, subject) to `userId`, or throws when either side is
+	 * Binds (configuration, subject) to `userId`, or throws when either side is
 	 * already bound elsewhere. Two first sign-ins can race: whichever insert
 	 * loses must not sign anyone in without a durable binding of its own.
 	 */
-	private async linkIdentity(issuer: string, subject: string, userId: string) {
+	private async linkIdentity(
+		ssoConfigId: string,
+		issuer: string,
+		subject: string,
+		userId: string,
+	) {
 		const inserted = await db
 			.insert(SSOIdentityTable)
-			.values({ issuer, subject, userId })
+			.values({ ssoConfigId, issuer, subject, userId })
 			.onConflictDoNothing()
 			.returning({ userId: SSOIdentityTable.userId })
 		if (inserted.length > 0) return
@@ -451,13 +464,13 @@ export class SSOAuthService {
 			.from(SSOIdentityTable)
 			.where(
 				and(
-					eq(SSOIdentityTable.issuer, issuer),
+					eq(SSOIdentityTable.ssoConfigId, ssoConfigId),
 					eq(SSOIdentityTable.subject, subject),
 				),
 			)
 			.limit(1)
 		if (existing?.userId === userId) return
-		throw new Error(
+		throw new SSOProvisioningError(
 			'This account is linked to a different identity provider account. Ask an administrator for help.',
 		)
 	}
@@ -511,7 +524,7 @@ export class SSOAuthService {
 		// Check if verified email is required
 		const requireVerifiedEmail = (config as any).requireVerifiedEmail ?? false
 		if (requireVerifiedEmail && userInfo.email_verified !== true) {
-			throw new Error(
+			throw new SSOProvisioningError(
 				'Email verification is required. The identity provider did not confirm this email as verified.',
 			)
 		}
@@ -522,7 +535,7 @@ export class SSOAuthService {
 		if (allowedEmailDomains) {
 			const emailDomain = email.split('@')[1]?.toLowerCase()
 			if (!emailDomain) {
-				throw new Error('Invalid email format: missing domain')
+				throw new SSOProvisioningError('Invalid email format: missing domain')
 			}
 
 			const allowedDomains = allowedEmailDomains
@@ -531,7 +544,7 @@ export class SSOAuthService {
 				.filter(Boolean)
 
 			if (allowedDomains.length > 0 && !allowedDomains.includes(emailDomain)) {
-				throw new Error(
+				throw new SSOProvisioningError(
 					`Email domain "${emailDomain}" is not allowed for this organization. Allowed domains: ${allowedDomains.join(', ')}`,
 				)
 			}

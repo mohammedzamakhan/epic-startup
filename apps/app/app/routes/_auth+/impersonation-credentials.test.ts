@@ -1,5 +1,11 @@
 import { getClientIp, hashIp, impersonationSessionStorage } from '@repo/auth'
-import { db, eq, ImpersonationSession, Password } from '@repo/database'
+import {
+	db,
+	eq,
+	DataSubjectRequest,
+	ImpersonationSession,
+	Password,
+} from '@repo/database'
 import { describe, expect, it, vi } from 'vitest'
 import {
 	createAuthenticatedRequest,
@@ -8,6 +14,7 @@ import {
 } from '#tests/test-utils.ts'
 import { action as profileAction } from '../_app+/profile.tsx'
 import { action as securityAction } from '../_app+/security.tsx'
+import { loader as downloadUserDataLoader } from '../resources+/download-user-data.tsx'
 import { action as passkeyRegistrationAction } from './webauthn+/registration.ts'
 
 // Impersonation is applied by host in production; make it apply here.
@@ -56,7 +63,7 @@ function form(cookie: string, url: string, fields: Record<string, string>) {
 	)
 }
 
-describe('an impersonating admin cannot leave credentials on the target', () => {
+describe('an impersonating admin cannot leave credentials on the target or act in their name', () => {
 	it('refuses set-password and the other credential intents', async () => {
 		const { target, cookie } = await impersonate()
 		const passwordOf = async () =>
@@ -112,6 +119,40 @@ describe('an impersonating admin cannot leave credentials on the target', () => 
 		expect(
 			await statusOf(() => passkeyRegistrationAction({ request } as never)),
 		).toBe(403)
+	})
+
+	it('refuses requesting or cancelling account deletion', async () => {
+		const { target, cookie } = await impersonate()
+		for (const intent of ['request-data-deletion', 'cancel-data-deletion']) {
+			const status = await statusOf(() =>
+				securityAction({
+					request: form(cookie, 'http://localhost:3000/security', { intent }),
+				} as never),
+			)
+			expect({ intent, status }).toEqual({ intent, status: 403 })
+		}
+		const requests = await db
+			.select({ id: DataSubjectRequest.id })
+			.from(DataSubjectRequest)
+			.where(eq(DataSubjectRequest.userId, target.id))
+		expect(requests).toEqual([])
+	})
+
+	it('refuses downloading the user data export', async () => {
+		const { target, cookie } = await impersonate()
+		const request = createAuthenticatedRequest(
+			'http://localhost:3000/resources/download-user-data',
+			{},
+			cookie,
+		)
+		expect(
+			await statusOf(() => downloadUserDataLoader({ request } as never)),
+		).toBe(403)
+		const requests = await db
+			.select({ id: DataSubjectRequest.id })
+			.from(DataSubjectRequest)
+			.where(eq(DataSubjectRequest.userId, target.id))
+		expect(requests).toEqual([])
 	})
 
 	it('does not block the same intents outside impersonation', async () => {

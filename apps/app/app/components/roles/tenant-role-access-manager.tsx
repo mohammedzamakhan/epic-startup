@@ -163,7 +163,7 @@ export function getPermissionGroups(): PermissionGroup[] {
 				{
 					id: 'org_perm_create_media_studio_any',
 					label: t`Use the AI photo studio`,
-					description: t`Create and enhance images with AI, which uses paid model credits.`,
+					description: t`Create and enhance images with AI, which uses paid model credits. Needs Manage media.`,
 				},
 			],
 		},

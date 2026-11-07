@@ -2,8 +2,12 @@ import {
 	db,
 	OrganizationMediaAsset,
 	OrganizationNoteUpload,
+	OrganizationRole,
+	_OrganizationPermissionToRole,
 } from '@repo/database'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type * as photoStudioModule from '#app/utils/media/photo-studio.server.ts'
+import { generatePhotoStudioImage } from '#app/utils/media/photo-studio.server.ts'
 import {
 	addOrganizationMember,
 	createAuthenticatedRequest,
@@ -13,6 +17,14 @@ import {
 	setupTestOrgWithUser,
 } from '#tests/test-utils.ts'
 import { action, loader } from './media.tsx'
+import { action as studioAction } from './media_.studio.tsx'
+
+// The model is the external boundary; the permission checks are real.
+vi.mock('#app/utils/media/photo-studio.server.ts', async (importOriginal) => ({
+	...(await importOriginal<typeof photoStudioModule>()),
+	isPhotoStudioConfigured: () => true,
+	generatePhotoStudioImage: vi.fn(),
+}))
 
 async function setup() {
 	const { user: admin, organization } = await setupTestOrgWithUser('admin')
@@ -45,6 +57,35 @@ async function as(organizationId: string, role: string) {
 	const user = await createTestUser()
 	await addOrganizationMember(user.id, organizationId, role)
 	return (await createTestSession(user.id)).cookie
+}
+
+/** An organization-scoped custom role with the given permission ids. */
+async function customRole(organizationId: string, permissionIds: string[]) {
+	const [role] = await db
+		.insert(OrganizationRole)
+		.values({
+			name: `Custom ${crypto.randomUUID().slice(0, 8)}`,
+			description: '',
+			level: 0,
+			organizationId,
+		})
+		.returning({ id: OrganizationRole.id })
+	await db
+		.insert(_OrganizationPermissionToRole)
+		.values(permissionIds.map((B) => ({ A: role!.id, B })))
+	return role!.id
+}
+
+async function loadMedia(slug: string, cookie: string) {
+	return loader({
+		request: createAuthenticatedRequest(
+			`http://localhost:3000/${slug}/media`,
+			{},
+			cookie,
+		),
+		params: { orgSlug: slug },
+		context: {},
+	} as never)
 }
 
 async function post(
@@ -126,6 +167,51 @@ describe('media library permissions', () => {
 				canManage: expected,
 			})
 		}
+	})
+
+	describe('AI photo studio', () => {
+		// The studio saves through /media, which needs update:media:any, so the
+		// studio permission alone would spend credits on images it cannot keep.
+		it('needs permission to manage media as well as to use the studio', async () => {
+			const { organization, asset } = await setup()
+			const studioOnly = await as(
+				organization.id,
+				await customRole(organization.id, ['org_perm_create_media_studio_any']),
+			)
+			expect(
+				(await loadMedia(organization.slug, studioOnly)).photoStudioEnabled,
+			).toBe(false)
+
+			const body = new FormData()
+			body.set('assetId', asset.id)
+			body.set('styleType', 'reference')
+			body.set('aspectRatio', '1:1')
+			const res = await studioAction({
+				request: createAuthenticatedRequest(
+					`http://localhost:3000/${organization.slug}/media/studio`,
+					{ method: 'POST', body },
+					studioOnly,
+				),
+				params: { orgSlug: organization.slug },
+				context: {},
+			} as never).catch((thrown: unknown) => thrown as Response)
+			expect((res as Response).status).toBe(403)
+			expect(generatePhotoStudioImage).not.toHaveBeenCalled()
+		})
+
+		it('is offered to a role with both permissions', async () => {
+			const { organization } = await setup()
+			const both = await as(
+				organization.id,
+				await customRole(organization.id, [
+					'org_perm_create_media_studio_any',
+					'org_perm_update_media_any',
+				]),
+			)
+			expect(
+				(await loadMedia(organization.slug, both)).photoStudioEnabled,
+			).toBe(true)
+		})
 	})
 
 	it('"where is this used" lists only notes the member can open', async () => {

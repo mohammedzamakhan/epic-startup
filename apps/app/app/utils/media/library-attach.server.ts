@@ -1,8 +1,9 @@
 import { createId } from '@paralleldrive/cuid2'
 import {
 	and,
-	type db,
+	db,
 	eq,
+	inArray,
 	sql,
 	NoteCommentImage,
 	OrganizationMediaAsset,
@@ -33,6 +34,35 @@ function assetStillMatches(input: {
 
 function value<T>(input: T, name: string) {
 	return sql`${input}`.as(name)
+}
+
+/**
+ * Whether every picked library item still exists with the object key the
+ * caller read, in one query. Check this before the first write of a save:
+ * D1 has no rollback, so a save that fails halfway stays half-written. The
+ * attach itself still guards against a delete that lands in between.
+ */
+export async function libraryAssetsStillMatch(
+	organizationId: string,
+	items: Array<{ assetId: string; objectKey: string }>,
+) {
+	if (items.length === 0) return true
+	const assets = await db
+		.select({
+			id: OrganizationMediaAsset.id,
+			objectKey: OrganizationMediaAsset.objectKey,
+		})
+		.from(OrganizationMediaAsset)
+		.where(
+			and(
+				eq(OrganizationMediaAsset.organizationId, organizationId),
+				inArray(OrganizationMediaAsset.id, [
+					...new Set(items.map((item) => item.assetId)),
+				]),
+			),
+		)
+	const objectKeys = new Map(assets.map((asset) => [asset.id, asset.objectKey]))
+	return items.every((item) => objectKeys.get(item.assetId) === item.objectKey)
 }
 
 /** Returns false when the library item was deleted or replaced meanwhile. */

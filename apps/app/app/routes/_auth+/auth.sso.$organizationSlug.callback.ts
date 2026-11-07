@@ -26,6 +26,7 @@ import {
 	handleOAuthError,
 } from '#app/utils/sso/error-handling.server.ts'
 import { consumeNonce } from '#app/utils/sso/nonce.server.ts'
+import { isSSOProvisioningError } from '#app/utils/sso/provisioning-error.ts'
 import { trackSuspiciousActivity } from '#app/utils/sso/rate-limit.server.ts'
 import { validateSSOOrganization } from '#app/utils/sso/sanitization.server.ts'
 import { type Route } from './+types/auth.sso.$organizationSlug.callback.ts'
@@ -185,6 +186,22 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 		if (!authResult.success) {
 			console.error('SSO authentication failed:', authResult.error)
 			trackSuspiciousActivity(activityKey, 'failed_auth')
+
+			// The IdP signed the user in but this organization's policy refused
+			// the account: say why (its message is written for the user), so a
+			// missing allowed domain or a stale link is not mistaken for an IdP
+			// outage.
+			if (isSSOProvisioningError(authResult.error)) {
+				return redirectWithToast(
+					'/login',
+					{
+						title: 'User Provisioning Failed',
+						description: authResult.error.message,
+						type: 'error',
+					},
+					{ headers: cleanupHeaders },
+				)
+			}
 
 			return redirectWithToast(
 				'/login',

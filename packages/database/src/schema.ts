@@ -1169,10 +1169,14 @@ export const OrganizationInvitation = sqliteTable(
 			.$defaultFn(() => createId())
 			.notNull(),
 		email: text().notNull(),
+		// Cascade so deleting an organization (which cascades to its custom
+		// roles) is not blocked by a pending invitation. Deleting a role that
+		// still has invitations is refused in code instead (App
+		// settings/roles, Admin roles).
 		organizationRoleId: text()
 			.notNull()
 			.references(() => OrganizationRole.id, {
-				onDelete: 'restrict',
+				onDelete: 'cascade',
 				onUpdate: 'cascade',
 			}),
 		token: text().notNull(),
@@ -1388,6 +1392,9 @@ export const RefreshToken = sqliteTable(
 		userAgent: text(),
 		ipAddress: text(),
 		revoked: integer({ mode: 'boolean' }).default(false).notNull(),
+		// Set when the token was rotated (not signed out): the id of its
+		// successor. No foreign key, so cleaning up either row is independent.
+		replacedById: text(),
 		expiresAt: integer({ mode: 'timestamp_ms' }).notNull(),
 		createdAt: integer({ mode: 'timestamp_ms' })
 			.$defaultFn(() => new Date())
@@ -1456,10 +1463,17 @@ export const SSOConfiguration = sqliteTable(
 )
 
 /**
- * Which identity-provider account (issuer + subject) signs in as which user.
- * Created on a user's first SSO sign-in; afterwards SSO matches on this pair,
- * not on the email the IdP sends, so an IdP cannot sign in as another person
- * by asserting their address.
+ * Which identity-provider account (subject) signs in as which user, per SSO
+ * configuration. Created on a user's first SSO sign-in; afterwards SSO matches
+ * on this pair, not on the email the IdP sends, so an IdP cannot sign in as
+ * another person by asserting their address.
+ *
+ * Scoped to the configuration, not the issuer: IdPs such as Entra ID issue a
+ * pairwise `sub` per application (client id), so two organizations on one
+ * tenant, or one organization that replaces its app registration, see
+ * different subjects for the same person. A trigger (migration 0028) deletes a
+ * configuration's links when its client id or issuer changes, and Admin can
+ * reset one user's link.
  */
 export const SSOIdentity = sqliteTable(
 	'SSOIdentity',
@@ -1468,6 +1482,12 @@ export const SSOIdentity = sqliteTable(
 			.primaryKey()
 			.$defaultFn(() => createId())
 			.notNull(),
+		ssoConfigId: text()
+			.notNull()
+			.references(() => SSOConfiguration.id, {
+				onDelete: 'cascade',
+				onUpdate: 'cascade',
+			}),
 		issuer: text().notNull(),
 		subject: text().notNull(),
 		userId: text()
@@ -1478,11 +1498,15 @@ export const SSOIdentity = sqliteTable(
 			.notNull(),
 	},
 	(table) => [
-		uniqueIndex('SSOIdentity_issuer_subject_key').on(
-			table.issuer,
+		uniqueIndex('SSOIdentity_ssoConfigId_subject_key').on(
+			table.ssoConfigId,
 			table.subject,
 		),
-		uniqueIndex('SSOIdentity_issuer_userId_key').on(table.issuer, table.userId),
+		uniqueIndex('SSOIdentity_ssoConfigId_userId_key').on(
+			table.ssoConfigId,
+			table.userId,
+		),
+		index('SSOIdentity_userId_idx').on(table.userId),
 	],
 )
 
@@ -1502,7 +1526,7 @@ export const SSOSession = sqliteTable(
 		ssoConfigId: text()
 			.notNull()
 			.references(() => SSOConfiguration.id, {
-				onDelete: 'restrict',
+				onDelete: 'cascade',
 				onUpdate: 'cascade',
 			}),
 		providerUserId: text().notNull(),
@@ -2467,8 +2491,10 @@ export const Organization = sqliteTable(
 		stripeSubscriptionId: text(),
 		subscriptionStatus: text(),
 		size: text(),
-		// Set only after a DNS TXT proof (see verified-domain.server.ts in App).
-		// Rows saved before that proof existed have verifiedDomainProvedAt null.
+		// Set only after a DNS TXT proof (see verified-domain.server.ts in App),
+		// together with verifiedDomainProvedAt. Readers also require
+		// verifiedDomainProvedAt: migration 0025 turned the unproven legacy
+		// values into pending claims.
 		verifiedDomain: text(),
 		verifiedDomainProvedAt: integer({ mode: 'timestamp_ms' }),
 		// A claim waiting for its TXT record: the domain and the expected value.

@@ -18,9 +18,12 @@ async function getFlag(
 		.select({ value: ConfigFlag.value })
 		.from(ConfigFlag)
 		.where(and(...conditions))
-		// Duplicate rows can exist (the unique index does not cover NULL
-		// organization or user ids), so pick the most recently changed one
-		// deterministically instead of whatever row SQLite returns first.
+		// The unique index (key, level, organization id, user id; a NULL id
+		// counts as empty, migration 0027) allows one row per scope, but this
+		// query does not filter every id column (a user flag matches any
+		// organization id), so it can still match several rows. Pick the most
+		// recently changed one deterministically instead of whatever row SQLite
+		// returns first.
 		.orderBy(desc(ConfigFlag.updatedAt), desc(ConfigFlag.id))
 		.limit(1)
 	if (!flag) return null

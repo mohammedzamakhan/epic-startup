@@ -1,4 +1,12 @@
-import { db, eq, Organization } from '@repo/database'
+import {
+	and,
+	ConfigFlag,
+	count,
+	db,
+	eq,
+	isNotNull,
+	Organization,
+} from '@repo/database'
 import type * as paymentsModule from '@repo/payments'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { insertTestMember, insertTestUser } from '#tests/dashboard-utils.ts'
@@ -45,7 +53,8 @@ vi.mock('@repo/payments', async (importOriginal) => {
 	}
 })
 
-const { reconcileSeatQuantities } = await import('./payments.server.ts')
+const { reconcileSeatQuantities, SEAT_RECONCILE_CURSOR_KEY } =
+	await import('./payments.server.ts')
 
 describe('daily seat reconcile', () => {
 	beforeEach(() => {
@@ -88,5 +97,61 @@ describe('daily seat reconcile', () => {
 			expect.stringContaining(broken.id),
 			expect.any(Error),
 		])
+	})
+	it('reaches every organization over successive runs when one run cannot check them all', async () => {
+		await db
+			.delete(ConfigFlag)
+			.where(eq(ConfigFlag.key, SEAT_RECONCILE_CURSOR_KEY))
+		// One member each, but Stripe bills five seats.
+		for (const id of ['sub_lap_1', 'sub_lap_2', 'sub_lap_3']) {
+			await subscribedOrg(id, 5)
+		}
+		const [subscribed] = await db
+			.select({ total: count() })
+			.from(Organization)
+			.where(isNotNull(Organization.stripeSubscriptionId))
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+		const runs = []
+		for (let i = 0; i < subscribed!.total; i++) {
+			runs.push(await reconcileSeatQuantities({ maxOrganizations: 1 }))
+		}
+		errorSpy.mockRestore()
+
+		// Each run checks one organization and the next one carries on.
+		for (const run of runs) {
+			expect(run.checked + run.failed).toBe(1)
+		}
+		for (const id of ['sub_lap_1', 'sub_lap_2', 'sub_lap_3']) {
+			expect(stripeState.subscriptions.get(id)?.quantity).toBe(1)
+		}
+		// The cursor rests on the last organization, so the next run wraps.
+		const [cursor] = await db
+			.select({ value: ConfigFlag.value })
+			.from(ConfigFlag)
+			.where(
+				and(
+					eq(ConfigFlag.key, SEAT_RECONCILE_CURSOR_KEY),
+					eq(ConfigFlag.level, 'system'),
+				),
+			)
+		expect(typeof cursor?.value).toBe('string')
+		const next = await reconcileSeatQuantities({ maxOrganizations: 1 })
+		expect(next.checked + next.failed).toBe(1)
+	})
+
+	it('stops at the time budget and leaves the cursor where it was', async () => {
+		await db
+			.delete(ConfigFlag)
+			.where(eq(ConfigFlag.key, SEAT_RECONCILE_CURSOR_KEY))
+		await subscribedOrg('sub_budget', 5)
+		let clock = 0
+		const result = await reconcileSeatQuantities({
+			timeBudgetMs: 1000,
+			now: () => (clock += 1000),
+		})
+
+		expect(result).toMatchObject({ checked: 0, failed: 0, lapComplete: false })
+		expect(stripeState.subscriptions.get('sub_budget')?.quantity).toBe(5)
 	})
 })

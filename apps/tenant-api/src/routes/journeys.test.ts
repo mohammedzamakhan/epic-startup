@@ -450,12 +450,12 @@ describe('Journey API Routes (System & Operator)', () => {
 				expect(res.status).toBe(401)
 			})
 
-			it('rejects non-operator tokens with 403', async () => {
+			it('rejects non-operator tokens with 401', async () => {
 				const customerToken = await mintOperatorJwt(orgId, 'customer')
 				const res = await app.request('/operator/journeys', {
 					headers: { Authorization: `Bearer ${customerToken}` },
 				})
-				expect(res.status).toBe(403)
+				expect(res.status).toBe(401)
 			})
 
 			it.each(['mailbox', 'phone_calls'])(
@@ -482,7 +482,7 @@ describe('Journey API Routes (System & Operator)', () => {
 							},
 							body: method === 'GET' || method === 'DELETE' ? undefined : '{}',
 						})
-						expect(res.status, `${method} ${path}`).toBe(403)
+						expect(res.status, `${method} ${path}`).toBe(401)
 					}
 				},
 			)

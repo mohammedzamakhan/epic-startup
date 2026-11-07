@@ -24,7 +24,9 @@ import {
 	BROADCAST_STALE_MS,
 	broadcastLease,
 	dispatchBroadcast,
+	nextBroadcastWakeAt,
 	runBroadcastTick,
+	startBroadcastTickForOrg,
 } from './broadcast-dispatch.ts'
 import {
 	emailConsentHash,
@@ -306,6 +308,59 @@ describe('broadcast dispatch', () => {
 
 		expect(emailedTo()).toEqual([customer!.email])
 		expect((await getCampaign(db, id))?.status).toBe('Completed')
+	})
+
+	it('the tick pass claims a due broadcast and sends it detached, without holding the tick', async () => {
+		const db = await getTenantDb(orgId)
+		const [customer] = await emailCustomers(db, 1)
+		const now = Date.now()
+		const id = await campaign(db, {
+			status: 'Scheduled',
+			scheduledAt: new Date(now - 60_000),
+		})
+		let releaseSend!: () => void
+		vi.mocked(sendTenantEmail).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					releaseSend = () => resolve({ status: 'success' } as never)
+				}),
+		)
+		const detached: Promise<unknown>[] = []
+
+		const result = await startBroadcastTickForOrg(orgId, {
+			now,
+			runDetached: (task) => detached.push(task),
+		})
+
+		// The pass returned while the send is still in flight.
+		expect(result?.claimed).toBe(1)
+		expect(detached).toHaveLength(1)
+		expect((await getCampaign(db, id))?.status).toBe('Processing')
+		await vi.waitFor(() => expect(emailedTo()).toEqual([customer!.email]))
+		releaseSend()
+		await Promise.all(detached)
+		expect((await getCampaign(db, id))?.status).toBe('Completed')
+		// A second pass right away finds nothing to claim.
+		expect(
+			(await startBroadcastTickForOrg(orgId, { now: now + 1000 }))?.claimed,
+		).toBe(0)
+	})
+
+	it('reports when the tick next has broadcast work', async () => {
+		const db = await getTenantDb(orgId)
+		const now = Date.now()
+		expect(await nextBroadcastWakeAt(db, now)).toBeNull()
+
+		const at = new Date(Math.floor((now + 3_600_000) / 1000) * 1000)
+		await campaign(db, { status: 'Scheduled', scheduledAt: at })
+		expect(await nextBroadcastWakeAt(db, now)).toBe(at.getTime())
+
+		// A send in progress is looked at again once its lease could go stale.
+		const lease = broadcastLease(now)
+		await campaign(db, { status: 'Processing', updatedAt: lease })
+		expect(await nextBroadcastWakeAt(db, now)).toBe(
+			lease.getTime() + BROADCAST_STALE_MS + 1000,
+		)
 	})
 
 	it('counts every recipient against the durable hourly cap', async () => {

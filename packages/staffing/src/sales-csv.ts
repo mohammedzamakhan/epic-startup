@@ -205,6 +205,17 @@ function asciiDigits(value: string): string {
 		.replace(/٬/g, ',')
 }
 
+/**
+ * Drops trailing characters other than digits, `.` and `,` (a currency mark
+ * after the amount). A loop rather than an unanchored `/[^\d.,]+$/`, which
+ * backtracks quadratically on a long run of such characters.
+ */
+function trimTrailingNonNumeric(value: string): string {
+	let end = value.length
+	while (end > 0 && !/[\d.,]/.test(value[end - 1]!)) end--
+	return value.slice(0, end)
+}
+
 export type AmountResult =
 	{ ok: true; minor: number } | { ok: false; code: SalesCsvErrorCode }
 
@@ -217,7 +228,7 @@ export function parseSalesAmount(raw: string): AmountResult {
 	let text = asciiDigits(raw)
 		.replace(/[\s  ]/g, '')
 		.replace(/^[^\d\-+.,]+/, '')
-		.replace(/[^\d.,]+$/, '')
+	text = trimTrailingNonNumeric(text)
 	if (text === '') return { ok: false, code: 'bad_amount' }
 	let negative = false
 	if (text.startsWith('-')) {

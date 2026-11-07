@@ -161,6 +161,54 @@ describe('sole-admin rule', () => {
 		expect(blocked.success).toBe(false)
 		expect(blocked.error).toContain('sole admin')
 	})
+
+	it('lets the oldest of two leaving admins go ahead instead of holding both forever', async () => {
+		const older = await createTestUser()
+		const newer = await createTestUser()
+		const third = await createTestUser()
+		const organization = await createTestOrganization(older.id)
+		await addMember(organization.id, newer.id, 'admin')
+		await addMember(organization.id, third.id, 'admin')
+
+		// Both are accepted while the third admin stays...
+		const first = await createErasureRequest(older.id)
+		const second = await createErasureRequest(newer.id)
+		expect(first.success).toBe(true)
+		expect(second.success).toBe(true)
+		// ...who then steps down, leaving only the two leaving admins.
+		await db
+			.update(UserOrganization)
+			.set({ organizationRoleId: 'org_role_member' })
+			.where(eq(UserOrganization.userId, third.id))
+		const due = new Date(Date.now() - 1000)
+		await db
+			.update(DataSubjectRequest)
+			.set({ scheduledFor: due, requestedAt: new Date(Date.now() - 20_000) })
+			.where(eq(DataSubjectRequest.id, first.requestId!))
+		await db
+			.update(DataSubjectRequest)
+			.set({ scheduledFor: due, requestedAt: new Date(Date.now() - 10_000) })
+			.where(eq(DataSubjectRequest.id, second.requestId!))
+
+		// The newer request runs first and waits for the older one...
+		const newerRun = await processDueErasureRequests({
+			requestId: second.requestId,
+		})
+		expect(newerRun.held).toBe(1)
+		// ...which goes ahead although the newer one is still pending.
+		const olderRun = await processDueErasureRequests({
+			requestId: first.requestId,
+		})
+		expect(olderRun.errors).toEqual([])
+		expect((await requestRow(first.requestId!))?.status).toBe('completed')
+		expect(await userExists(older.id)).toBe(false)
+
+		// The remaining admin is now the sole admin: held until another joins.
+		expect(await userExists(newer.id)).toBe(true)
+		const held = await requestRow(second.requestId!)
+		expect(held?.status).toBe('scheduled')
+		expect(held?.failureReason).toBe(`sole_admin: ${organization.id}`)
+	})
 })
 
 describe('erasure claims and retries', () => {

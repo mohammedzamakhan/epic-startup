@@ -480,11 +480,14 @@ authRoutes.post(
 		}
 
 		// Counted before the send (a failed send still used a provider request).
-		// App-header requests also get the durable hourly ceilings.
+		// App-header requests also get the durable hourly ceilings; a number that
+		// already verified here is exempt from the organization-wide one, so
+		// header traffic cannot lock returning customers out of the app.
 		const reservation = await reserveSmsSend(db, {
 			kind: challenge,
 			phone,
 			ip: clientAddress(c),
+			knownCustomer: existing?.phoneVerified === true,
 		})
 		if (!reservation.ok) {
 			return c.json(

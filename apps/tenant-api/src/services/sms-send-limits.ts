@@ -1,5 +1,6 @@
 import { and, count, eq, gte, lt, lte, min } from 'drizzle-orm'
 import { smsSendEvents, type TenantDatabase } from '@repo/tenant-db'
+import { addressBucket } from '../lib/client-ip.ts'
 import { hmacHash } from '../lib/secrets.ts'
 
 /**
@@ -9,6 +10,13 @@ import { hmacHash } from '../lib/secrets.ts'
  * The customer app has no Turnstile widget, so its requests skip the challenge
  * on a header any client can send. Those requests get much tighter ceilings
  * than browser requests that passed Turnstile.
+ *
+ * The organization-wide ceiling is shared by everyone, so anyone sending the
+ * header could fill it and lock the app's sign-in for the hour. It therefore
+ * applies only to numbers that have not verified with this organization: a
+ * returning customer still gets a code (within the per-phone and per-IP
+ * ceilings), while an attacker can only fill it for new sign-ups. Codes to
+ * known numbers cannot be used for SMS pumping to numbers the attacker picks.
  */
 export type SmsSendKind = 'browser' | 'native'
 
@@ -27,8 +35,9 @@ function phoneHash(phone: string) {
 	return hmacHash(`sms-send-phone:${phone}`)
 }
 
+/** IPv6 counts by its /64, as every other limiter here does. */
 function ipHash(ip: string) {
-	return hmacHash(`sms-send-ip:${ip}`)
+	return hmacHash(`sms-send-ip:${addressBucket(ip)}`)
 }
 
 /**
@@ -65,6 +74,8 @@ export type SmsSendReservation =
  * burst cannot all pass a count taken before any of them was written: the
  * requests that land over a ceiling remove their own row and are refused.
  * An unknown client IP skips the per-IP ceiling instead of sharing one bucket.
+ * `knownCustomer` (the phone already verified with this organization) skips
+ * the organization-wide ceiling; the send is still counted toward it.
  */
 export async function reserveSmsSend(
 	db: TenantDatabase,
@@ -72,6 +83,8 @@ export async function reserveSmsSend(
 		kind: SmsSendKind
 		phone: string
 		ip: string | null | undefined
+		/** The phone already verified with this organization. */
+		knownCustomer?: boolean
 		now?: number
 	},
 ): Promise<SmsSendReservation> {
@@ -121,10 +134,14 @@ export async function reserveSmsSend(
 					},
 				]
 			: []),
-		{
-			usage: await windowUsage(db, since, row.id),
-			limit: NATIVE_SEND_LIMITS.perOrganizationPerHour,
-		},
+		...(params.knownCustomer
+			? []
+			: [
+					{
+						usage: await windowUsage(db, since, row.id),
+						limit: NATIVE_SEND_LIMITS.perOrganizationPerHour,
+					},
+				]),
 	]
 	const exceeded = buckets.filter(({ usage, limit }) => usage.total > limit)
 	if (exceeded.length === 0) return { ok: true }

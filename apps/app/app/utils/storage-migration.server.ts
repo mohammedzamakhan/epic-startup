@@ -17,11 +17,13 @@ import {
 } from '@repo/database'
 import { decrypt, encrypt, getSSOMasterKey } from '@repo/security'
 import {
+	deleteFromStorage,
 	getSignedDeleteRequestInfo,
 	getSignedGetRequestInfo,
 	getSignedHeadRequestInfo,
 	getSignedPutRequestInfoForKey,
 	type StorageConfig,
+	uploadToStorage,
 } from '@repo/storage'
 import { ENV } from 'varlock/env'
 
@@ -145,6 +147,69 @@ export function isSameStorageLocation(
 		normalizeStorageEndpoint(a.endpoint) ===
 			normalizeStorageEndpoint(b.endpoint)
 	)
+}
+
+export const STORAGE_MIGRATION_PROBE_DIR = 'storage-migration-probe'
+
+/**
+ * Different endpoint strings can still reach one bucket: a regional and a
+ * global S3 hostname, an IP and a hostname for MinIO, a CNAME in front of R2.
+ * Only the buckets themselves can tell, so this writes a random marker through
+ * the destination settings and looks for it through the source settings. The
+ * marker sits under the organization's own prefix, where its media lives, so
+ * credentials limited to that prefix can still see it.
+ *
+ * Returns true when the source sees the marker: the two sides are one bucket.
+ * Throws when the answer is unclear, because copying and then deleting the
+ * "source" would destroy the only copy.
+ */
+export async function storageSidesShareBucket({
+	organizationId,
+	source,
+	dest,
+}: {
+	organizationId: string
+	source: StorageConfig
+	dest: StorageConfig
+}) {
+	const key = `orgs/${organizationId}/${STORAGE_MIGRATION_PROBE_DIR}/${crypto.randomUUID()}.txt`
+	await uploadToStorage(
+		new File(['storage migration probe'], 'probe.txt', { type: 'text/plain' }),
+		key,
+		dest,
+	)
+	try {
+		const { url, headers } = getSignedHeadRequestInfo(key, source)
+		const response = await fetch(url, {
+			method: 'HEAD',
+			headers,
+			redirect: 'manual',
+		})
+		if (response.ok) return true
+		if (response.status === 404) return false
+		throw new Error(
+			`Could not confirm that the source and destination are different buckets: the source answered ${response.status}`,
+		)
+	} finally {
+		// One delete is enough when they are the same bucket; the other is a
+		// harmless 404. Neither may hide the probe's answer.
+		await Promise.allSettled([
+			deleteFromStorage(key, dest),
+			deleteFromStorage(key, source),
+		])
+	}
+}
+
+function storageConfigFromSnapshot(
+	snapshot: CustomStorageSnapshot,
+): StorageConfig {
+	return {
+		endpoint: snapshot.endpoint,
+		bucket: snapshot.bucketName,
+		accessKey: snapshot.accessKeyId,
+		secretKey: snapshot.secretAccessKey,
+		region: snapshot.region,
+	}
 }
 
 /**
@@ -542,6 +607,17 @@ export async function createAndStartStorageMigration({
 	) {
 		throw new Error('Source and destination are the same bucket')
 	}
+	if (
+		await storageSidesShareBucket({
+			organizationId,
+			source: source
+				? storageConfigFromSnapshot(source)
+				: getPlatformStorageConfig(),
+			dest: dest ? storageConfigFromSnapshot(dest) : getPlatformStorageConfig(),
+		})
+	) {
+		throw new Error('Source and destination are the same bucket')
+	}
 
 	const [migration] = await db
 		.insert(StorageMigration)
@@ -572,11 +648,11 @@ export async function createAndStartStorageMigration({
 		throw new Error('Failed to create storage migration record')
 	}
 
-	// The list is fixed here: later batches work through it, whatever media is
-	// added or removed meanwhile.
-	await insertMigrationItems(migration.id, objects)
-
 	try {
+		// The list is fixed here: later batches work through it, whatever media
+		// is added or removed meanwhile. A failure here must mark the row failed
+		// too, or the `pending` row would block every later migration.
+		await insertMigrationItems(migration.id, objects)
 		const instanceId = await triggerStorageMigrationWorkflow(migration.id)
 		await db
 			.update(StorageMigration)
@@ -608,24 +684,45 @@ class SourceObjectMissingError extends Error {
 	}
 }
 
-/** Rows per insert: D1 caps the bound parameters of one statement. */
-const ITEM_INSERT_CHUNK = 15
+/** D1 rejects a statement that binds more than 100 parameters. */
+const D1_MAX_BOUND_PARAMETERS = 100
+/**
+ * Drizzle binds every column it sends, defaults included: id and updatedAt
+ * ($defaultFn), status and attempts (literal defaults), plus migrationId,
+ * objectKey and contentType. Only lastError goes inline as `null`. The test
+ * builds a full chunk with `toSQL()` and fails if this count goes stale.
+ */
+const ITEM_INSERT_PARAMS_PER_ROW = 7
+/** 14 rows, 98 parameters. LibSQL in tests allows far more, so it hides this. */
+export const ITEM_INSERT_CHUNK = Math.floor(
+	D1_MAX_BOUND_PARAMETERS / ITEM_INSERT_PARAMS_PER_ROW,
+)
+
+export function buildMigrationItemInsert(
+	migrationId: string,
+	objects: ReadonlyArray<{ objectKey: string; contentType: string }>,
+) {
+	return db
+		.insert(StorageMigrationItem)
+		.values(
+			objects.map((object) => ({
+				migrationId,
+				objectKey: object.objectKey,
+				contentType: object.contentType,
+			})),
+		)
+		.onConflictDoNothing()
+}
 
 async function insertMigrationItems(
 	migrationId: string,
 	objects: ReadonlyArray<{ objectKey: string; contentType: string }>,
 ) {
 	for (let i = 0; i < objects.length; i += ITEM_INSERT_CHUNK) {
-		await db
-			.insert(StorageMigrationItem)
-			.values(
-				objects.slice(i, i + ITEM_INSERT_CHUNK).map((object) => ({
-					migrationId,
-					objectKey: object.objectKey,
-					contentType: object.contentType,
-				})),
-			)
-			.onConflictDoNothing()
+		await buildMigrationItemInsert(
+			migrationId,
+			objects.slice(i, i + ITEM_INSERT_CHUNK),
+		)
 	}
 }
 
@@ -786,8 +883,19 @@ export async function processStorageMigrationBatch(migrationId: string) {
 	const destConfig = resolveSideConfig(migration, 'dest')
 
 	// Copying an object onto itself and then deleting the "source" destroys
-	// the only copy. Refuse before touching any object.
-	if (isSameStorageLocation(sourceConfig, destConfig)) {
+	// the only copy. Refuse before touching any object. The endpoint strings
+	// are a cheap first check; before the first batch moves (and deletes)
+	// anything, the buckets themselves are asked as well. A probe that cannot
+	// answer throws, so the workflow retries the step without moving anything.
+	if (
+		isSameStorageLocation(sourceConfig, destConfig) ||
+		(migration.cursor === 0 &&
+			(await storageSidesShareBucket({
+				organizationId: migration.organizationId,
+				source: sourceConfig,
+				dest: destConfig,
+			})))
+	) {
 		await completeStorageMigration({
 			migrationId,
 			failed: true,

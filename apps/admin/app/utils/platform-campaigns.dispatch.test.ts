@@ -8,13 +8,15 @@ import {
 	User,
 	UserOrganization,
 } from '@repo/database'
+import type * as database from '@repo/database'
 import type * as email from '@repo/email'
 import {
 	dispatchPlatformCampaign,
 	getPlatformCampaign,
+	resumeStalePlatformCampaigns,
 } from '@repo/marketing/server/platform-campaigns'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { consoleWarn } from '#tests/setup/setup-test-env.ts'
+import { consoleError, consoleWarn } from '#tests/setup/setup-test-env.ts'
 
 const sent = vi.hoisted(() => [] as string[])
 const sendHooks = vi.hoisted(() => ({
@@ -32,6 +34,48 @@ vi.mock('@repo/email', async (importOriginal) => ({
 		return { status: 'success', data: { id: randomUUID() } }
 	},
 }))
+
+const dbHooks = vi.hoisted(() => ({
+	/**
+	 * Runs on every `db.update(table).set(values)` and
+	 * `db.insert(table).values(values)`; throw to fail that write.
+	 */
+	onWrite: null as
+		null | ((table: unknown, values: Record<string, unknown>) => void),
+}))
+vi.mock('@repo/database', async (importOriginal) => {
+	const actual = await importOriginal<typeof database>()
+	const hooked = { update: 'set', insert: 'values' } as const
+	const db = new Proxy(actual.db, {
+		get(target, prop, receiver) {
+			if (prop !== 'update' && prop !== 'insert') {
+				return Reflect.get(target, prop, receiver)
+			}
+			const method = hooked[prop]
+			return (table: never) => {
+				const builder = (actual.db[prop] as (table: never) => object)(table)
+				return new Proxy(builder, {
+					get(builderTarget, builderProp, builderReceiver) {
+						const value = Reflect.get(
+							builderTarget,
+							builderProp,
+							builderReceiver,
+						)
+						if (builderProp !== method) return value
+						return (values: Record<string, unknown>) => {
+							dbHooks.onWrite?.(table, values)
+							return (value as (values: unknown) => unknown).call(
+								builderTarget,
+								values,
+							)
+						}
+					},
+				})
+			}
+		},
+	})
+	return { ...actual, db }
+})
 
 async function createAudience(size: number) {
 	const id = randomUUID()
@@ -93,6 +137,7 @@ describe('platform campaign dispatch', () => {
 	})
 	afterEach(() => {
 		sendHooks.onSend = null
+		dbHooks.onWrite = null
 	})
 
 	it('two dispatches of one campaign running at once send once per user', async () => {
@@ -185,5 +230,120 @@ describe('platform campaign dispatch', () => {
 
 		expect((await campaignRow(campaign.id)).targetAudienceCount).toBe(2)
 		expect(users).toHaveLength(2)
+	})
+	it('a failed status write costs only that recipient, not the campaign', async () => {
+		consoleError.mockImplementation(() => {})
+		const { organization, users } = await createAudience(7)
+		const emails = users.map((user) => user.email)
+		const campaign = await createCampaign(organization.id)
+		let failures = 0
+		dbHooks.onWrite = (table, values) => {
+			if (
+				table === PlatformMarketingMessage &&
+				'sentAt' in values &&
+				failures === 0
+			) {
+				failures++
+				throw new Error('D1_ERROR: Network connection lost')
+			}
+		}
+
+		await dispatchPlatformCampaign(campaign.id)
+
+		expect(failures).toBe(1)
+		expect(sent.filter((to) => emails.includes(to)).sort()).toEqual(
+			[...emails].sort(),
+		)
+		expect((await campaignRow(campaign.id)).status).toBe('Completed')
+		const detail = await getPlatformCampaign(campaign.id)
+		// The send whose outcome was lost is reported, never re-sent.
+		expect(detail?.unconfirmedRecipientCount).toBe(1)
+		expect(
+			detail?.recipients.filter((recipient) => recipient.status === 'Sent'),
+		).toHaveLength(6)
+	})
+
+	it('keeps sending when the heartbeat write fails', async () => {
+		consoleError.mockImplementation(() => {})
+		const { organization, users } = await createAudience(5)
+		const emails = users.map((user) => user.email)
+		const campaign = await createCampaign(organization.id)
+		let heartbeatFailures = 0
+		dbHooks.onWrite = (table, values) => {
+			const keys = Object.keys(values)
+			if (
+				table === PlatformMarketingCampaign &&
+				keys.length === 1 &&
+				keys[0] === 'updatedAt'
+			) {
+				heartbeatFailures++
+				throw new Error('D1_ERROR: overloaded')
+			}
+		}
+
+		await dispatchPlatformCampaign(campaign.id)
+
+		expect(heartbeatFailures).toBeGreaterThan(0)
+		expect(sent.filter((to) => emails.includes(to)).sort()).toEqual(
+			[...emails].sort(),
+		)
+		expect((await campaignRow(campaign.id)).status).toBe('Completed')
+	})
+
+	it('leaves the campaign Processing for a resume when a claim cannot be written', async () => {
+		consoleError.mockImplementation(() => {})
+		const { organization, users } = await createAudience(3)
+		const campaign = await createCampaign(organization.id)
+		const unlucky = users[1]!
+		// The first insert of the unlucky user's message row fails.
+		let insertFailed = false
+		dbHooks.onWrite = (table, values) => {
+			if (
+				table === PlatformMarketingMessage &&
+				values.userId === unlucky.id &&
+				!insertFailed
+			) {
+				insertFailed = true
+				throw new Error('D1_ERROR: Network connection lost')
+			}
+		}
+
+		await dispatchPlatformCampaign(campaign.id)
+
+		expect(insertFailed).toBe(true)
+		expect(sent).not.toContain(unlucky.email)
+		const row = await campaignRow(campaign.id)
+		expect(row.status).toBe('Processing')
+		// Released, so the next resume does not wait for it to go stale.
+		expect(row.updatedAt.getTime()).toBe(0)
+
+		const { resumed } = await resumeStalePlatformCampaigns({
+			runInBackground: () => {},
+		})
+		expect(resumed).toContain(campaign.id)
+		await dispatchPlatformCampaign(campaign.id)
+		expect(sent.filter((to) => to === unlucky.email)).toHaveLength(1)
+		expect((await campaignRow(campaign.id)).status).toBe('Completed')
+	})
+
+	it('stops between sends when its budget runs out and hands the rest on', async () => {
+		const { organization, users } = await createAudience(6)
+		const emails = users.map((user) => user.email)
+		const campaign = await createCampaign(organization.id)
+
+		await dispatchPlatformCampaign(campaign.id, { budgetMs: 0 })
+
+		expect(sent.filter((to) => emails.includes(to))).toHaveLength(0)
+		const row = await campaignRow(campaign.id)
+		expect(row.status).toBe('Processing')
+		expect(row.updatedAt.getTime()).toBe(0)
+
+		await dispatchPlatformCampaign(campaign.id)
+		expect(sent.filter((to) => emails.includes(to)).sort()).toEqual(
+			[...emails].sort(),
+		)
+		const detail = await getPlatformCampaign(campaign.id)
+		expect(detail?.status).toBe('Completed')
+		expect(detail?.unconfirmedRecipientCount).toBe(0)
 	})
 })

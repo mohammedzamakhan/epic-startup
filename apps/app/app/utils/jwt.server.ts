@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { canUserLogin } from '@repo/auth'
 import { brand } from '@repo/config/brand'
-import { and, db, eq, lt, or, RefreshToken, User } from '@repo/database'
+import { and, db, eq, lt, or, RefreshToken, sql, User } from '@repo/database'
 import { assertSecretNotPlaceholder } from '@repo/security'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
@@ -107,20 +107,15 @@ export function verify2FAToken(
 export async function createRefreshToken(
 	userId: string,
 	meta: { userAgent?: string; ip?: string },
-	derived?: { id: string; token: string },
 ): Promise<{ token: string; expiresAt: Date }> {
-	const token =
-		derived?.token ?? crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex')
+	const token = crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex')
 	const tokenHash = await bcrypt.hash(token, 10)
-	const expiresAt = new Date(
-		Date.now() + REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000,
-	)
+	const expiresAt = refreshTokenExpiresAt(Date.now())
 
 	// Store hashed refresh token in database
 	const [refreshToken] = await db
 		.insert(RefreshToken)
 		.values({
-			...(derived ? { id: derived.id } : {}),
 			userId,
 			tokenHash,
 			userAgent: meta.userAgent,
@@ -130,6 +125,10 @@ export async function createRefreshToken(
 		.returning({ id: RefreshToken.id })
 
 	return { token: `${refreshToken!.id}.${token}`, expiresAt }
+}
+
+function refreshTokenExpiresAt(now: number) {
+	return new Date(now + REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000)
 }
 
 /**
@@ -186,24 +185,57 @@ export async function rotateRefreshToken(
 	const successor = deriveSuccessor(oldTokenString)
 
 	if (!row.revoked) {
-		// Claim the old token atomically: two concurrent rotations of the same
-		// token must not both mint a successor.
-		const claimed = await db
-			.update(RefreshToken)
-			.set({ revoked: true })
-			.where(and(eq(RefreshToken.id, row.id), eq(RefreshToken.revoked, false)))
-			.returning({ id: RefreshToken.id })
+		// Hash before claiming: nothing slow may sit between the claim and the
+		// successor it promises.
+		const tokenHash = await bcrypt.hash(successor.token, 10)
+		const claimedAt = Date.now()
+		const expiresAt = refreshTokenExpiresAt(claimedAt)
+		// The claim and the successor commit together (a batch is one
+		// transaction on D1 and on LibSQL): a failed insert leaves the old token
+		// usable, so the retry rotates it again instead of signing out. The
+		// claim is atomic, so two concurrent rotations cannot both mint a
+		// successor. The insert runs only for the claim made by this batch
+		// (same successor and claim time), never for a token rotated earlier
+		// whose successor has since been cleaned up.
+		const [claimed] = await db.batch([
+			db
+				.update(RefreshToken)
+				.set({
+					revoked: true,
+					replacedById: successor.id,
+					updatedAt: new Date(claimedAt),
+				})
+				.where(
+					and(eq(RefreshToken.id, row.id), eq(RefreshToken.revoked, false)),
+				)
+				.returning({ id: RefreshToken.id }),
+			db.run(sql`
+				INSERT INTO "RefreshToken"
+					("id", "tokenHash", "userId", "userAgent", "ipAddress", "revoked", "expiresAt", "createdAt", "updatedAt")
+				SELECT ${successor.id}, ${tokenHash}, ${userId}, ${meta.userAgent ?? null}, ${meta.ip ?? null}, 0, ${expiresAt.getTime()}, ${claimedAt}, ${claimedAt}
+				WHERE EXISTS (
+					SELECT 1 FROM "RefreshToken"
+					WHERE "id" = ${row.id}
+						AND "revoked" = 1
+						AND "replacedById" = ${successor.id}
+						AND "updatedAt" = ${claimedAt}
+				)
+				ON CONFLICT DO NOTHING
+			`),
+		])
 		if (claimed.length > 0) {
-			return createRefreshToken(userId, meta, successor)
+			return { token: `${successor.id}.${successor.token}`, expiresAt }
 		}
 	}
 
 	// Already rotated (or revoked). A retry shortly after the rotation, while
 	// its successor is still unused, gets that same successor back. Anything
-	// else (late, successor already rotated or revoked, signed out) fails.
+	// else (late, signed out rather than rotated, successor already rotated or
+	// revoked) fails.
 	const [current] = await db
 		.select({
 			revoked: RefreshToken.revoked,
+			replacedById: RefreshToken.replacedById,
 			updatedAt: RefreshToken.updatedAt,
 		})
 		.from(RefreshToken)
@@ -211,6 +243,7 @@ export async function rotateRefreshToken(
 		.limit(1)
 	if (
 		!current?.revoked ||
+		current.replacedById !== successor.id ||
 		Date.now() - current.updatedAt.getTime() > REFRESH_TOKEN_REUSE_GRACE_MS
 	) {
 		return null
@@ -253,11 +286,14 @@ export async function revokeRefreshToken(
 
 	const isMatch = (await bcrypt.compare(token, row.tokenHash)) === true
 	if (isMatch) {
-		await db
+		// Only a live token: revoking a rotated one again would move its
+		// updatedAt and reopen the rotation grace window.
+		const revoked = await db
 			.update(RefreshToken)
 			.set({ revoked: true })
-			.where(eq(RefreshToken.id, row.id))
-		return true
+			.where(and(eq(RefreshToken.id, row.id), eq(RefreshToken.revoked, false)))
+			.returning({ id: RefreshToken.id })
+		return revoked.length > 0
 	}
 
 	return false

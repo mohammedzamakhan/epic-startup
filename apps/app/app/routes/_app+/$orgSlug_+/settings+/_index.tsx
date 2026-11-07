@@ -9,10 +9,16 @@ import {
 	and,
 	db,
 	eq,
+	inArray,
 	Organization,
 	OrganizationImage,
+	OrganizationInvitation,
+	OrganizationRole,
 	OrganizationS3Config,
+	or,
 	sql,
+	SSOConfiguration,
+	SSOSession,
 	User,
 } from '@repo/database'
 import {
@@ -51,8 +57,10 @@ import VerifiedDomainCard, {
 
 import { requireUserOrganization } from '#app/utils/organization/loader.server.ts'
 import {
+	requireOrganizationAdmin,
 	requireUserWithOrganizationPermission,
 	ORG_PERMISSIONS,
+	userIsOrganizationAdmin,
 } from '#app/utils/organization/permissions.server.ts'
 import { isPublicEmailDomain } from '#app/utils/organization/public-email-domains.ts'
 import {
@@ -81,7 +89,7 @@ import {
 } from '#app/utils/storage.server.ts'
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-	await requireUserId(request)
+	const userId = await requireUserId(request)
 
 	const organization = await requireUserOrganization(request, params.orgSlug, {
 		id: true,
@@ -142,10 +150,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 			.then((rows) => rows[0] ?? null),
 	])
 
-	const [activeMigration, latestMigration, mediaFileCount] = await Promise.all([
+	const [
+		activeMigration,
+		latestMigration,
+		mediaFileCount,
+		canDeleteOrganization,
+	] = await Promise.all([
 		getActiveStorageMigration(organization.id),
 		getLatestStorageMigration(organization.id),
 		countOrgMediaObjectKeys(organization.id),
+		userIsOrganizationAdmin(userId, organization.id),
 	])
 
 	return {
@@ -153,6 +167,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 		activeMigration,
 		latestMigration,
 		mediaFileCount,
+		canDeleteOrganization,
 	}
 }
 
@@ -496,6 +511,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	}
 
 	if (intent === 'delete-organization') {
+		// Deleting cannot be undone, so it takes the built-in admin role, not
+		// only a role that may change settings.
+		await requireOrganizationAdmin(request, organization.id)
+
 		// Customer data, staff records and call recordings live in the regional
 		// tenant database, which the control-plane cascade cannot reach. Delete it
 		// first (tenant-api still finds the organization by id), and keep the
@@ -538,6 +557,61 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			eq(Organization.id, organization.id),
 			eq(Organization.updatedAt, claimedAt),
 		)
+		// Give the flag back, unless someone else has written since the claim.
+		const releaseClaim = () =>
+			db
+				.update(Organization)
+				.set({ hasProvisionedDb: organization.hasProvisionedDb })
+				.where(
+					and(unchangedSinceClaim, eq(Organization.hasProvisionedDb, false)),
+				)
+				.catch(() => {})
+
+		// The tenant wipe below cannot be undone, so first remove the rows whose
+		// ON DELETE RESTRICT keys would make the Organization delete fail: SSO
+		// sessions on this organization's SSO configurations (they hang off a
+		// login session, not the organization) and invitations that use one of
+		// its roles. Neither is worth keeping for an organization being deleted.
+		try {
+			const organizationRoleIds = db
+				.select({ id: OrganizationRole.id })
+				.from(OrganizationRole)
+				.where(eq(OrganizationRole.organizationId, organization.id))
+			await db.batch([
+				db
+					.delete(SSOSession)
+					.where(
+						inArray(
+							SSOSession.ssoConfigId,
+							db
+								.select({ id: SSOConfiguration.id })
+								.from(SSOConfiguration)
+								.where(eq(SSOConfiguration.organizationId, organization.id)),
+						),
+					),
+				db
+					.delete(OrganizationInvitation)
+					.where(
+						or(
+							eq(OrganizationInvitation.organizationId, organization.id),
+							inArray(
+								OrganizationInvitation.organizationRoleId,
+								organizationRoleIds,
+							),
+						),
+					),
+			])
+		} catch (error) {
+			console.error('Failed to prepare the organization for deletion', {
+				organizationId: organization.id,
+				error: error instanceof Error ? error.message : String(error),
+			})
+			await releaseClaim()
+			return Response.json(
+				{ error: 'Failed to delete organization' },
+				{ status: 500 },
+			)
+		}
 
 		try {
 			await deprovisionTenantDatabase({
@@ -551,14 +625,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 				organizationId: organization.id,
 				error: error instanceof Error ? error.message : String(error),
 			})
-			// Give the flag back, unless someone else has written since the claim.
-			await db
-				.update(Organization)
-				.set({ hasProvisionedDb: organization.hasProvisionedDb })
-				.where(
-					and(unchangedSinceClaim, eq(Organization.hasProvisionedDb, false)),
-				)
-				.catch(() => {})
+			await releaseClaim()
 			return Response.json(
 				{
 					error:
@@ -882,8 +949,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function GeneralSettings() {
-	const { organization, activeMigration, latestMigration, mediaFileCount } =
-		useLoaderData<typeof loader>()
+	const {
+		organization,
+		activeMigration,
+		latestMigration,
+		mediaFileCount,
+		canDeleteOrganization,
+	} = useLoaderData<typeof loader>()
 	const actionData = useActionData<typeof action>()
 
 	return (
@@ -915,10 +987,13 @@ export default function GeneralSettings() {
 				/>
 			</AnnotatedSection>
 
-			{/* Destructive — separated from routine settings */}
-			<section className="border-border mt-2 border-t pt-10">
-				<DangerZoneCard organization={organization} />
-			</section>
+			{/* Destructive — separated from routine settings. Only the built-in
+			    admin role may delete the organization. */}
+			{canDeleteOrganization ? (
+				<section className="border-border mt-2 border-t pt-10">
+					<DangerZoneCard organization={organization} />
+				</section>
+			) : null}
 		</AnnotatedLayout>
 	)
 }

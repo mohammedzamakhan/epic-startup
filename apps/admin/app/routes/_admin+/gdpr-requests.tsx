@@ -324,6 +324,16 @@ export default function GDPRRequestsPage() {
 	const { requests, pagination, statistics } = useLoaderData<typeof loader>()
 	const fetcher = useFetcher()
 
+	// App's erasure run holds a request whose user would leave an organization
+	// without an admin, and records `sole_admin: <organization ids>`.
+	function formatFailureReason(reason: string) {
+		if (!reason.startsWith('sole_admin:')) return reason
+		const organizationIds = reason.slice('sole_admin:'.length).trim()
+		return _(
+			msg`On hold: last admin of organization ${organizationIds}. It runs once another admin is added there.`,
+		)
+	}
+
 	const filterFields = useMemo<FilterField[]>(
 		() => [
 			{
@@ -561,7 +571,7 @@ export default function GDPRRequestsPage() {
 												)}
 												{req.failureReason && (
 													<div className="text-destructive">
-														{req.failureReason}
+														{formatFailureReason(req.failureReason)}
 													</div>
 												)}
 											</TableCell>

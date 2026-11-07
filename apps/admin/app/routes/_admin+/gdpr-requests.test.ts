@@ -17,7 +17,8 @@ import {
 	_RoleToUser,
 } from '@repo/database'
 import { RouterContextProvider } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { bindAppService } from '#app/utils/app-service.server.ts'
 import { action } from './gdpr-requests.tsx'
 
 type AppCall = { url: string; auth: string | null; body: unknown }
@@ -41,6 +42,10 @@ beforeEach(() => {
 		})
 		return app.answer()
 	})
+})
+
+afterEach(() => {
+	bindAppService(null)
 })
 
 async function createUser() {
@@ -151,6 +156,42 @@ describe('expedited GDPR erasure', () => {
 		expect(
 			await db.select().from(User).where(eq(User.id, user.id)),
 		).toHaveLength(1)
+	})
+
+	it('reaches the App over its service binding, without following redirects', async () => {
+		const user = await createUser()
+		const dsr = await scheduleErasure(user.id)
+		const binding = {
+			fetch: vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+				Response.json({ processed: 1, failed: 0, held: 0, errors: [] }),
+			),
+		}
+		bindAppService(binding)
+
+		const response = await expedite(dsr.id)
+
+		expect(response.status).toBe(200)
+		// Not the public URL: on Workers that request would never arrive.
+		expect(app.calls).toHaveLength(0)
+		expect(binding.fetch).toHaveBeenCalledTimes(1)
+		const [url, init] = binding.fetch.mock.calls[0]!
+		expect(String(url)).toMatch(/\/resources\/jobs\/gdpr-erasure$/)
+		expect(init).toMatchObject({ method: 'POST', redirect: 'manual' })
+	})
+
+	it('treats a redirect from the App as a failure', async () => {
+		const user = await createUser()
+		const dsr = await scheduleErasure(user.id)
+		app.answer = () =>
+			new Response(null, {
+				status: 302,
+				headers: { Location: 'https://elsewhere.example/' },
+			})
+
+		const response = await expedite(dsr.id)
+
+		expect(response.status).toBe(502)
+		expect(app.calls).toHaveLength(1)
 	})
 
 	it('reports a hold when the App keeps the request for the sole-admin rule', async () => {

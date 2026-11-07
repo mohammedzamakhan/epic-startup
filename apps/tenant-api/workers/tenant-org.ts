@@ -17,10 +17,15 @@ import { durableSqliteMigrations } from './migrations.generated.ts'
 import { createTenantApiApp } from '../src/app.ts'
 import { applyVarlockEnv } from '../src/lib/secrets.ts'
 import {
+	armAlarmBy,
 	armStaffAlarm,
 	handleStaffAlarm,
 	isStaffActivityPath,
 } from '../src/lib/staff-alarm.ts'
+import {
+	nextBroadcastWakeAt,
+	startBroadcastTickForOrg,
+} from '../src/services/broadcast-dispatch.ts'
 import { runStaffTickForOrg } from '../src/services/staff-tick-service.ts'
 import type { TenantApiWorkerEnv } from './bindings.ts'
 
@@ -127,24 +132,42 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 		const response = await this.useTenantDb(orgId, db, async () =>
 			this.app.fetch(request, this.env),
 		)
-		await this.maybeArmStaffAlarm(request, response, orgId)
+		await this.maybeArmStaffAlarm(request, response, orgId, db)
 		return response
 	}
 
 	/**
 	 * Arms the sub-hourly staff tick (see `src/lib/staff-alarm.ts`) when a
 	 * successful request shows the organization is using the staff features, or
-	 * when the hourly tick reports something still worth watching. Never throws:
-	 * a failure here must not fail the request it rode on.
+	 * when the hourly tick reports something still worth watching. A new
+	 * campaign or the hourly tick also arms it for the next broadcast work (a
+	 * scheduled send, or resuming a throttled one), so that does not wait for
+	 * the next hourly cron. Never throws: a failure here must not fail the
+	 * request it rode on.
 	 */
 	private async maybeArmStaffAlarm(
 		request: Request,
 		response: Response,
 		orgId: string,
+		db: DrizzleSqliteDODatabase<typeof schema>,
 	) {
 		try {
 			if (response.status >= 400) return
 			const { pathname } = new URL(request.url)
+			const now = Date.now()
+			if (
+				pathname === '/api/staff/tick' ||
+				(request.method === 'POST' &&
+					pathname === '/operator/marketing/campaigns')
+			) {
+				const nextAt = await nextBroadcastWakeAt(
+					db as unknown as TenantDatabase,
+					now,
+				)
+				if (nextAt !== null) {
+					await armAlarmBy(this.ctx.storage, orgId, nextAt, now)
+				}
+			}
 			if (pathname === '/api/staff/tick') {
 				const body = (await response
 					.clone()
@@ -156,7 +179,7 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 			} else if (!isStaffActivityPath(pathname)) {
 				return
 			}
-			await armStaffAlarm(this.ctx.storage, orgId, Date.now())
+			await armStaffAlarm(this.ctx.storage, orgId, now)
 		} catch (error) {
 			console.error(
 				'Staff alarm arming failed',
@@ -165,7 +188,11 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 		}
 	}
 
-	/** The sub-hourly staff tick: runs next to the data, then re-arms if needed. */
+	/**
+	 * The sub-hourly tick: runs next to the data, then re-arms if needed. It
+	 * claims due broadcasts first (they send after the alarm returns, so a large
+	 * one does not hold the staff tick) and wakes again for the next one.
+	 */
 	async alarm() {
 		applyVarlockEnv(this.env)
 		await handleStaffAlarm({
@@ -176,7 +203,17 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 				// A deprovisioned object has no alarm left; if one fires anyway it
 				// fails here instead of rebuilding the database.
 				const db = await this.ensureDb()
-				return this.useTenantDb(orgId, db, () => runStaffTickForOrg(orgId))
+				return this.useTenantDb(orgId, db, async () => {
+					// Never throws, so a broadcast failure cannot stop the staff tick.
+					const broadcasts = await startBroadcastTickForOrg(orgId, {
+						runDetached: (task) => this.ctx.waitUntil(task),
+					})
+					const staff = await runStaffTickForOrg(orgId)
+					return {
+						needsFollowUp: staff.needsFollowUp,
+						nextAt: broadcasts?.nextAt ?? null,
+					}
+				})
 			},
 		})
 	}

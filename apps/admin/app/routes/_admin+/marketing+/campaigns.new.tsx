@@ -34,7 +34,10 @@ import {
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 } from 'react-router'
-import { runAfterResponse } from '#app/utils/after-response.server.ts'
+import {
+	afterResponseBudgetMs,
+	runAfterResponse,
+} from '#app/utils/after-response.server.ts'
 import { resolvePlatformEmailBranding } from '#app/utils/email-branding.server.ts'
 
 function EmailDesignerField() {
@@ -129,7 +132,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
 					String(formData.get('targetOrganizationId') || '') || undefined,
 			},
 			adminUserId,
-			{ runInBackground: (task) => runAfterResponse(context, task) },
+			{
+				runInBackground: (task) => runAfterResponse(context, task),
+				// Stop between sends before `waitUntil` ends; the cron resumes.
+				dispatch: { budgetMs: afterResponseBudgetMs(context) },
+			},
 		)
 	} catch (error) {
 		return {

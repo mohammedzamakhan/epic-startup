@@ -17,7 +17,7 @@ import {
 } from 'react-router'
 import { ProfileCard } from '#app/components/settings/cards/profile-card.tsx'
 
-import { refuseCredentialChangeWhileImpersonating } from '#app/utils/impersonation-guard.server.ts'
+import { refuseWhileImpersonating } from '#app/utils/impersonation-guard.server.ts'
 import { changeEmailAction } from '../settings+/actions/email.actions'
 import { photoAction } from '../settings+/actions/photo.actions'
 import { profileUpdateAction } from '../settings+/actions/profile.actions'
@@ -97,7 +97,7 @@ export async function action({ request }: ActionFunctionArgs) {
 			return profileUpdateAction({ userId, formData })
 		}
 		case changeEmailActionIntent: {
-			await refuseCredentialChangeWhileImpersonating(request)
+			await refuseWhileImpersonating(request)
 			return changeEmailAction({ request, userId, formData })
 		}
 		default: {

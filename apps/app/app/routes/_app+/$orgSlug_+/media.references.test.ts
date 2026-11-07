@@ -1,15 +1,18 @@
 import {
+	and,
 	db,
 	eq,
 	NoteComment,
 	NoteCommentImage,
 	OrganizationMediaAsset,
+	OrganizationNote,
 	OrganizationNoteUpload,
 	SocialPost,
 	WebsitePage,
 } from '@repo/database'
 import type * as databaseModule from '@repo/database'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type * as noteMediaModule from '#app/utils/note-media-pipeline.server.ts'
 import type * as storageModule from '#app/utils/storage.server.ts'
 import { deleteOrganizationStorageObject } from '#app/utils/storage.server.ts'
 import {
@@ -25,20 +28,42 @@ import { action as noteAction } from './notes.$noteId.tsx'
 const beforeTransaction = vi.hoisted(() => ({
 	current: null as null | (() => Promise<void>),
 }))
+const afterMediaRead = vi.hoisted(() => ({
+	current: null as null | (() => Promise<void>),
+}))
+
+// Lets a test run a write right after the note editor read the picked
+// library items, before it checks them and saves.
+vi.mock('#app/utils/note-media-pipeline.server.ts', async (importOriginal) => {
+	const actual = await importOriginal<typeof noteMediaModule>()
+	return {
+		...actual,
+		processNoteMediaUploads: async (
+			...args: Parameters<typeof actual.processNoteMediaUploads>
+		) => {
+			const result = await actual.processNoteMediaUploads(...args)
+			const hook = afterMediaRead.current
+			afterMediaRead.current = null
+			if (hook) await hook()
+			return result
+		},
+	}
+})
 
 // Lets a test run a write just before the next transaction starts. The
-// database itself is real.
+// database itself is real, but a transaction runs like on D1 (the Workers
+// binding): a plain callback that a throw does not roll back.
 vi.mock('@repo/database', async (importOriginal) => {
 	const actual = await importOriginal<typeof databaseModule>()
 	const db = new Proxy(actual.db, {
 		get(target, prop) {
 			const value = Reflect.get(target, prop)
 			if (prop !== 'transaction') return value
-			return async (...args: unknown[]) => {
+			return async (callback: (tx: typeof target) => unknown) => {
 				const hook = beforeTransaction.current
 				beforeTransaction.current = null
 				if (hook) await hook()
-				return (value as (...a: unknown[]) => unknown)(...args)
+				return callback(target)
 			}
 		},
 	})
@@ -54,6 +79,7 @@ vi.mock('#app/utils/storage.server.ts', async (importOriginal) => ({
 afterEach(() => {
 	vi.mocked(deleteOrganizationStorageObject).mockClear()
 	beforeTransaction.current = null
+	afterMediaRead.current = null
 })
 
 async function setup(source = 'library') {
@@ -204,15 +230,15 @@ describe('attaching a library item races its deletion', () => {
 		expect(comments).toHaveLength(0)
 	})
 
-	it('a note does not keep a reference to a deleted library image', async () => {
-		const { organization, cookie, asset } = await setup()
+	async function saveNewNote(
+		organization: { slug: string },
+		cookie: string,
+		assetId: string,
+	) {
 		const formData = new FormData()
 		formData.append('title', 'Launch plan')
 		formData.append('content', 'Body')
-		formData.append('images[0].mediaId', asset.id)
-		deleteAssetBeforeNextTransaction(asset.id)
-
-		let status: number | undefined
+		formData.append('images[0].mediaId', assetId)
 		try {
 			const response = await editorAction({
 				request: createAuthenticatedRequest(
@@ -223,12 +249,53 @@ describe('attaching a library item races its deletion', () => {
 				params: { orgSlug: organization.slug },
 				context: {},
 			} as never)
-			status = getResponseStatus(response)
+			return getResponseStatus(response)
 		} catch (thrown) {
-			status = thrown instanceof Response ? thrown.status : 500
+			return thrown instanceof Response ? thrown.status : 500
+		}
+	}
+
+	async function savedNotes(organizationId: string) {
+		return db
+			.select({ id: OrganizationNote.id })
+			.from(OrganizationNote)
+			.where(
+				and(
+					eq(OrganizationNote.organizationId, organizationId),
+					eq(OrganizationNote.title, 'Launch plan'),
+				),
+			)
+	}
+
+	it('a note is not saved when a picked library image was deleted before the save', async () => {
+		const { organization, cookie, asset } = await setup()
+		afterMediaRead.current = async () => {
+			await db
+				.delete(OrganizationMediaAsset)
+				.where(eq(OrganizationMediaAsset.id, asset.id))
 		}
 
-		expect(status).toBe(409)
+		expect(await saveNewNote(organization, cookie, asset.id)).toBe(409)
+		// Nothing was written: D1 cannot roll a half-done save back.
+		expect(await savedNotes(organization.id)).toHaveLength(0)
+		const uploads = await db
+			.select()
+			.from(OrganizationNoteUpload)
+			.where(eq(OrganizationNoteUpload.objectKey, asset.objectKey))
+		expect(uploads).toHaveLength(0)
+	})
+
+	it('a note does not keep a reference to a library image deleted while it is saved', async () => {
+		const { organization, cookie, asset } = await setup()
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+		// Onboarding tracking is not seeded in this database; it only logs.
+		vi.spyOn(console, 'error').mockImplementation(() => {})
+		deleteAssetBeforeNextTransaction(asset.id)
+
+		// The note is saved without that one item instead of failing halfway.
+		expect(await saveNewNote(organization, cookie, asset.id)).toBe(302)
+		expect(await savedNotes(organization.id)).toHaveLength(1)
+		expect(warn).toHaveBeenCalledOnce()
 		const uploads = await db
 			.select()
 			.from(OrganizationNoteUpload)

@@ -235,9 +235,18 @@ export interface StepExecutionResult {
 	status:
 		'delivered' | 'failed' | 'skipped' | 'processing' | 'halted' | 'unknown'
 	messageId?: string
+	/** Why a step was `skipped`. */
+	reason?: JourneySkipReason
 	error?: string
 	statusCode?: number
 }
+
+/**
+ * Recorded as `executionDetails.skipReason` on a skipped step, so the runs view
+ * can say why nothing was sent. `no_consent`: the customer has no marketing
+ * consent for the step's channel (see `hasMarketingConsent`).
+ */
+export type JourneySkipReason = 'no_consent'
 
 /**
  * The provider may have accepted the message (timeout, dropped connection,
@@ -535,13 +544,23 @@ export async function executeJourneyStep(
 
 	// Journeys are marketing: the same consent rules as a broadcast apply to
 	// every send (active subscription, confirmed email, verified phone). A
-	// customer without consent skips this step and the journey goes on.
+	// customer without consent skips this step and the journey goes on. There
+	// is no transactional exemption: a welcome text right after
+	// `phone_verified` is skipped until the customer subscribes to texts (see
+	// docs/platform-marketing-email.md, "Journey consent").
 	if (!(await hasMarketingConsent(db, customer.id, stepType))) {
 		await db
 			.update(journeyStepExecutions)
 			.set({
 				status: 'skipped',
-				errorMessage: `No marketing consent for ${stepType}`,
+				errorMessage:
+					stepType === 'sms'
+						? 'Skipped: the customer has not subscribed to marketing texts'
+						: 'Skipped: the customer has not confirmed marketing email',
+				executionDetails: JSON.stringify({
+					skipReason: 'no_consent' satisfies JourneySkipReason,
+					channel: stepType,
+				}),
 				completedAt: new Date(),
 			})
 			.where(eq(journeyStepExecutions.id, stepExecutionId))
@@ -549,6 +568,7 @@ export async function executeJourneyStep(
 			success: true,
 			executionId: stepExecutionId,
 			status: 'skipped',
+			reason: 'no_consent',
 		}
 	}
 

@@ -91,6 +91,20 @@ describe('verified domain proof', () => {
 		).toEqual({ status: 'taken' })
 	})
 
+	it('an unproven legacy domain does not hold the domain', async () => {
+		const legacy = await setupTestOrgWithUser('admin')
+		const owner = await setupTestOrgWithUser('admin')
+		const domain = uniqueDomain()
+		await db
+			.update(Organization)
+			.set({ verifiedDomain: domain, verifiedDomainProvedAt: null })
+			.where(eq(Organization.id, legacy.organization.id))
+
+		expect(await isDomainClaimedElsewhere(domain, owner.organization.id)).toBe(
+			false,
+		)
+	})
+
 	it('invites existing users on the domain instead of adding them', async () => {
 		// The test database has no onboarding steps; invitations log that.
 		consoleError.mockImplementation(() => {})

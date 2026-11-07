@@ -18,7 +18,10 @@ import { PageHeader } from '@repo/ui/page-header'
 import { useState } from 'react'
 import { Link, type LoaderFunctionArgs, useLoaderData } from 'react-router'
 import { EmptyState } from '#app/components/empty-state.tsx'
-import { runAfterResponse } from '#app/utils/after-response.server.ts'
+import {
+	afterResponseBudgetMs,
+	runAfterResponse,
+} from '#app/utils/after-response.server.ts'
 
 const STATUS_FILTERS: Array<{
 	value: string
@@ -39,14 +42,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 		userId,
 		SYSTEM_PERMISSIONS.UPDATE_PLATFORM_CAMPAIGN_ANY,
 	)
-	// A dispatch outlives its request only for as long as `waitUntil` allows.
-	// When someone who may send campaigns opens the list, pick up any campaign
-	// whose dispatch stopped (no heartbeat for ten minutes). Resumed dispatch
-	// skips users who already have a message row, so nobody is mailed twice.
+	// The Admin Worker's cron is what finishes a campaign whose dispatch
+	// stopped (see docs/scheduled-jobs.md). This is only an extra nudge: on
+	// the Node runtime (local dev, self-hosting) there is no cron, and a
+	// dispatch a crash or restart cut short resumes here. Resumed dispatch
+	// skips users who already have a message row, so nobody is mailed twice,
+	// and the claim keeps it from racing the cron.
 	if (canManage) {
 		runAfterResponse(context, () =>
 			resumeStalePlatformCampaigns({
 				runInBackground: (task) => runAfterResponse(context, task),
+				dispatch: { budgetMs: afterResponseBudgetMs(context) },
 			}),
 		)
 	}

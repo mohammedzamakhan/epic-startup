@@ -685,6 +685,7 @@ describe('Jobs-Cron Worker Endpoints', () => {
 					'fulfilled',
 					'fulfilled',
 					'fulfilled',
+					'fulfilled',
 				])
 				const calls = fetchMock.mock.calls.map(([url, init]: any) => [
 					url,
@@ -716,9 +717,14 @@ describe('Jobs-Cron Worker Endpoints', () => {
 							'POST',
 							token,
 						],
+						[
+							'https://app.example.com/resources/jobs/impersonation-cleanup',
+							'POST',
+							token,
+						],
 					]),
 				)
-				expect(calls).toHaveLength(6)
+				expect(calls).toHaveLength(7)
 			})
 
 			it('sends the staff tick an empty body so each node runs every organization', async () => {
@@ -755,6 +761,7 @@ describe('Jobs-Cron Worker Endpoints', () => {
 					'rejected',
 					'fulfilled',
 					'fulfilled',
+					'fulfilled',
 				])
 				// The healthy node still ran its tick.
 				expect(fetchMock.mock.calls.map(([url]) => url)).toContain(
@@ -779,6 +786,7 @@ describe('Jobs-Cron Worker Endpoints', () => {
 				expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
 					'https://app.example.com/resources/jobs/print-sync',
 					'https://app.example.com/resources/jobs/social-publish',
+					'https://app.example.com/resources/jobs/impersonation-cleanup',
 				])
 			})
 		})

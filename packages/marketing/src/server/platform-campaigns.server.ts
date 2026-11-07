@@ -161,7 +161,10 @@ const runDetached: RunInBackground = (task) => {
 export async function createPlatformCampaign(
 	input: CreatePlatformCampaignInput,
 	createdById?: string,
-	options: { runInBackground?: RunInBackground } = {},
+	options: {
+		runInBackground?: RunInBackground
+		dispatch?: PlatformDispatchOptions
+	} = {},
 ) {
 	const parsed = createPlatformCampaignSchema.parse(input)
 
@@ -190,7 +193,7 @@ export async function createPlatformCampaign(
 	})
 
 	;(options.runInBackground ?? runDetached)(() =>
-		dispatchPlatformCampaign(campaignId),
+		dispatchPlatformCampaign(campaignId, options.dispatch),
 	)
 
 	return { campaignId, status: 'Processing' as const }
@@ -257,18 +260,33 @@ export const PLATFORM_CAMPAIGN_SEND_CONCURRENCY = 5
 
 /**
  * A Processing campaign whose row has not been touched for this long lost its
- * dispatcher (the Worker was cut off after `waitUntil`, a deploy, a crash).
- * A live dispatch bumps `updatedAt` before each send (at most every
+ * dispatcher (the Worker was cut off, a deploy, a crash). A live dispatch
+ * bumps `updatedAt` before each send (at most every
  * `PLATFORM_CAMPAIGN_HEARTBEAT_MS`), and no send waits longer than
- * `PLATFORM_CAMPAIGN_SEND_TIMEOUT_MS`, so it never looks stale.
+ * `PLATFORM_CAMPAIGN_SEND_TIMEOUT_MS`, so its longest silence is about 75
+ * seconds and it never looks stale. Admin's cron runs the resume every five
+ * minutes (see docs/scheduled-jobs.md).
  */
-export const PLATFORM_CAMPAIGN_STALE_MS = 10 * 60 * 1000
+export const PLATFORM_CAMPAIGN_STALE_MS = 3 * 60 * 1000
 
 /** How long one provider send may take before its outcome counts as unknown. */
 export const PLATFORM_CAMPAIGN_SEND_TIMEOUT_MS = 60 * 1000
 
 /** Minimum time between heartbeat writes during a dispatch. */
 const PLATFORM_CAMPAIGN_HEARTBEAT_MS = 15 * 1000
+
+export type PlatformDispatchOptions = {
+	/** How long one provider send may take (default `PLATFORM_CAMPAIGN_SEND_TIMEOUT_MS`). */
+	sendTimeoutMs?: number
+	/**
+	 * Stop starting new sends after this many milliseconds and hand the rest
+	 * to the next resume. Set it where the runtime ends the work at a known
+	 * time (a request's `waitUntil`, a cron invocation), so the dispatch stops
+	 * between sends instead of being cut off in the middle of one, which would
+	 * leave the recipient unconfirmed.
+	 */
+	budgetMs?: number
+}
 
 class SendTimeoutError extends Error {
 	constructor(ms: number) {
@@ -324,16 +342,42 @@ async function touchCampaign(campaignId: string) {
 }
 
 /**
+ * Marks a campaign that still has recipients to reach as stale right away, so
+ * the next `resumeStalePlatformCampaigns` picks it up without waiting
+ * `PLATFORM_CAMPAIGN_STALE_MS`. Only called once this dispatch has stopped.
+ */
+async function releaseForResume(campaignId: string) {
+	await db
+		.update(PlatformMarketingCampaign)
+		.set({ updatedAt: new Date(0) })
+		.where(
+			and(
+				eq(PlatformMarketingCampaign.id, campaignId),
+				eq(PlatformMarketingCampaign.status, 'Processing'),
+			),
+		)
+}
+
+/**
  * Sends a platform campaign. Idempotent per (campaign, user): recipients who
  * already have a message row for this campaign are skipped, so resuming an
  * interrupted dispatch only reaches the users it never got to.
+ *
+ * Only an error before the first send (loading the campaign or its audience)
+ * marks the campaign Failed. Once sending has started, a database error costs
+ * at most one recipient: the campaign stays Processing and the stale resume
+ * finishes it.
  */
 export async function dispatchPlatformCampaign(
 	campaignId: string,
-	options: { sendTimeoutMs?: number } = {},
+	options: PlatformDispatchOptions = {},
 ) {
+	const startedAt = Date.now()
 	const sendTimeoutMs =
 		options.sendTimeoutMs ?? PLATFORM_CAMPAIGN_SEND_TIMEOUT_MS
+	const outOfBudget = () =>
+		options.budgetMs !== undefined && Date.now() - startedAt >= options.budgetMs
+	let sendingStarted = false
 	try {
 		const [found] = await db
 			.select()
@@ -376,22 +420,36 @@ export async function dispatchPlatformCampaign(
 			(recipient) => !handledUserIds.has(recipient.userId),
 		)
 
+		// Recipients whose message row could not be written. Nothing was sent
+		// to them, so the campaign is left for a resume to reach them.
+		let unclaimed = 0
+
 		async function sendToRecipient(recipient: (typeof recipients)[number]) {
 			const messageId = createId()
 			// Written before the send: if the dispatch dies mid-send this row
 			// stays Processing and a resume does not send to this user again.
 			// The row is unique per (campaign, user): when another dispatch
 			// already wrote it, that dispatch owns this recipient.
-			const claimed = await db
-				.insert(PlatformMarketingMessage)
-				.values({
-					id: messageId,
-					campaignId,
-					userId: recipient.userId,
-					status: 'Processing',
-				})
-				.onConflictDoNothing()
-				.returning({ id: PlatformMarketingMessage.id })
+			let claimed: { id: string }[]
+			try {
+				claimed = await db
+					.insert(PlatformMarketingMessage)
+					.values({
+						id: messageId,
+						campaignId,
+						userId: recipient.userId,
+						status: 'Processing',
+					})
+					.onConflictDoNothing()
+					.returning({ id: PlatformMarketingMessage.id })
+			} catch (error) {
+				unclaimed++
+				console.error(
+					`Platform campaign ${campaignId}: could not claim ${recipient.userId}; a resume will retry`,
+					error,
+				)
+				return
+			}
 			if (claimed.length === 0) return
 
 			const mergeTags = buildRecipientMergeTags({
@@ -459,25 +517,43 @@ export async function dispatchPlatformCampaign(
 
 		// Heartbeat: keeps a live dispatch from looking stale to a resume. It
 		// runs before each send, so the longest gap is one send, which the
-		// timeout bounds.
+		// timeout bounds. A failed write is retried before the next send; at
+		// worst a resume starts alongside, and the per-user claim keeps that
+		// from mailing anyone twice.
 		let lastHeartbeat = 0
 		async function heartbeat() {
 			const now = Date.now()
 			if (now - lastHeartbeat < PLATFORM_CAMPAIGN_HEARTBEAT_MS) return
-			lastHeartbeat = now
-			await touchCampaign(campaignId)
+			try {
+				await touchCampaign(campaignId)
+				lastHeartbeat = now
+			} catch (error) {
+				console.error(
+					`Platform campaign ${campaignId}: heartbeat failed`,
+					error,
+				)
+			}
 		}
 
 		// A pool rather than fixed batches: one slow send does not hold up
-		// the others.
+		// the others. An error is contained to its recipient: a row already
+		// written stays Processing (reported as unconfirmed, never re-sent).
 		let next = 0
 		async function worker() {
-			while (next < pending.length) {
+			while (next < pending.length && !outOfBudget()) {
 				const recipient = pending[next++]!
 				await heartbeat()
-				await sendToRecipient(recipient)
+				try {
+					await sendToRecipient(recipient)
+				} catch (error) {
+					console.error(
+						`Platform campaign ${campaignId}: lost the outcome for ${recipient.userId}; left as unconfirmed`,
+						error,
+					)
+				}
 			}
 		}
+		sendingStarted = true
 		await Promise.all(
 			Array.from(
 				{
@@ -486,6 +562,14 @@ export async function dispatchPlatformCampaign(
 				worker,
 			),
 		)
+
+		if (next < pending.length || unclaimed > 0) {
+			console.warn(
+				`Platform campaign ${campaignId} stopped with ${pending.length - next + unclaimed} recipient(s) left; handed to the next resume`,
+			)
+			await releaseForResume(campaignId)
+			return
+		}
 
 		const unconfirmed = await countUnconfirmedMessages(campaignId)
 		if (unconfirmed > 0) {
@@ -499,11 +583,26 @@ export async function dispatchPlatformCampaign(
 			.set({ status: 'Completed' })
 			.where(eq(PlatformMarketingCampaign.id, campaignId))
 	} catch (error) {
+		if (sendingStarted) {
+			// Some recipients may already have the email: leave the campaign
+			// Processing, and the stale resume reaches whoever is left.
+			console.error(
+				`Platform campaign dispatch for ${campaignId} stopped; left Processing for a resume`,
+				error,
+			)
+			return
+		}
 		console.error(`Platform campaign dispatch failed for ${campaignId}`, error)
 		await db
 			.update(PlatformMarketingCampaign)
 			.set({ status: 'Failed' })
 			.where(eq(PlatformMarketingCampaign.id, campaignId))
+			.catch((updateError: unknown) => {
+				console.error(
+					`Could not mark platform campaign ${campaignId} Failed`,
+					updateError,
+				)
+			})
 	}
 }
 
@@ -514,7 +613,11 @@ export async function dispatchPlatformCampaign(
  * every user who already has a message row, so nobody is mailed twice.
  */
 export async function resumeStalePlatformCampaigns(
-	options: { now?: Date; runInBackground?: RunInBackground } = {},
+	options: {
+		now?: Date
+		runInBackground?: RunInBackground
+		dispatch?: PlatformDispatchOptions
+	} = {},
 ) {
 	const now = options.now ?? new Date()
 	const cutoff = new Date(now.getTime() - PLATFORM_CAMPAIGN_STALE_MS)
@@ -544,7 +647,7 @@ export async function resumeStalePlatformCampaigns(
 		if (claimed.length === 0) continue
 		resumed.push(id)
 		;(options.runInBackground ?? runDetached)(() =>
-			dispatchPlatformCampaign(id),
+			dispatchPlatformCampaign(id, options.dispatch),
 		)
 	}
 	return { resumed }

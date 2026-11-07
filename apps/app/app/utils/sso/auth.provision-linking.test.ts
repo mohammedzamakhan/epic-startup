@@ -2,12 +2,35 @@ import {
 	db,
 	eq,
 	Organization,
+	SSOConfiguration,
 	SSOIdentity,
 	User,
 	UserOrganization,
 } from '@repo/database'
 import { describe, expect, it, vi } from 'vitest'
 import { ssoAuthService } from './auth.server.ts'
+import { SSOProvisioningError } from './provisioning-error.ts'
+
+// Identity links reference a stored configuration (one per organization).
+const configIdByOrg = new Map<string, string>()
+
+async function insertConfig(
+	organizationId: string,
+	values: { issuerUrl?: string; clientId?: string } = {},
+) {
+	const [row] = await db
+		.insert(SSOConfiguration)
+		.values({
+			organizationId,
+			providerName: 'Test IdP',
+			issuerUrl: values.issuerUrl ?? 'https://idp.example/',
+			clientId: values.clientId ?? `client-${organizationId}`,
+			clientSecret: 'encrypted',
+		})
+		.returning({ id: SSOConfiguration.id })
+	configIdByOrg.set(organizationId, row!.id)
+	return row!.id
+}
 
 // Real database (no mocks): a tenant's identity provider must not be able to
 // sign in as, or enroll, an account that exists outside its organization.
@@ -26,6 +49,7 @@ async function seed() {
 		.insert(Organization)
 		.values({ id: `o-${id}`, name: `Org ${id}`, slug: `org-${id}` })
 		.returning()
+	await insertConfig(org!.id)
 	return { victim: victim!, org: org!, id }
 }
 
@@ -34,6 +58,7 @@ function config(
 	overrides: Record<string, unknown> = {},
 ) {
 	return {
+		id: configIdByOrg.get(organizationId),
 		organizationId,
 		providerName: 'Test IdP',
 		issuerUrl: 'https://idp.example/',
@@ -49,6 +74,12 @@ function config(
 describe('SSO provisioning never links foreign accounts', () => {
 	it('refuses every sign-in while the configuration lists no allowed domains', async () => {
 		const { victim, org, id } = await seed()
+		await expect(
+			ssoAuthService.provisionUser(
+				{ sub: id, email: victim.email, email_verified: true } as any,
+				config(org.id),
+			),
+		).rejects.toThrow(SSOProvisioningError)
 		await expect(
 			ssoAuthService.provisionUser(
 				{ sub: id, email: victim.email, email_verified: true } as any,
@@ -109,13 +140,14 @@ describe('SSO provisioning never links foreign accounts', () => {
 	})
 })
 
-describe('SSO identity link (issuer + subject)', () => {
+describe('SSO identity link (configuration + subject)', () => {
 	async function orgWithDomain() {
 		const id = `idl${Math.random().toString(36).slice(2, 10)}`
 		const [org] = await db
 			.insert(Organization)
 			.values({ id: `o-${id}`, name: `Org ${id}`, slug: `org-${id}` })
 			.returning()
+		await insertConfig(org!.id)
 		const domain = `${id}.example`
 		return {
 			id,
@@ -276,5 +308,89 @@ describe('SSO identity link (issuer + subject)', () => {
 		expect([...created, ...createdA].map((u) => u.id)).toEqual([
 			links[0]!.userId,
 		])
+	})
+	it('links per configuration: the same person signs in to two organizations on one IdP', async () => {
+		// Entra ID sends a pairwise subject per application, so one person has
+		// a different subject in each organization's app registration.
+		const first = await orgWithDomain()
+		const second = await orgWithDomain()
+		const email = `gus@${first.domain}`
+		const user = await ssoAuthService.provisionUser(
+			{ sub: `app1-${first.id}`, email } as any,
+			first.cfg,
+		)
+		await db.insert(UserOrganization).values({
+			userId: user.id,
+			organizationId: second.org.id,
+			organizationRoleId: 'org_role_member',
+		})
+		const again = await ssoAuthService.provisionUser(
+			{ sub: `app2-${first.id}`, email } as any,
+			config(second.org.id, { allowedEmailDomains: first.domain }),
+		)
+		expect(again.id).toBe(user.id)
+		const links = await db
+			.select({ ssoConfigId: SSOIdentity.ssoConfigId })
+			.from(SSOIdentity)
+			.where(eq(SSOIdentity.userId, user.id))
+		expect(links.map((l) => l.ssoConfigId).sort()).toEqual(
+			[first.cfg.id, configIdByOrg.get(second.org.id)].sort(),
+		)
+	})
+
+	it('a new client id or issuer resets the configuration links; other edits keep them', async () => {
+		const { id, domain, cfg } = await orgWithDomain()
+		const user = await ssoAuthService.provisionUser(
+			{ sub: `old-${id}`, email: `hal@${domain}` } as any,
+			cfg,
+		)
+		const linksFor = () =>
+			db
+				.select({ subject: SSOIdentity.subject })
+				.from(SSOIdentity)
+				.where(eq(SSOIdentity.userId, user.id))
+
+		await db
+			.update(SSOConfiguration)
+			.set({ providerName: 'Renamed', issuerUrl: 'https://idp.example' })
+			.where(eq(SSOConfiguration.id, cfg.id))
+		expect(await linksFor()).toEqual([{ subject: `old-${id}` }])
+
+		// The organization replaces its app registration: new subjects.
+		await db
+			.update(SSOConfiguration)
+			.set({ clientId: `replacement-${id}` })
+			.where(eq(SSOConfiguration.id, cfg.id))
+		expect(await linksFor()).toEqual([])
+
+		// The same member signs in with the new subject and is linked again.
+		const again = await ssoAuthService.provisionUser(
+			{ sub: `new-${id}`, email: `hal@${domain}` } as any,
+			cfg,
+		)
+		expect(again.id).toBe(user.id)
+		expect(await linksFor()).toEqual([{ subject: `new-${id}` }])
+
+		await db
+			.update(SSOConfiguration)
+			.set({ issuerUrl: 'https://other-idp.example/' })
+			.where(eq(SSOConfiguration.id, cfg.id))
+		expect(await linksFor()).toEqual([])
+	})
+
+	it('deleting the configuration deletes its links', async () => {
+		const { id, domain, org, cfg } = await orgWithDomain()
+		const user = await ssoAuthService.provisionUser(
+			{ sub: `del-${id}`, email: `ida@${domain}` } as any,
+			cfg,
+		)
+		await db
+			.delete(SSOConfiguration)
+			.where(eq(SSOConfiguration.organizationId, org.id))
+		const links = await db
+			.select()
+			.from(SSOIdentity)
+			.where(eq(SSOIdentity.userId, user.id))
+		expect(links).toEqual([])
 	})
 })

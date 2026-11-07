@@ -242,6 +242,42 @@ list), insert rows with `source = 'import'` through `setCustomerSubscription()`
 in `apps/tenant-api/src/services/marketing-audience.ts`. Only import people who
 agreed to receive marketing.
 
+Broadcasts are sent by the regional tick, which only claims them: each claimed
+campaign sends in the background (`waitUntil` where the runtime offers one,
+otherwise an un-awaited promise), so a large campaign does not hold the staff
+tick or other organizations; a send that dies with its isolate is resumed once
+its lease goes stale. On the Durable Object runtime the organization's alarm
+wakes at the next scheduled `scheduledAt`, and while a campaign is `Processing`
+it wakes when its lease could go stale (to resume a throttled or interrupted
+send). Creating a campaign and the hourly tick arm it, so a scheduled broadcast
+does not wait for the hourly cron.
+
+## Journey consent
+
+Journeys (App > Marketing > Automations) are marketing, so every email and SMS
+step uses the broadcast consent rules above (`hasMarketingConsent` in
+`apps/tenant-api/src/services/marketing-audience.ts`): an active `marketing`
+subscription for the step's channel, a verified phone for texts, and a confirmed
+address for email. There is no transactional exemption. A customer without
+consent skips that step and the journey goes on. The step execution is recorded
+as `skipped` with `executionDetails.skipReason = 'no_consent'` (and the channel)
+and a readable `errorMessage`, which the run timeline in the App shows; the
+system route `POST /api/journeys/execute-step` answers `reason: 'no_consent'`.
+
+What this means when you design a journey:
+
+- A text right after `phone_verified` (the editor's default trigger) is skipped
+  for nearly everyone: the customer cannot hold an SMS subscription before the
+  request that verified the phone, which is the one that fires the trigger. Put
+  a delay first (a customer who subscribes to texts meanwhile then gets it), or
+  start the journey from a `custom_event` your code sends after the customer
+  subscribes.
+- An email after `profile_completed` is skipped until the customer follows the
+  confirmation link (double opt-in), unless consent was recorded with the
+  `operator` or `import` source.
+- Messages a customer must get whatever their marketing choice (receipts,
+  sign-in codes) are not journeys; send them from the code path that needs them.
+
 ## Migration archives
 
 Two migrations remove duplicate rows before they add the unique indexes that

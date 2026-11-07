@@ -1,14 +1,15 @@
 ALTER TABLE `Organization` ADD `verifiedDomainProvedAt` integer;--> statement-breakpoint
 ALTER TABLE `Organization` ADD `pendingVerifiedDomain` text;--> statement-breakpoint
 ALTER TABLE `Organization` ADD `verifiedDomainToken` text;--> statement-breakpoint
--- One organization per verified domain. Where several organizations claimed the
--- same domain, the oldest claim stays and the later ones are cleared.
-UPDATE `Organization` SET `verifiedDomain` = NULL
+-- Every existing verifiedDomain was saved before DNS proof existed, so none is
+-- proven: anyone could have typed a domain they do not control. Each becomes a
+-- pending claim with a fresh token (shown as a DNS record in organization
+-- settings) and stops auto-joining sign-ups until it is proven. Clearing them
+-- also leaves no duplicates for the unique index below.
+UPDATE `Organization`
+SET `pendingVerifiedDomain` = `verifiedDomain`,
+	`verifiedDomainToken` = lower(hex(randomblob(18))),
+	`verifiedDomain` = NULL
 WHERE `verifiedDomain` IS NOT NULL
-	AND EXISTS (
-		SELECT 1 FROM `Organization` AS `earlier`
-		WHERE `earlier`.`verifiedDomain` = `Organization`.`verifiedDomain`
-			AND (`earlier`.`createdAt` < `Organization`.`createdAt`
-				OR (`earlier`.`createdAt` = `Organization`.`createdAt` AND `earlier`.`id` < `Organization`.`id`))
-	);--> statement-breakpoint
+	AND `verifiedDomainProvedAt` IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX `Organization_verifiedDomain_key` ON `Organization` (`verifiedDomain`);

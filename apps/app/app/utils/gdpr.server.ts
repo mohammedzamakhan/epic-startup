@@ -11,7 +11,6 @@ import {
 	isNull,
 	lte,
 	ne,
-	not,
 	or,
 	DataSubjectRequest,
 	Organization,
@@ -163,10 +162,52 @@ export async function markExportRequestFailed(
 		)
 }
 
+type ErasureRequestOrder = { id: string; requestedAt: Date }
+
+/** The earliest active erasure request of each user, by (requestedAt, id). */
+async function oldestActiveErasureRequests(userIds: string[]) {
+	const oldest = new Map<string, ErasureRequestOrder>()
+	if (userIds.length === 0) return oldest
+	const rows = await db
+		.select({
+			userId: DataSubjectRequest.userId,
+			id: DataSubjectRequest.id,
+			requestedAt: DataSubjectRequest.requestedAt,
+		})
+		.from(DataSubjectRequest)
+		.where(
+			and(
+				inArray(DataSubjectRequest.userId, userIds),
+				eq(DataSubjectRequest.type, 'erasure'),
+				inArray(DataSubjectRequest.status, ACTIVE_ERASURE_STATUSES),
+			),
+		)
+	for (const row of rows) {
+		if (!row.userId) continue
+		const current = oldest.get(row.userId)
+		if (!current || isErasureRequestOlder(row, current)) {
+			oldest.set(row.userId, { id: row.id, requestedAt: row.requestedAt })
+		}
+	}
+	return oldest
+}
+
+function isErasureRequestOlder(a: ErasureRequestOrder, b: ErasureRequestOrder) {
+	const byTime = a.requestedAt.getTime() - b.requestedAt.getTime()
+	return byTime !== 0 ? byTime < 0 : a.id < b.id
+}
+
 /**
  * Organizations where `userId` is an active admin and no other active admin
  * would remain. An admin who has an erasure request of their own pending is
  * leaving too, so they do not count as the other admin.
+ *
+ * When every other admin is leaving too, the oldest request (by requestedAt,
+ * then id) goes ahead and the others wait: otherwise two leaving admins would
+ * hold each other's erasure forever. Once it is done, the admins left are the
+ * organization's sole admins and wait for another admin as usual. A user with
+ * no erasure request yet is never the oldest, so a new request is still
+ * refused while the other admins are all leaving.
  */
 export async function findSoleAdminOrganizations(
 	userId: string,
@@ -194,10 +235,13 @@ export async function findSoleAdminOrganizations(
 				isNull(OrganizationRole.organizationId),
 			),
 		)
+	if (adminMemberships.length === 0) return []
+
+	const ownRequest = (await oldestActiveErasureRequests([userId])).get(userId)
 	const OtherMembership = alias(UserOrganization, 'otherMembership')
 	const blocking: Array<{ organizationId: string; name: string }> = []
 	for (const membership of adminMemberships) {
-		const [otherAdmin] = await db
+		const otherAdmins = await db
 			.select({ userId: OtherMembership.userId })
 			.from(OtherMembership)
 			.innerJoin(
@@ -211,11 +255,22 @@ export async function findSoleAdminOrganizations(
 					ne(OtherMembership.userId, userId),
 					eq(OrganizationRole.name, 'admin'),
 					isNull(OrganizationRole.organizationId),
-					not(hasPendingErasure(OtherMembership.userId)),
 				),
 			)
-			.limit(1)
-		if (!otherAdmin) blocking.push(membership)
+		const otherRequests = await oldestActiveErasureRequests(
+			otherAdmins.map((admin) => admin.userId),
+		)
+		const anAdminStays = otherAdmins.some(
+			(admin) => !otherRequests.has(admin.userId),
+		)
+		if (anAdminStays) continue
+		const oldestLeaving =
+			ownRequest !== undefined &&
+			otherAdmins.length > 0 &&
+			[...otherRequests.values()].every((other) =>
+				isErasureRequestOlder(ownRequest, other),
+			)
+		if (!oldestLeaving) blocking.push(membership)
 	}
 	return blocking
 }

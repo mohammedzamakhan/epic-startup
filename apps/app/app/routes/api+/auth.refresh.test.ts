@@ -1,8 +1,9 @@
-import { db, eq, RefreshToken } from '@repo/database'
-import { describe, expect, it } from 'vitest'
+import { db, eq, RefreshToken, sql } from '@repo/database'
+import { describe, expect, it, vi } from 'vitest'
 import {
 	createTokenPair,
 	REFRESH_TOKEN_REUSE_GRACE_MS,
+	revokeRefreshToken,
 } from '#app/utils/jwt.server.ts'
 import { createTestUser, getResponseStatus } from '#tests/test-utils.ts'
 import { action } from './auth.refresh.ts'
@@ -230,6 +231,125 @@ describe('api/auth/refresh integration', () => {
 			})
 			.where(eq(RefreshToken.id, tokens.refreshToken.split('.')[0]!))
 		expect(getResponseStatus(await run(tokens.refreshToken))).toBe(401)
+	})
+
+	it('keeps the old token usable when the successor cannot be stored', async () => {
+		const user = await createTestUser()
+		const tokens = await createTokenPair(
+			{ id: user.id, email: user.email, username: user.username },
+			{ userAgent: 'test-agent', ip: '127.0.0.1' },
+		)
+		const run = (refreshToken: string) =>
+			action({
+				request: refreshRequest(refreshToken, user.id),
+				params: {},
+				context: {},
+			} as any) as any
+		const oldId = tokens.refreshToken.split('.')[0]!
+
+		// The successor insert fails (a transient database error) after the
+		// claim statement has run.
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+		await db.run(
+			sql.raw(`CREATE TRIGGER "test_refresh_insert_fails"
+				BEFORE INSERT ON "RefreshToken"
+				BEGIN SELECT RAISE(ABORT, 'injected failure'); END`),
+		)
+		let failed
+		try {
+			failed = await run(tokens.refreshToken)
+		} finally {
+			await db.run(sql.raw('DROP TRIGGER "test_refresh_insert_fails"'))
+			error.mockRestore()
+		}
+		expect(getResponseStatus(failed)).toBe(500)
+
+		// The claim rolled back with the insert: the token is not revoked, and
+		// the app's retry rotates it instead of signing the operator out.
+		const [old] = await db
+			.select({ revoked: RefreshToken.revoked })
+			.from(RefreshToken)
+			.where(eq(RefreshToken.id, oldId))
+		expect(old!.revoked).toBe(false)
+		const retry = await run(tokens.refreshToken)
+		expect(getResponseStatus(retry)).toBe(200)
+		expect(getResponseStatus(await run(retry.data.data.refreshToken))).toBe(200)
+	})
+
+	it('gives concurrent rotations of one token the same successor', async () => {
+		const user = await createTestUser()
+		const tokens = await createTokenPair(
+			{ id: user.id, email: user.email, username: user.username },
+			{ userAgent: 'test-agent', ip: '127.0.0.1' },
+		)
+		const run = (refreshToken: string) =>
+			action({
+				request: refreshRequest(refreshToken, user.id),
+				params: {},
+				context: {},
+			} as any) as any
+
+		// A client timeout: the app retries while the first request is still
+		// running.
+		const results = await Promise.all([
+			run(tokens.refreshToken),
+			run(tokens.refreshToken),
+			run(tokens.refreshToken),
+		])
+		for (const result of results) expect(getResponseStatus(result)).toBe(200)
+		const issued = new Set(
+			results.map((result) => result.data.data.refreshToken),
+		)
+		expect(issued.size).toBe(1)
+		const live = await db
+			.select({ id: RefreshToken.id })
+			.from(RefreshToken)
+			.where(eq(RefreshToken.userId, user.id))
+		// The original (revoked) and exactly one successor.
+		expect(live).toHaveLength(2)
+	})
+
+	it('never recreates a successor that was already removed', async () => {
+		const user = await createTestUser()
+		const tokens = await createTokenPair(
+			{ id: user.id, email: user.email, username: user.username },
+			{ userAgent: 'test-agent', ip: '127.0.0.1' },
+		)
+		const run = (refreshToken: string) =>
+			action({
+				request: refreshRequest(refreshToken, user.id),
+				params: {},
+				context: {},
+			} as any) as any
+
+		const first = await run(tokens.refreshToken)
+		expect(getResponseStatus(first)).toBe(200)
+		const successorId = first.data.data.refreshToken.split('.')[0]!
+		await db.delete(RefreshToken).where(eq(RefreshToken.id, successorId))
+
+		expect(getResponseStatus(await run(tokens.refreshToken))).toBe(401)
+		const rows = await db
+			.select({ id: RefreshToken.id })
+			.from(RefreshToken)
+			.where(eq(RefreshToken.id, successorId))
+		expect(rows).toEqual([])
+	})
+
+	it('a signed-out token is not treated as a rotation retry', async () => {
+		const user = await createTestUser()
+		const tokens = await createTokenPair(
+			{ id: user.id, email: user.email, username: user.username },
+			{ userAgent: 'test-agent', ip: '127.0.0.1' },
+		)
+		expect(await revokeRefreshToken(tokens.refreshToken)).toBe(true)
+		// Revoking again changes nothing (and does not move updatedAt).
+		expect(await revokeRefreshToken(tokens.refreshToken)).toBe(false)
+		const response = (await action({
+			request: refreshRequest(tokens.refreshToken, user.id),
+			params: {},
+			context: {},
+		} as any)) as any
+		expect(getResponseStatus(response)).toBe(401)
 	})
 
 	it('returns 405 on GET request', async () => {

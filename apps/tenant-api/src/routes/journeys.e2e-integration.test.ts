@@ -799,9 +799,11 @@ describe('Marketing Automation End-to-End Integration Suite (Milestones 1 - 5)',
 		expect(stepRes.status).toBe(200)
 		const stepData = (await stepRes.json()) as {
 			status: string
+			reason?: string
 			executionId: string
 		}
 		expect(stepData.status).toBe('skipped')
+		expect(stepData.reason).toBe('no_consent')
 
 		const stepExecution = await db
 			.select()
@@ -809,6 +811,16 @@ describe('Marketing Automation End-to-End Integration Suite (Milestones 1 - 5)',
 			.where(eq(journeyStepExecutions.id, stepData.executionId))
 			.get()
 		expect(stepExecution?.status).toBe('skipped')
+		// The runs view reads why: a code, plus the message it already shows.
+		const details =
+			typeof stepExecution?.executionDetails === 'string'
+				? JSON.parse(stepExecution.executionDetails)
+				: stepExecution?.executionDetails
+		expect(details).toMatchObject({
+			skipReason: 'no_consent',
+			channel: 'email',
+		})
+		expect(stepExecution?.errorMessage).toContain('Skipped')
 	})
 
 	it('Scenario 4: Security & Authentication Guardrails (Constant-Time Token Check & Operator RBAC)', async () => {
@@ -855,7 +867,7 @@ describe('Marketing Automation End-to-End Integration Suite (Milestones 1 - 5)',
 				},
 			}),
 		)
-		expect(memberRes.status).toBe(403)
+		expect(memberRes.status).toBe(401)
 
 		// 4. Operator endpoint with wrong audience
 		const wrongAudJwt = await new SignJWT({

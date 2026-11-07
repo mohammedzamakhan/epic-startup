@@ -1,4 +1,15 @@
-import { db, eq, Organization } from '@repo/database'
+import {
+	and,
+	db,
+	eq,
+	Organization,
+	OrganizationInvitation,
+	OrganizationRole,
+	Permission,
+	SSOConfiguration,
+	SSOSession,
+	_OrganizationPermissionToRole,
+} from '@repo/database'
 import { RouterContextProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -7,13 +18,14 @@ import {
 } from '#app/utils/sites/tenant-api.server.ts'
 import type * as regionGuard from '#app/utils/staffing/region-guard.server.ts'
 import {
+	addOrganizationMember,
 	createAuthenticatedRequest,
 	createTestOrganization,
 	createTestSession,
 	createTestUser,
 } from '#tests/test-utils.ts'
 import { action as websiteAction } from '../website+/_index.tsx'
-import { action } from './_index.tsx'
+import { action, loader } from './_index.tsx'
 
 const databaseMocks = vi.hoisted(() => ({ update: vi.fn() }))
 
@@ -75,13 +87,13 @@ async function setup(options: {
 }) {
 	const user = await createTestUser()
 	const organization = await createTestOrganization(user.id)
-	const { cookie } = await createTestSession(user.id)
+	const { cookie, session } = await createTestSession(user.id)
 	await db
 		.update(Organization)
 		.set(options)
 		.where(eq(Organization.id, organization.id))
 	const url = new URL(`http://localhost:3001/${organization.slug}/settings`)
-	const submit = () =>
+	const submit = (asCookie = cookie) =>
 		action({
 			request: createAuthenticatedRequest(
 				url.toString(),
@@ -89,7 +101,7 @@ async function setup(options: {
 					method: 'POST',
 					body: new URLSearchParams({ intent: 'delete-organization' }),
 				},
-				cookie,
+				asCookie,
 			),
 			params: { orgSlug: organization.slug },
 			context: new RouterContextProvider(),
@@ -120,6 +132,16 @@ async function setup(options: {
 			url: websiteUrl,
 			pattern: '/:orgSlug/website',
 		} as Parameters<typeof websiteAction>[0]).catch((thrown: unknown) => thrown)
+	const canDelete = async (asCookie = cookie) => {
+		const result = (await loader({
+			request: createAuthenticatedRequest(url.toString(), {}, asCookie),
+			params: { orgSlug: organization.slug },
+			context: new RouterContextProvider(),
+			url,
+			pattern: '/:orgSlug/settings',
+		} as Parameters<typeof loader>[0])) as { canDeleteOrganization: boolean }
+		return result.canDeleteOrganization
+	}
 	const exists = async () =>
 		(
 			await db
@@ -127,7 +149,48 @@ async function setup(options: {
 				.from(Organization)
 				.where(eq(Organization.id, organization.id))
 		).length === 1
-	return { organization, submit, switchRegion, exists }
+	return {
+		user,
+		session,
+		organization,
+		submit,
+		switchRegion,
+		exists,
+		canDelete,
+	}
+}
+
+/** An organization-scoped custom role with the given permissions. */
+async function createCustomRole(
+	organizationId: string,
+	permissions: Array<{ action: string; entity: string; access: string }> = [],
+) {
+	const [role] = await db
+		.insert(OrganizationRole)
+		.values({
+			name: `Custom ${crypto.randomUUID().slice(0, 8)}`,
+			description: '',
+			level: 0,
+			organizationId,
+		})
+		.returning({ id: OrganizationRole.id })
+	for (const { action, entity, access } of permissions) {
+		const [permission] = await db
+			.select({ id: Permission.id })
+			.from(Permission)
+			.where(
+				and(
+					eq(Permission.action, action),
+					eq(Permission.entity, entity),
+					eq(Permission.access, access),
+					eq(Permission.context, 'organization'),
+				),
+			)
+		await db
+			.insert(_OrganizationPermissionToRole)
+			.values({ A: role!.id, B: permission!.id })
+	}
+	return role!.id
 }
 
 describe('deleting an organization', () => {
@@ -144,6 +207,73 @@ describe('deleting an organization', () => {
 			expect.objectContaining({ orgId: organization.id, dataRegion: 'ksa' }),
 		)
 		expect(await exists()).toBe(false)
+	})
+
+	it('deletes an organization with a live SSO session and a pending invitation on a custom role', async () => {
+		// Both rows use ON DELETE RESTRICT keys that the organization's cascade
+		// would otherwise trip over, after the tenant database is already gone.
+		const { user, session, organization, submit, exists } = await setup({
+			dataRegion: 'us',
+			hasProvisionedDb: true,
+		})
+		const [ssoConfig] = await db
+			.insert(SSOConfiguration)
+			.values({
+				organizationId: organization.id,
+				providerName: 'Test IdP',
+				issuerUrl: 'https://idp.example.com',
+				clientId: 'client',
+				clientSecret: 'secret',
+				createdById: user.id,
+			})
+			.returning({ id: SSOConfiguration.id })
+		await db.insert(SSOSession).values({
+			sessionId: session.id,
+			ssoConfigId: ssoConfig!.id,
+			providerUserId: 'idp-user',
+		})
+		const roleId = await createCustomRole(organization.id)
+		await db.insert(OrganizationInvitation).values({
+			email: `invitee-${crypto.randomUUID()}@example.com`,
+			organizationRoleId: roleId,
+			token: crypto.randomUUID(),
+			organizationId: organization.id,
+			inviterId: user.id,
+		})
+
+		const response = (await submit()) as Response
+
+		expect(response.status).toBe(302)
+		expect(deprovisionTenantDatabase).toHaveBeenCalledTimes(1)
+		expect(await exists()).toBe(false)
+		expect(
+			await db
+				.select({ id: SSOSession.id })
+				.from(SSOSession)
+				.where(eq(SSOSession.ssoConfigId, ssoConfig!.id)),
+		).toEqual([])
+	})
+
+	it('needs the built-in admin role, not only permission to change settings', async () => {
+		const { organization, submit, exists, canDelete } = await setup({
+			dataRegion: 'us',
+			hasProvisionedDb: true,
+		})
+		expect(await canDelete()).toBe(true)
+		const roleId = await createCustomRole(organization.id, [
+			{ action: 'update', entity: 'settings', access: 'any' },
+			{ action: 'read', entity: 'settings', access: 'any' },
+		])
+		const manager = await createTestUser()
+		await addOrganizationMember(manager.id, organization.id, roleId)
+		const { cookie } = await createTestSession(manager.id)
+		expect(await canDelete(cookie)).toBe(false)
+
+		const response = (await submit(cookie)) as Response
+
+		expect(response.status).toBe(403)
+		expect(deprovisionTenantDatabase).not.toHaveBeenCalled()
+		expect(await exists()).toBe(true)
 	})
 
 	it('keeps the organization when the tenant database cannot be deleted', async () => {

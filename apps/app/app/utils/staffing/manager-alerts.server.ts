@@ -156,9 +156,9 @@ export async function loadChannelPreferences(input: {
 }
 
 /**
- * What was already delivered for an event, per member: the in-app row (`type`)
- * and the email marker (`emailMarkerType`), so a retried delivery repeats
- * neither and an interrupted one finishes only what is missing.
+ * The in-app rows (`type`) already delivered for an event, per member, so a
+ * retried delivery does not repeat them. Emails are deduplicated separately,
+ * by the StaffingAlertEmail table.
  */
 export async function loadDeliveredTypes(input: {
 	organizationId: string

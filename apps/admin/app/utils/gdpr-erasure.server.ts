@@ -1,4 +1,4 @@
-import { ENV } from 'varlock/env'
+import { postToApp } from './app-service.server.ts'
 
 export type AppErasureOutcome =
 	| {
@@ -18,23 +18,19 @@ export type AppErasureOutcome =
  */
 export async function runErasureInApp(
 	requestId: string,
-	fetchImpl: typeof fetch = fetch,
 ): Promise<AppErasureOutcome> {
-	const base = ENV.APP_URL?.replace(/\/$/, '')
-	const token = ENV.INTERNAL_COMMAND_TOKEN
-	if (!base || !token) {
+	const result = await postToApp(
+		'/resources/jobs/gdpr-erasure',
+		{ requestId },
+		{ timeoutMs: 60_000 },
+	)
+	if (result.status === 'not_configured') {
 		return { ok: false, error: 'APP_URL or INTERNAL_COMMAND_TOKEN is not set' }
 	}
-	const response = await fetchImpl(`${base}/resources/jobs/gdpr-erasure`, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${token}`,
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({ requestId }),
-		signal: AbortSignal.timeout(60_000),
-	}).catch(() => null)
-	if (!response) return { ok: false, error: 'The App did not answer' }
+	if (result.status === 'unreachable') {
+		return { ok: false, error: 'The App did not answer' }
+	}
+	const { response } = result
 	const body = (await response.json().catch(() => null)) as {
 		processed?: number
 		failed?: number

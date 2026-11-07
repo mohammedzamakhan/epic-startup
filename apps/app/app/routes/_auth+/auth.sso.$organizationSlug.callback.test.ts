@@ -19,6 +19,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { serverBuildContext } from '#app/server-context.ts'
 import { ssoAuthService } from '#app/utils/sso/auth.server.ts'
 import { ssoConfigurationService } from '#app/utils/sso/configuration.server.ts'
+import { SSOProvisioningError } from '#app/utils/sso/provisioning-error.ts'
 import { createUser } from '#tests/db-utils.ts'
 import { consoleError } from '#tests/setup/setup-test-env.ts'
 import { BASE_URL, convertSetCookieToCookie } from '#tests/utils.ts'
@@ -330,19 +331,14 @@ test('handles OAuth callback failure', async () => {
 	)
 })
 
-test('handles user provisioning failure', async () => {
+test('shows why the organization refused the account (provisioning failure)', async () => {
 	consoleError.mockImplementation(() => {})
 
-	const mockProviderUser = {
-		id: faker.string.uuid(),
-		email: faker.internet.email(),
-		username: faker.internet.username(),
-		name: faker.person.fullName(),
-	}
-
-	vi.mocked(ssoAuthService.handleCallback).mockResolvedValue(mockProviderUser)
-	vi.mocked(ssoAuthService.getProvisionedUser).mockRejectedValue(
-		new Error('User provisioning failed: auto-provisioning disabled'),
+	// provisionUser runs inside handleCallback; its policy errors are typed.
+	vi.mocked(ssoAuthService.handleCallback).mockRejectedValue(
+		new SSOProvisioningError(
+			'Single sign-on for this organization has no allowed email domains yet. Ask your administrator to add them.',
+		),
 	)
 
 	const request = await setupRequest()
@@ -359,14 +355,12 @@ test('handles user provisioning failure', async () => {
 	await expect(response).toSendToast(
 		expect.objectContaining({
 			title: 'User Provisioning Failed',
-			description: 'User provisioning failed: auto-provisioning disabled',
+			description:
+				'Single sign-on for this organization has no allowed email domains yet. Ask your administrator to add them.',
 			type: 'error',
 		}),
 	)
-	expect(consoleError).toHaveBeenCalledWith(
-		'User provisioning failed:',
-		expect.any(Error),
-	)
+	expect(ssoAuthService.getProvisionedUser).not.toHaveBeenCalled()
 })
 
 test('handles user already logged in', async () => {

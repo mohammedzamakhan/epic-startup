@@ -8,6 +8,7 @@ import {
 	isNotNull,
 	lt,
 	lte,
+	min,
 	or,
 } from 'drizzle-orm'
 import { sendSms } from '@repo/sms'
@@ -445,15 +446,11 @@ export async function claimBroadcast(
 }
 
 /**
- * One pass for an organization: resume stale `Processing` broadcasts and start
- * scheduled ones that are due. Called from the regional tick.
+ * Claims what the tick should send for an organization: stale `Processing`
+ * broadcasts (their dispatcher died or was throttled) and scheduled ones that
+ * are due, at most `MAX_CAMPAIGNS_PER_TICK`. Each returned lease is ours.
  */
-export async function runBroadcastTick(
-	orgId: string,
-	db: Db,
-	now: number,
-	options: BroadcastDispatchOptions = {},
-) {
+export async function claimDueBroadcasts(db: Db, now: number) {
 	const candidates = await db
 		.select({ id: marketingCampaigns.id })
 		.from(marketingCampaigns)
@@ -473,28 +470,105 @@ export async function runBroadcastTick(
 		.limit(MAX_CAMPAIGNS_PER_TICK)
 		.all()
 
-	const outcomes: BroadcastDispatchOutcome[] = []
+	const claimed: Array<{ id: string; lease: Date }> = []
 	for (const { id } of candidates) {
 		const lease = await claimBroadcast(db, id, now)
-		if (!lease) continue
+		if (lease) claimed.push({ id, lease })
+	}
+	return claimed
+}
+
+/**
+ * One pass for an organization: resume stale `Processing` broadcasts and start
+ * scheduled ones that are due, waiting for every dispatch to finish.
+ */
+export async function runBroadcastTick(
+	orgId: string,
+	db: Db,
+	now: number,
+	options: BroadcastDispatchOptions = {},
+) {
+	const outcomes: BroadcastDispatchOutcome[] = []
+	for (const { id, lease } of await claimDueBroadcasts(db, now)) {
 		outcomes.push(await dispatchBroadcast(orgId, id, lease, options))
 	}
 	return { claimed: outcomes.length, outcomes }
 }
 
+/**
+ * When the tick next has broadcast work for this organization: the earliest
+ * future `scheduledAt`, or when a `Processing` campaign's lease goes stale (a
+ * throttled or interrupted send is resumed then; a live one keeps pushing its
+ * lease forward and is simply checked again). Null when there is none. The
+ * Durable Object runtime arms its alarm by it, so a scheduled broadcast does
+ * not wait for the hourly cron.
+ */
+export async function nextBroadcastWakeAt(
+	db: Db,
+	now: number,
+): Promise<number | null> {
+	const [scheduled] = await db
+		.select({ at: min(marketingCampaigns.scheduledAt) })
+		.from(marketingCampaigns)
+		.where(
+			and(
+				inArray(marketingCampaigns.status, ['Scheduled', 'Draft']),
+				isNotNull(marketingCampaigns.scheduledAt),
+			),
+		)
+	const [processing] = await db
+		.select({ at: min(marketingCampaigns.updatedAt) })
+		.from(marketingCampaigns)
+		.where(eq(marketingCampaigns.status, 'Processing'))
+	const times = [
+		scheduled?.at ? scheduled.at.getTime() : null,
+		// One second past the stale line, so `claimBroadcast` sees it as stale.
+		processing?.at ? processing.at.getTime() + BROADCAST_STALE_MS + 1000 : null,
+	].filter((at): at is number => at !== null)
+	if (times.length === 0) return null
+	// Something already due (a claim lost to another dispatcher, or more than
+	// `MAX_CAMPAIGNS_PER_TICK` due at once) is looked at again shortly.
+	return Math.max(Math.min(...times), now + 1000)
+}
+
 export { toLease as broadcastLease }
 
 /**
- * The broadcast pass of the regional tick for one organization. Never throws:
- * a broadcast failure must not stop the staff tick next to it. Ids only in logs.
+ * The broadcast pass of the regional tick for one organization. It only claims
+ * the work: each claimed dispatch runs detached through `runDetached`
+ * (`waitUntil` where the runtime has one), so one large campaign does not hold
+ * the staff tick or the fan-out slot it runs in. A dispatch that dies with its
+ * isolate is resumed by a later tick once its lease goes stale.
+ *
+ * Never throws: a broadcast failure must not stop the staff tick next to it.
+ * Ids only in logs. Returns the number claimed and when to look again (see
+ * `nextBroadcastWakeAt`), or null when the pass failed.
  */
-export async function runBroadcastTickForOrg(
+export async function startBroadcastTickForOrg(
 	orgId: string,
-	now: number = Date.now(),
-) {
+	options: {
+		now?: number
+		runDetached?: (task: Promise<unknown>) => void
+	} = {},
+): Promise<{ claimed: number; nextAt: number | null } | null> {
+	const now = options.now ?? Date.now()
 	try {
 		const db = await getTenantDb(orgId)
-		return await runBroadcastTick(orgId, db, now)
+		const claimed = await claimDueBroadcasts(db, now)
+		for (const { id, lease } of claimed) {
+			const task = dispatchBroadcast(orgId, id, lease).catch((error) => {
+				console.error('Broadcast dispatch failed', {
+					orgId,
+					campaignId: id,
+					reason: error instanceof Error ? error.name : 'unknown',
+				})
+			})
+			options.runDetached?.(task)
+		}
+		return {
+			claimed: claimed.length,
+			nextAt: await nextBroadcastWakeAt(db, now),
+		}
 	} catch (error) {
 		console.error('Broadcast tick failed', {
 			orgId,

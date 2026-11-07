@@ -24,7 +24,19 @@ vi.mock('../src/app.ts', () => ({
 	createTenantApiApp: () => ({ fetch: appFetch }),
 }))
 vi.mock('../src/lib/secrets.ts', () => ({ applyVarlockEnv: () => {} }))
+const broadcasts = vi.hoisted(() => ({
+	startBroadcastTickForOrg: vi.fn(),
+	nextBroadcastWakeAt: vi.fn(async () => null as number | null),
+}))
+vi.mock('../src/services/broadcast-dispatch.ts', () => broadcasts)
+const runStaffTickForOrg = vi.hoisted(() =>
+	vi.fn(async () => ({ needsFollowUp: false })),
+)
+vi.mock('../src/services/staff-tick-service.ts', () => ({
+	runStaffTickForOrg,
+}))
 
+import { STAFF_ALARM_ORG_KEY } from '../src/lib/staff-alarm.ts'
 import { TENANT_ORG_HEADER, TenantOrg } from './tenant-org.ts'
 
 function memoryStorage() {
@@ -86,5 +98,73 @@ describe('TenantOrg after deprovision', () => {
 		const response = await object.fetch(orgRequest())
 		expect(response.status).toBe(200)
 		expect(migrate).toHaveBeenCalledTimes(2)
+	})
+})
+
+describe('TenantOrg broadcasts on the alarm', () => {
+	function alarmStorage() {
+		const state = { alarm: null as number | null }
+		return {
+			state,
+			storage: {
+				...memoryStorage(),
+				getAlarm: async () => state.alarm,
+				setAlarm: async (at: number) => {
+					state.alarm = at
+				},
+			},
+		}
+	}
+
+	beforeEach(() => {
+		broadcasts.startBroadcastTickForOrg.mockReset()
+		broadcasts.nextBroadcastWakeAt.mockReset()
+		runStaffTickForOrg.mockClear()
+	})
+
+	it('claims due broadcasts, sends them through waitUntil, and wakes for the next one', async () => {
+		const { storage, state } = alarmStorage()
+		await storage.put(STAFF_ALARM_ORG_KEY, ORG)
+		const waitUntil = vi.fn()
+		const nextAt = Date.now() + 30 * 60_000
+		broadcasts.startBroadcastTickForOrg.mockImplementation(
+			async (
+				_orgId: string,
+				options: { runDetached: (task: Promise<unknown>) => void },
+			) => {
+				options.runDetached(Promise.resolve())
+				return { claimed: 1, nextAt }
+			},
+		)
+		const object = new TenantOrg({ storage, waitUntil } as never, {} as never)
+
+		await object.alarm()
+
+		expect(broadcasts.startBroadcastTickForOrg).toHaveBeenCalledWith(
+			ORG,
+			expect.any(Object),
+		)
+		expect(runStaffTickForOrg).toHaveBeenCalledWith(ORG)
+		expect(waitUntil).toHaveBeenCalledTimes(1)
+		// Staffing needs nothing, but the scheduled broadcast does.
+		expect(state.alarm).toBe(nextAt)
+	})
+
+	it('arms the alarm for a campaign scheduled through the operator route', async () => {
+		const { storage, state } = alarmStorage()
+		const scheduledAt = Date.now() + 2 * 60 * 60_000
+		broadcasts.nextBroadcastWakeAt.mockResolvedValue(scheduledAt)
+		const object = new TenantOrg({ storage } as never, {} as never)
+
+		const response = await object.fetch(
+			new Request('https://tenant.example.test/operator/marketing/campaigns', {
+				method: 'POST',
+				headers: { [TENANT_ORG_HEADER]: ORG },
+			}),
+		)
+
+		expect(response.status).toBe(200)
+		expect(state.alarm).toBe(scheduledAt)
+		expect(await storage.get(STAFF_ALARM_ORG_KEY)).toBe(ORG)
 	})
 })

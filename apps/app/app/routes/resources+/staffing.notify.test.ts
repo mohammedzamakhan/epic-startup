@@ -1,9 +1,6 @@
 import {
-	and,
 	ConfigFlag,
 	db,
-	like,
-	not,
 	eq,
 	inArray,
 	Notification,
@@ -48,7 +45,6 @@ vi.mock('#app/utils/staffing/email-switch.server.ts', () => ({
 	isStaffingEmailEnabled: () => emailSwitch.on,
 }))
 
-import { DELIVERY_MARKER_TYPE_PREFIX } from '#app/utils/staffing/notification-visibility.server.ts'
 import {
 	addOrganizationMember,
 	createTestUser,
@@ -159,15 +155,7 @@ function call(
 }
 
 async function notificationsFor(userId: string) {
-	return db
-		.select()
-		.from(Notification)
-		.where(
-			and(
-				eq(Notification.userId, userId),
-				not(like(Notification.type, `${DELIVERY_MARKER_TYPE_PREFIX}%`)),
-			),
-		)
+	return db.select().from(Notification).where(eq(Notification.userId, userId))
 }
 
 beforeEach(() => {

@@ -430,7 +430,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 		assets: assets.map(serializeAsset),
 		search: normalizedSearch,
 		canManageMedia,
-		photoStudioEnabled: isPhotoStudioConfigured() && canUsePhotoStudio,
+		// The studio saves its results to the shared library, so using it also
+		// takes permission to manage media (see media_.studio.tsx).
+		photoStudioEnabled:
+			isPhotoStudioConfigured() && canUsePhotoStudio && canManageMedia,
 	}
 }
 
@@ -1556,7 +1559,9 @@ function MediaDetailsDialog({
 												<Trans>Edit image</Trans>
 											</Button>
 										) : null}
-										{onEnhance && isPhotoStudioCompatible(asset.mimeType) ? (
+										{!readOnly &&
+										onEnhance &&
+										isPhotoStudioCompatible(asset.mimeType) ? (
 											<Button
 												type="button"
 												variant="default"

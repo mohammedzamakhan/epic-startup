@@ -7,6 +7,7 @@ import {
 	desc,
 	eq,
 	inArray,
+	isNotNull,
 	isNull,
 	Organization,
 	OrganizationImage,
@@ -488,7 +489,13 @@ export async function getOrganizationByDomain(domain: string) {
 			verifiedDomain: Organization.verifiedDomain,
 		})
 		.from(Organization)
-		.where(eq(Organization.verifiedDomain, domain.toLowerCase()))
+		.where(
+			and(
+				eq(Organization.verifiedDomain, domain.toLowerCase()),
+				// Only a DNS-proven domain routes sign-ins to an organization.
+				isNotNull(Organization.verifiedDomainProvedAt),
+			),
+		)
 		.limit(1)
 	return organization ?? null
 }

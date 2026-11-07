@@ -15,7 +15,6 @@ import { checkHoneypot } from '@repo/security'
 import { type ActionFunctionArgs, type LoaderFunctionArgs } from 'react-router'
 import { z } from 'zod'
 import {
-	DELIVERY_MARKER_TYPE_PREFIX,
 	filterVisibleNotifications,
 	countVisibleStaffingAlerts,
 } from '#app/utils/staffing/notification-visibility.server.ts'
@@ -42,7 +41,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 	const whereClause = and(
 		eq(Notification.userId, userId),
-		not(like(Notification.type, `${DELIVERY_MARKER_TYPE_PREFIX}%`)),
 		organizationId
 			? eq(Notification.organizationId, organizationId)
 			: undefined,
