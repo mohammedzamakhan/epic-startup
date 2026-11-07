@@ -65,7 +65,9 @@ beforeAll(async () => {
 		}),
 	)
 	// Like server/index.ts: the whole client folder is also served at the root.
-	app.use(express.static(path.dirname(root)))
+	app.use(
+		express.static(path.dirname(root), { setHeaders: setPrivateAssetHeaders }),
+	)
 	server = app.listen(0)
 	await new Promise((resolve) => server.once('listening', resolve))
 	port = (server.address() as AddressInfo).port
@@ -130,11 +132,24 @@ describe('Node server private asset gate', () => {
 		'/%61ssets/app/_layout-abc.js',
 		'/%41SSETS/APP/_layout-abc.js',
 		'//assets/app/_layout-abc.js',
+		'/assets/x%23%2f..%2fapp/_layout-abc.js',
+		'/assets/x%3f%2f..%2fapp/_layout-abc.js',
 	])('never serves %s without a session', async (rawPath) => {
 		const response = await get(rawPath)
 		expect(response.status).not.toBe(200)
 		expect(response.body).not.toBe('private')
 	})
+
+	it.each(['/%61ssets/app/_layout-abc.js', '/assets/%61pp/_layout-abc.js'])(
+		'marks %s private for a signed-in request',
+		async (rawPath) => {
+			const response = await get(rawPath, SESSION_COOKIE)
+			expect(response.status).toBe(200)
+			expect(response.headers['cache-control']).toBe(
+				'private, max-age=31536000, immutable',
+			)
+		},
+	)
 
 	it('serves public chunks without a session and hides the route manifest', async () => {
 		expect((await get('/assets/login-abc.js')).body).toBe('public')

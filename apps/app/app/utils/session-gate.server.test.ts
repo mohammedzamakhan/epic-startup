@@ -6,6 +6,7 @@ import {
 	clearSessionGateCache,
 	hasActiveSession,
 	POSITIVE_CACHE_MS,
+	sessionStatus,
 } from './session-gate.server.ts'
 
 function requestWith(cookie?: string) {
@@ -45,6 +46,13 @@ describe('hasActiveSession', () => {
 		const { session, cookie } = await createTestSession(user.id)
 		await db.delete(Session).where(eq(Session.id, session.id))
 		expect(await hasActiveSession(requestWith(cookie))).toBe(false)
+	})
+
+	it('reports no session and a live session through sessionStatus', async () => {
+		const user = await insertTestUser()
+		const { cookie } = await createTestSession(user.id)
+		expect(await sessionStatus(requestWith())).toBe('none')
+		expect(await sessionStatus(requestWith(cookie))).toBe('active')
 	})
 
 	it('is true for a live session', async () => {

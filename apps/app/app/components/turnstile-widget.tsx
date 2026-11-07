@@ -46,6 +46,7 @@ function loadTurnstile(nonce: string): Promise<TurnstileApi> {
 	if (window.turnstile) return Promise.resolve(window.turnstile)
 	if (window.__turnstileLoad) return window.__turnstileLoad
 	const script = document.createElement('script')
+	let deadline: ReturnType<typeof setTimeout> | undefined
 	const load = new Promise<TurnstileApi>((resolve, reject) => {
 		script.src = TURNSTILE_SCRIPT_URL
 		script.async = true
@@ -55,15 +56,30 @@ function loadTurnstile(nonce: string): Promise<TurnstileApi> {
 			else reject(new Error('Turnstile did not load'))
 		}
 		script.onerror = () => reject(new Error('Turnstile did not load'))
+		// A load that never settles (a stalled connection) counts as failed, so
+		// the retry path and the Try again message still run.
+		deadline = setTimeout(
+			() => reject(new Error('Turnstile load timed out')),
+			LOAD_TIMEOUT_MS,
+		)
 		document.head.appendChild(script)
-	}).catch((error: unknown) => {
-		script.remove()
-		window.__turnstileLoad = undefined
-		throw error
 	})
+		.finally(() => clearTimeout(deadline))
+		.catch((error: unknown) => {
+			// A late load or error event from this script must not touch a newer
+			// attempt: detach the handlers and the element.
+			script.onload = null
+			script.onerror = null
+			script.remove()
+			if (window.__turnstileLoad === load) window.__turnstileLoad = undefined
+			throw error
+		})
 	window.__turnstileLoad = load
 	return load
 }
+
+/** How long one api.js load may take before it counts as failed. */
+const LOAD_TIMEOUT_MS = 15_000
 
 const MAX_LOAD_ATTEMPTS = 5
 

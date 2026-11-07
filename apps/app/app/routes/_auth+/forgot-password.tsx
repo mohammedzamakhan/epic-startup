@@ -2,6 +2,7 @@ import { getFormProps, getInputProps, useForm } from '@conform-to/react'
 import { getZodConstraint, parseWithZod } from '@conform-to/zod/v4'
 import { Trans, t } from '@lingui/macro'
 import { type SEOHandle } from '@nasa-gcn/remix-seo'
+import { useIsPending } from '@repo/common'
 import { brand, getPageTitle } from '@repo/config/brand'
 import { db, eq, or, User } from '@repo/database'
 import { ForgotPasswordEmail, sendEmail } from '@repo/email'
@@ -190,6 +191,7 @@ export const meta: Route.MetaFunction = () => {
 
 export default function ForgotPasswordRoute() {
 	const { turnstileSiteKey } = useLoaderData<typeof loader>()
+	const isPending = useIsPending()
 	const [turnstileReady, setTurnstileReady] =
 		useTurnstileReady(turnstileSiteKey)
 	const actionData = useActionData<typeof action>() as {
@@ -275,9 +277,10 @@ export default function ForgotPasswordRoute() {
 
 						<StatusButton
 							className="w-full"
-							status={form.status ?? 'idle'}
+							status={isPending ? 'pending' : (form.status ?? 'idle')}
 							type="submit"
-							disabled={!turnstileReady}
+							// One submission at a time: a Turnstile token works only once.
+							disabled={isPending || !turnstileReady}
 						>
 							<Trans>Send reset instructions</Trans>
 						</StatusButton>

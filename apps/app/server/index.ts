@@ -354,7 +354,13 @@ if (IS_DEV) {
 	)
 	// Everything else (like favicon.ico) is cached for an hour. You may want to be
 	// more aggressive with this caching.
-	app.use(express.static('build/client', { maxAge: '1h' }))
+	app.use(
+		express.static('build/client', {
+			maxAge: '1h',
+			// Also reached by /%61ssets/app/... (gated above): keep it private.
+			setHeaders: setPrivateAssetHeaders,
+		}),
+	)
 
 	const { createRequestHandler } = await import('@react-router/express')
 

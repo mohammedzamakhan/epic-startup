@@ -16,21 +16,33 @@ import { and, db, eq, gt, Session, User } from '@repo/database'
  * data, which every loader checks on its own.
  */
 export async function hasActiveSession(request: Request): Promise<boolean> {
+	return (await sessionStatus(request)) === 'active'
+}
+
+/**
+ * Like {@link hasActiveSession}, but tells a failed database lookup
+ * (`unavailable`) apart from no session (`none`), for callers that would
+ * otherwise send a signed-in user to the login page during an outage.
+ */
+export async function sessionStatus(
+	request: Request,
+): Promise<'active' | 'none' | 'unavailable'> {
 	const cookie = request.headers.get('cookie')
-	if (!cookie) return false
+	if (!cookie) return 'none'
 
 	let sessionId: unknown
 	try {
 		const session = await authSessionStorage.getSession(cookie)
 		sessionId = session.get(sessionKey)
 	} catch {
-		return false
+		return 'none'
 	}
-	if (typeof sessionId !== 'string' || !sessionId) return false
+	if (typeof sessionId !== 'string' || !sessionId) return 'none'
 
 	const now = Date.now()
 	const cachedAt = positiveCache.get(sessionId)
-	if (cachedAt !== undefined && now - cachedAt < POSITIVE_CACHE_MS) return true
+	if (cachedAt !== undefined && now - cachedAt < POSITIVE_CACHE_MS)
+		return 'active'
 
 	try {
 		const [row] = await db
@@ -44,14 +56,14 @@ export async function hasActiveSession(request: Request): Promise<boolean> {
 				and(eq(Session.id, sessionId), gt(Session.expirationDate, new Date())),
 			)
 			.limit(1)
-		if (!row) return false
+		if (!row) return 'none'
 		const banned =
 			row.isBanned &&
 			!(row.banExpiresAt && new Date(row.banExpiresAt).getTime() <= now)
-		if (banned) return false
+		if (banned) return 'none'
 	} catch {
 		// Fail closed: without the database nothing behind the gate works anyway.
-		return false
+		return 'unavailable'
 	}
 
 	if (positiveCache.size >= MAX_CACHE_ENTRIES) {
@@ -59,7 +71,7 @@ export async function hasActiveSession(request: Request): Promise<boolean> {
 		if (oldest !== undefined) positiveCache.delete(oldest)
 	}
 	positiveCache.set(sessionId, now)
-	return true
+	return 'active'
 }
 
 export const POSITIVE_CACHE_MS = 30_000

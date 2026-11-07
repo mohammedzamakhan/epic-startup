@@ -69,6 +69,8 @@ describe('serveGatedAsset', () => {
 		'/assets/x/%2e%2e/app/_layout-abc123.js',
 		'/%61ssets/app/_layout-abc123.js',
 		'/assets%2fapp%2f_layout-abc123.js',
+		'/assets/x%23%2f..%2fapp/_layout-abc123.js',
+		'/assets/x%3f%2f..%2fapp/_layout-abc123.js',
 	])('gates the encoded or alternate spelling %s', async (path) => {
 		assets.fetch.mockClear()
 		const response = await serveGatedAsset(request(path), {

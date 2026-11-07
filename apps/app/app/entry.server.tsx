@@ -28,7 +28,10 @@ import {
 	documentContextFor,
 	rendersPrivateRoute,
 } from '#app/utils/private-client-code.server.ts'
-import { hasActiveSession } from '#app/utils/session-gate.server.ts'
+import {
+	hasActiveSession,
+	sessionStatus,
+} from '#app/utils/session-gate.server.ts'
 import { turnstileCspSources } from '#app/utils/turnstile.server.ts'
 import { loadCatalog } from './modules/lingui/lingui'
 import { linguiServer } from './modules/lingui/lingui.server'
@@ -199,9 +202,23 @@ export default async function handleRequest(...args: DocRequestArgs) {
 	// session check (route-guards.test.ts), so the common signed-in page costs
 	// no second lookup; public pages and error pages ask the database.
 	const privateRoute = rendersPrivateRoute(reactRouterContext)
-	const authenticated =
-		(privateRoute && responseStatusCode < 400) ||
-		(await hasActiveSession(request))
+	const session =
+		privateRoute && responseStatusCode < 400
+			? 'active'
+			: await sessionStatus(request)
+	if (privateRoute && session === 'unavailable') {
+		// The lookup failed, not the session: do not send a signed-in user to
+		// the login page, and do not render a page that names private modules.
+		return new Response('Service Unavailable', {
+			status: 503,
+			headers: {
+				'Content-Type': 'text/plain; charset=utf-8',
+				'Cache-Control': 'no-store',
+				'Retry-After': '5',
+			},
+		})
+	}
+	const authenticated = session === 'active'
 	if (!authenticated && privateRoute) {
 		const url = new URL(request.url)
 		const redirectTo = `${url.pathname}${url.search}`

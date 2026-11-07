@@ -10,7 +10,7 @@ type RenderOptions = {
 }
 
 /** What the next api.js load does: fail, or load a fake Turnstile. */
-let network: 'down' | 'up' = 'down'
+let network: 'down' | 'up' | 'stalled' = 'down'
 let lastOptions: RenderOptions | undefined
 const turnstile = {
 	render: vi.fn((_container: HTMLElement, options: RenderOptions) => {
@@ -41,6 +41,7 @@ beforeEach(() => {
 			const script = node as unknown as HTMLScriptElement
 			if (isTurnstileScript(script)) {
 				queueMicrotask(() => {
+					if (network === 'stalled') return
 					if (network === 'up') {
 						window.turnstile = turnstile
 						script.onload?.(new Event('load'))
@@ -100,6 +101,19 @@ describe('TurnstileWidget', () => {
 
 		act(() => lastOptions?.callback?.('token'))
 		expect(onReadyChange).toHaveBeenLastCalledWith(true)
+	})
+
+	it('treats a load that never finishes as failed', async () => {
+		network = 'stalled'
+		renderWidget(vi.fn())
+		// Five loads that each hit the 15 s deadline, with retry delays between.
+		for (let step = 0; step < 50; step += 1) {
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(2_000)
+			})
+		}
+		expect(screen.getByText(/The security check could not load/)).toBeTruthy()
+		expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy()
 	})
 
 	it('offers a retry when the challenge itself fails', async () => {

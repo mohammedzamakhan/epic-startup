@@ -42,12 +42,16 @@ export function assetLookupPath(rawPathname: string): string | null {
 	} catch {
 		return null
 	}
-	const slashes = decoded.replace(/\\/g, '/').replace(/\/{2,}/g, '/')
-	try {
-		return new URL(slashes, 'http://x').pathname.toLowerCase()
-	} catch {
-		return null
+	// Resolve segments like a file system does, not like a URL: after decoding,
+	// `#` and `?` are ordinary file name characters (`x%23%2f..%2fapp` is
+	// `x#/../app`, which a static file server resolves to `app`).
+	const segments: string[] = []
+	for (const segment of decoded.replace(/\\/g, '/').split('/')) {
+		if (segment === '' || segment === '.') continue
+		if (segment === '..') segments.pop()
+		else segments.push(segment)
 	}
+	return `/${segments.join('/')}`.toLowerCase()
 }
 
 export async function serveGatedAsset(
