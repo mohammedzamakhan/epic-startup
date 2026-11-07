@@ -16,6 +16,28 @@ describe('entry.server content security policy', () => {
 			"form-action 'self' https://accounts.google.com https://github.com",
 		)
 	})
+
+	it('runs only nonce scripts and loads no stylesheet from other origins', () => {
+		const headers = new Headers()
+		applyContentSecurity(headers, 'test-nonce')
+		const directives = Object.fromEntries(
+			(headers.get('Content-Security-Policy') ?? '')
+				.split(';')
+				.map((directive) => directive.trim().split(/\s+/))
+				.map(([name, ...values]) => [name, values]),
+		)
+
+		expect(directives['script-src']).toEqual([
+			"'strict-dynamic'",
+			"'self'",
+			"'nonce-test-nonce'",
+		])
+		expect(directives['script-src']).not.toContain("'unsafe-inline'")
+		expect(directives['style-src']).toEqual(["'self'", "'unsafe-inline'"])
+		expect(directives['object-src']).toEqual(["'none'"])
+		expect(directives['base-uri']).toEqual(["'self'"])
+		expect(directives['frame-ancestors']).toEqual(["'self'"])
+	})
 })
 
 describe('entry.server runtime headers', () => {

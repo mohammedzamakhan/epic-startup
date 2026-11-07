@@ -1150,7 +1150,7 @@ msgstr ""
 msgid "• Otherwise → <0>False branch</0>"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:768
+#: app/routes/_auth+/login.tsx:795
 msgid "← Back to SSO login"
 msgstr ""
 
@@ -1604,7 +1604,7 @@ msgstr ""
 msgid "Account settings"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:290
+#: app/routes/_auth+/login.tsx:314
 msgid "Account Suspended"
 msgstr ""
 
@@ -2584,7 +2584,7 @@ msgstr "already booked"
 msgid "Already exists."
 msgstr "Already exists."
 
-#: app/routes/_auth+/signup.tsx:255
+#: app/routes/_auth+/signup.tsx:285
 msgid "Already have an account?"
 msgstr ""
 
@@ -3290,7 +3290,7 @@ msgid "Back to latest"
 msgstr "Back to latest"
 
 #: app/routes/_auth+/forgot-password.sent.tsx:49
-#: app/routes/_auth+/forgot-password.tsx:245
+#: app/routes/_auth+/forgot-password.tsx:283
 msgid "Back to login"
 msgstr ""
 
@@ -5092,6 +5092,10 @@ msgstr ""
 msgid "Complete the OAuth flow when prompted"
 msgstr ""
 
+#: app/utils/turnstile.server.ts:45
+msgid "Complete the security check, then try again."
+msgstr "Complete the security check, then try again."
+
 #: app/components/onboarding-checklist.tsx:157
 msgid "Complete these steps to get the most from your workspace."
 msgstr ""
@@ -5105,7 +5109,7 @@ msgstr ""
 msgid "Complete your profile"
 msgstr ""
 
-#: app/routes/_auth+/signup.tsx:186
+#: app/routes/_auth+/signup.tsx:211
 msgid "Complete your signup to join the organization"
 msgstr ""
 
@@ -5360,7 +5364,7 @@ msgstr "Content editor"
 #: app/components/kiosk/pin-pad.tsx:127
 #: app/routes/_app+/$orgSlug_+/marketing+/print.new.tsx:208
 #: app/routes/_app+/$orgSlug_+/staff+/team_.$staffId.terminate.tsx:156
-#: app/routes/_auth+/login.tsx:690
+#: app/routes/_auth+/login.tsx:715
 #: app/routes/mock-payments+/checkout-com.3ds.$attemptId.tsx:95
 #: app/routes/organizations+/create.tsx:854
 msgid "Continue"
@@ -5374,11 +5378,11 @@ msgstr "Continue payout setup"
 msgid "Continue to Payment"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:602
+#: app/routes/_auth+/login.tsx:627
 msgid "Continue with"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:278
+#: app/routes/_auth+/login.tsx:302
 msgid "Continue with your password"
 msgstr ""
 
@@ -5745,7 +5749,7 @@ msgstr "Create a print"
 msgid "Create a ready-made role for the people who run your team. Each one becomes a normal custom role that you can rename, edit, or delete."
 msgstr "Create a ready-made role for the people who run your team. Each one becomes a normal custom role that you can rename, edit, or delete."
 
-#: app/routes/_auth+/login.tsx:378
+#: app/routes/_auth+/login.tsx:403
 #: app/routes/_auth+/onboarding_.$provider.tsx:391
 #: app/routes/_auth+/onboarding.tsx:554
 msgid "Create account"
@@ -5755,7 +5759,7 @@ msgstr ""
 msgid "Create action items"
 msgstr ""
 
-#: app/routes/_auth+/signup.tsx:181
+#: app/routes/_auth+/signup.tsx:206
 msgid "Create an account"
 msgstr ""
 
@@ -6913,7 +6917,7 @@ msgstr "Does not work at this workplace"
 msgid "Domain"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:369
+#: app/routes/_auth+/login.tsx:394
 msgid "Don't have an account?"
 msgstr ""
 
@@ -7450,8 +7454,8 @@ msgstr "Eligible for rehire."
 #: app/components/website/link-inspector.tsx:468
 #: app/routes/_app+/$orgSlug_+/staff+/team.new.tsx:188
 #: app/routes/_app+/$orgSlug_+/staff+/team.tsx:237
-#: app/routes/_auth+/login.tsx:783
-#: app/routes/_auth+/signup.tsx:225
+#: app/routes/_auth+/login.tsx:810
+#: app/routes/_auth+/signup.tsx:250
 #: app/routes/mock-payments+/__card-form.tsx:30
 #: app/utils/website/field-types.ts:37
 #: app/utils/website/field-types.ts:40
@@ -7487,8 +7491,8 @@ msgstr "Email is switched off"
 msgid "Email is turned off, so nothing was sent"
 msgstr "Email is turned off, so nothing was sent"
 
-#: app/routes/_auth+/login.tsx:663
-#: app/routes/_auth+/login.tsx:788
+#: app/routes/_auth+/login.tsx:688
+#: app/routes/_auth+/login.tsx:815
 msgid "Email or Username"
 msgstr ""
 
@@ -7847,8 +7851,8 @@ msgstr "Enter when the break started and ended."
 msgid "Enter who receives the parcel"
 msgstr "Enter who receives the parcel"
 
-#: app/routes/_auth+/login.tsx:669
-#: app/routes/_auth+/login.tsx:795
+#: app/routes/_auth+/login.tsx:694
+#: app/routes/_auth+/login.tsx:822
 msgid "Enter your email or username"
 msgstr ""
 
@@ -7865,7 +7869,7 @@ msgstr ""
 msgid "Enter your new password below."
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:824
+#: app/routes/_auth+/login.tsx:851
 msgid "Enter your password"
 msgstr ""
 
@@ -7878,7 +7882,7 @@ msgstr "Enter your PIN"
 msgid "Enter your username"
 msgstr ""
 
-#: app/routes/_auth+/forgot-password.tsx:217
+#: app/routes/_auth+/forgot-password.tsx:250
 msgid "Enter your username or email"
 msgstr ""
 
@@ -8199,7 +8203,7 @@ msgstr ""
 msgid "Failed ({lastStatus})"
 msgstr "Failed ({lastStatus})"
 
-#: app/routes/_auth+/login.tsx:451
+#: app/routes/_auth+/login.tsx:476
 msgid "Failed to authenticate with passkey: {errorMessage}"
 msgstr ""
 
@@ -8561,7 +8565,7 @@ msgstr "For our hours, press 1. To speak with our team, press 2."
 msgid "For shifts longer than"
 msgstr "For shifts longer than"
 
-#: app/routes/_auth+/forgot-password.tsx:181
+#: app/routes/_auth+/forgot-password.tsx:214
 msgid "Forgot Password"
 msgstr ""
 
@@ -8570,7 +8574,7 @@ msgstr ""
 msgid "Forgot to clock out"
 msgstr "Forgot to clock out"
 
-#: app/routes/_auth+/login.tsx:817
+#: app/routes/_auth+/login.tsx:844
 msgid "Forgot your password?"
 msgstr ""
 
@@ -8732,7 +8736,7 @@ msgstr ""
 msgid "Generate with AI"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:413
+#: app/routes/_auth+/login.tsx:438
 msgid "Generating Authentication Options"
 msgstr ""
 
@@ -9720,7 +9724,7 @@ msgstr "Invalid email address"
 msgid "Invalid graph format"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:203
+#: app/routes/_auth+/login.tsx:227
 msgid "Invalid username or password"
 msgstr ""
 
@@ -9941,7 +9945,7 @@ msgstr "Jobs people can see and apply to on your website."
 msgid "Join Discord server"
 msgstr ""
 
-#: app/routes/_auth+/signup.tsx:179
+#: app/routes/_auth+/signup.tsx:204
 msgid "Join organization"
 msgstr ""
 
@@ -10247,8 +10251,8 @@ msgstr "Last name"
 msgid "Last opened {lastOpened}."
 msgstr "Last opened {lastOpened}."
 
-#: app/routes/_auth+/login.tsx:493
-#: app/routes/_auth+/login.tsx:504
+#: app/routes/_auth+/login.tsx:518
+#: app/routes/_auth+/login.tsx:529
 msgid "Last used"
 msgstr ""
 
@@ -10742,11 +10746,11 @@ msgstr "Locking is off for this workplace. Turn it on in Labor rules."
 msgid "Log out"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:307
+#: app/routes/_auth+/login.tsx:331
 msgid "Login Error"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:407
+#: app/routes/_auth+/login.tsx:432
 msgid "Login with a passkey"
 msgstr ""
 
@@ -10836,7 +10840,7 @@ msgstr "Low ratings"
 msgid "m"
 msgstr "m"
 
-#: app/routes/_auth+/signup.tsx:231
+#: app/routes/_auth+/signup.tsx:256
 msgid "m@example.com"
 msgstr ""
 
@@ -12599,7 +12603,7 @@ msgstr "No workplaces to show"
 msgid "No workplaces yet"
 msgstr "No workplaces yet"
 
-#: app/routes/_auth+/forgot-password.tsx:184
+#: app/routes/_auth+/forgot-password.tsx:217
 msgid "No worries, we'll send you reset instructions."
 msgstr ""
 
@@ -13607,11 +13611,11 @@ msgstr "Optional. The AI always introduces itself as an AI assistant first. Leav
 msgid "Options"
 msgstr "Options"
 
-#: app/routes/_auth+/signup.tsx:211
+#: app/routes/_auth+/signup.tsx:236
 msgid "Or continue with"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:325
+#: app/routes/_auth+/login.tsx:349
 msgid "Or continue with email or username"
 msgstr ""
 
@@ -14009,7 +14013,7 @@ msgid "Passkeys are a secure, passwordless way to sign in using your device's bi
 msgstr ""
 
 #: app/components/settings/password-form.tsx:112
-#: app/routes/_auth+/login.tsx:811
+#: app/routes/_auth+/login.tsx:838
 #: app/routes/_auth+/onboarding.tsx:473
 #: app/routes/mock-payments+/checkout-com.3ds.$attemptId.tsx:83
 msgid "Password"
@@ -14747,8 +14751,8 @@ msgstr ""
 msgid "Please enter your 2FA code to verify your identity."
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:117
-#: app/routes/_auth+/login.tsx:636
+#: app/routes/_auth+/login.tsx:123
+#: app/routes/_auth+/login.tsx:661
 msgid "Please enter your email or username"
 msgstr ""
 
@@ -15509,7 +15513,7 @@ msgstr "Recommend a schedule"
 msgid "Recommended"
 msgstr "Recommended"
 
-#: app/routes/_auth+/login.tsx:606
+#: app/routes/_auth+/login.tsx:631
 msgid "Recommended for"
 msgstr ""
 
@@ -15714,14 +15718,14 @@ msgstr ""
 msgid "Reload the page to try again."
 msgstr "Reload the page to try again."
 
-#: app/routes/_auth+/login.tsx:846
+#: app/routes/_auth+/login.tsx:873
 #: app/routes/_auth+/onboarding_.$provider.tsx:374
 #: app/routes/_auth+/onboarding.tsx:540
 msgid "Remember me"
 msgstr ""
 
 #: app/routes/_auth+/forgot-password.sent.tsx:47
-#: app/routes/_auth+/forgot-password.tsx:243
+#: app/routes/_auth+/forgot-password.tsx:281
 msgid "Remember your password?"
 msgstr ""
 
@@ -16125,7 +16129,7 @@ msgstr ""
 msgid "Request time off"
 msgstr "Request time off"
 
-#: app/routes/_auth+/login.tsx:419
+#: app/routes/_auth+/login.tsx:444
 msgid "Requesting your authorization"
 msgstr ""
 
@@ -17463,7 +17467,7 @@ msgstr ""
 msgid "Send request"
 msgstr "Send request"
 
-#: app/routes/_auth+/forgot-password.tsx:237
+#: app/routes/_auth+/forgot-password.tsx:275
 msgid "Send reset instructions"
 msgstr ""
 
@@ -17987,15 +17991,15 @@ msgstr "Sick"
 msgid "Sick leave"
 msgstr "Sick leave"
 
-#: app/routes/_auth+/signup.tsx:264
+#: app/routes/_auth+/signup.tsx:294
 msgid "Sign in"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:859
+#: app/routes/_auth+/login.tsx:891
 msgid "Sign In"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:280
+#: app/routes/_auth+/login.tsx:304
 msgid "Sign in to your account"
 msgstr ""
 
@@ -18007,7 +18011,7 @@ msgstr ""
 msgid "Sign out of all other devices"
 msgstr ""
 
-#: app/routes/_auth+/signup.tsx:248
+#: app/routes/_auth+/signup.tsx:278
 msgid "Sign up"
 msgstr ""
 
@@ -18015,7 +18019,7 @@ msgstr ""
 msgid "Sign Up"
 msgstr ""
 
-#: app/routes/_auth+/signup.tsx:188
+#: app/routes/_auth+/signup.tsx:213
 msgid "Sign up with your social account or email"
 msgstr ""
 
@@ -18031,8 +18035,8 @@ msgstr ""
 msgid "Signed webhook deliveries, newest first."
 msgstr "Signed webhook deliveries, newest first."
 
-#: app/routes/_auth+/login.tsx:576
-#: app/routes/_auth+/login.tsx:750
+#: app/routes/_auth+/login.tsx:601
+#: app/routes/_auth+/login.tsx:777
 msgid "Signing in as"
 msgstr ""
 
@@ -19888,6 +19892,10 @@ msgstr "The second shift cannot end when it starts."
 msgid "The second shift overlaps the first."
 msgstr "The second shift overlaps the first."
 
+#: app/utils/turnstile.server.ts:62
+msgid "The security check failed. Please try again."
+msgstr "The security check failed. Please try again."
+
 #: app/routes/_app+/$orgSlug_+/staff+/team.bulk.tsx:120
 msgid "The service could not accept this row."
 msgstr "The service could not accept this row."
@@ -20053,7 +20061,7 @@ msgstr "There is no one else in this organization to share with."
 msgid "There is nothing new to publish this week."
 msgstr "There is nothing new to publish this week."
 
-#: app/routes/_auth+/login.tsx:311
+#: app/routes/_auth+/login.tsx:335
 msgid "There was an issue with your login attempt. Please try again."
 msgstr ""
 
@@ -21022,7 +21030,7 @@ msgstr "Told"
 msgid "Too many hashtags for Facebook."
 msgstr "Too many hashtags for Facebook."
 
-#: app/routes/_auth+/forgot-password.tsx:196
+#: app/routes/_auth+/forgot-password.tsx:229
 msgid "Too Many Requests"
 msgstr "Too Many Requests"
 
@@ -21987,7 +21995,7 @@ msgstr "Use international format, for example +15551234567."
 msgid "Use own time clock"
 msgstr "Use own time clock"
 
-#: app/routes/_auth+/login.tsx:619
+#: app/routes/_auth+/login.tsx:644
 msgid "Use password instead"
 msgstr ""
 
@@ -22056,18 +22064,18 @@ msgstr "Useful if staff should log what happened after a transfer."
 #~ msgstr "User"
 
 #: app/components/settings/cards/profile-card.tsx:133
-#: app/routes/_auth+/login.tsx:785
+#: app/routes/_auth+/login.tsx:812
 #: app/routes/_auth+/onboarding_.$provider.tsx:303
 #: app/routes/_auth+/onboarding.tsx:439
 msgid "Username"
 msgstr ""
 
-#: app/routes/_auth+/forgot-password.tsx:212
+#: app/routes/_auth+/forgot-password.tsx:245
 msgid "Username or Email"
 msgstr ""
 
-#: app/routes/_auth+/login.tsx:106
-#: app/routes/_auth+/login.tsx:712
+#: app/routes/_auth+/login.tsx:112
+#: app/routes/_auth+/login.tsx:739
 msgid "Username or email is required"
 msgstr ""
 
@@ -22137,7 +22145,7 @@ msgstr "Verify line"
 msgid "Verify your business line"
 msgstr "Verify your business line"
 
-#: app/routes/_auth+/login.tsx:421
+#: app/routes/_auth+/login.tsx:446
 msgid "Verifying your passkey"
 msgstr ""
 
@@ -22648,7 +22656,7 @@ msgstr "We do not keep a copy, so it cannot be looked up later. Give it to them 
 msgid "We do not pick this for you. Until you choose, overtime is estimated at each workplace separately."
 msgstr "We do not pick this for you. Until you choose, overtime is estimated at each workplace separately."
 
-#: app/routes/_auth+/login.tsx:580
+#: app/routes/_auth+/login.tsx:605
 msgid "We found your organization:"
 msgstr ""
 
@@ -22770,7 +22778,7 @@ msgid "Welcome aboard!"
 msgstr ""
 
 #: app/components/kiosk/kiosk-screens.tsx:661
-#: app/routes/_auth+/login.tsx:270
+#: app/routes/_auth+/login.tsx:294
 msgid "Welcome back"
 msgstr ""
 
@@ -23579,7 +23587,7 @@ msgstr "You were clocked out automatically."
 msgid "You’re all caught up"
 msgstr "You’re all caught up"
 
-#: app/routes/_auth+/login.tsx:447
+#: app/routes/_auth+/login.tsx:472
 msgid "You're logged in! Navigating..."
 msgstr ""
 
@@ -23599,7 +23607,7 @@ msgstr ""
 msgid "You've drafted answers many times this hour. Try again later."
 msgstr "You've drafted answers many times this hour. Try again later."
 
-#: app/routes/_auth+/login.tsx:294
+#: app/routes/_auth+/login.tsx:318
 msgid "Your account has been suspended. Please contact support if you believe this is an error."
 msgstr ""
 

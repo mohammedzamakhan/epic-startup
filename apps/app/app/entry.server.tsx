@@ -24,6 +24,9 @@ import {
 } from '#app/utils/csp-frame-src.server.ts'
 import { liveKitConnectSrc } from '#app/utils/phone-agent/livekit-csp.ts'
 import { recordingMediaSrc } from '#app/utils/phone-agent/recording-csp.ts'
+import { documentContextFor } from '#app/utils/private-client-code.server.ts'
+import { hasActiveSession } from '#app/utils/session-gate.server.ts'
+import { turnstileCspSources } from '#app/utils/turnstile.server.ts'
 import { loadCatalog } from './modules/lingui/lingui'
 import { linguiServer } from './modules/lingui/lingui.server'
 import { capturePostHogServerException } from './utils/posthog.server.ts'
@@ -127,12 +130,24 @@ export function applyContentSecurity(
 						...liveKitConnectSrc(ENV.LIVEKIT_URL),
 					],
 					'font-src': ["'self'"],
-					'frame-src': sitePreviewFrameSrc(ENV, requestHost),
+					'frame-src': [
+						...sitePreviewFrameSrc(ENV, requestHost),
+						...turnstileCspSources(),
+					],
 					'img-src': ["'self'", 'data:', 'blob:'],
 					// Voice previews are same-origin; call recordings play from the bucket.
 					'media-src': ["'self'", ...recordingMediaSrc(ENV)],
-					'script-src': ["'strict-dynamic'", "'self'", `'nonce-${nonce}'`],
+					'script-src': [
+						"'strict-dynamic'",
+						"'self'",
+						`'nonce-${nonce}'`,
+						...turnstileCspSources(),
+					],
 					'script-src-attr': [`'nonce-${nonce}'`],
+					// No stylesheets from other origins (the helmet default allows any
+					// `https:` one). Inline styles stay: React `style` props need them.
+					// Print pages send their own policy (`printDocumentCsp`).
+					'style-src': ["'self'", "'unsafe-inline'"],
 					'worker-src': ["'self'", 'blob:', 'data:'],
 				},
 			},
@@ -168,6 +183,11 @@ export default async function handleRequest(...args: DocRequestArgs) {
 	const requestHost =
 		request.headers.get('x-forwarded-host') ?? request.headers.get('host')
 
+	// A logged-out visitor's page must not name private route modules.
+	const documentContext = documentContextFor(reactRouterContext, {
+		authenticated: await hasActiveSession(request),
+	})
+
 	let didError = false
 	const timings = makeTimings('render', 'renderToReadableStream')
 
@@ -176,7 +196,7 @@ export default async function handleRequest(...args: DocRequestArgs) {
 			<NonceProvider value={nonce}>
 				<ServerRouter
 					nonce={nonce}
-					context={reactRouterContext}
+					context={documentContext}
 					url={request.url}
 				/>
 			</NonceProvider>

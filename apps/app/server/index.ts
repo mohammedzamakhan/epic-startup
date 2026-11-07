@@ -302,6 +302,78 @@ if (IS_DEV) {
 	})
 } else {
 	console.log('Starting production server')
+	const build = await import(BUILD_PATH)
+	// Same module instance as the build (see the express handler below).
+	const { RouterContextProvider, createRequestHandler: createFetchHandler } =
+		await new Function("return import('react-router')")()
+	const { serverBuildContext } = await import('../app/server-context.ts')
+	const getLoadContext = async () => {
+		const ctx = new RouterContextProvider()
+		ctx.set(serverBuildContext, build)
+		return ctx
+	}
+
+	// Same rules as the Worker (`workers/app.ts`): logged-in UI code in
+	// /assets/app/ needs a valid session, the full route manifest file is
+	// hidden, and /__manifest names no private route to a logged-out visitor.
+	// See docs/security.md#private-client-code.
+	const { filterRouteDiscovery, ROUTE_DISCOVERY_PATH, serveGatedAsset } =
+		await import('../app/utils/private-client-code.server.ts')
+	const { hasActiveSession } =
+		await import('../app/utils/session-gate.server.ts')
+	const toFetchRequest = (req: express.Request) => {
+		const headers = new Headers()
+		for (const [name, value] of Object.entries(req.headers)) {
+			if (value === undefined) continue
+			headers.set(name, Array.isArray(value) ? value.join(', ') : value)
+		}
+		return new Request(
+			`${req.protocol}://${req.get('host')}${req.originalUrl}`,
+			{
+				method: req.method,
+				headers,
+			},
+		)
+	}
+	const sendFetchResponse = async (
+		res: express.Response,
+		response: Response,
+	) => {
+		res.status(response.status)
+		response.headers.forEach((value, name) => res.setHeader(name, value))
+		res.end(Buffer.from(await response.arrayBuffer()))
+	}
+	app.use('/assets', async (req, res, next) => {
+		try {
+			const request = toFetchRequest(req)
+			const gated = await serveGatedAsset(request, {
+				// Hand the file to express.static below once the session is checked.
+				assets: { fetch: async () => new Response(null, { status: 200 }) },
+				hasSession: hasActiveSession,
+			})
+			if (!gated) return next()
+			if (gated.status !== 200) return sendFetchResponse(res, gated)
+			next()
+		} catch (error) {
+			next(error)
+		}
+	})
+	const handleFetch = createFetchHandler(build, MODE)
+	app.get(ROUTE_DISCOVERY_PATH, async (req, res, next) => {
+		try {
+			const request = toFetchRequest(req)
+			const response = await handleFetch(request, await getLoadContext())
+			await sendFetchResponse(
+				res,
+				await filterRouteDiscovery(request, response, {
+					hasSession: hasActiveSession,
+				}),
+			)
+		} catch (error) {
+			next(error)
+		}
+	})
+
 	// React Router fingerprints its assets so we can cache forever.
 	app.use(
 		'/assets',
@@ -309,6 +381,12 @@ if (IS_DEV) {
 			immutable: true,
 			maxAge: '1y',
 			fallthrough: false,
+			// No shared cache may hand logged-in UI code to someone else.
+			setHeaders(res, filePath) {
+				if (/[/\\]assets[/\\]app[/\\]/.test(filePath)) {
+					res.setHeader('Cache-Control', 'private, max-age=31536000, immutable')
+				}
+			},
 		}),
 	)
 	// Everything else (like favicon.ico) is cached for an hour. You may want to be
@@ -316,19 +394,12 @@ if (IS_DEV) {
 	app.use(express.static('build/client', { maxAge: '1h' }))
 
 	const { createRequestHandler } = await import('@react-router/express')
-	const { serverBuildContext } = await import('../app/server-context.ts')
-	const build = await import(BUILD_PATH)
 
 	app.use(
 		createRequestHandler({
 			build,
 			mode: MODE,
-			getLoadContext: async () => {
-				const RR = await new Function("return import('react-router')")()
-				const ctx = new RR.RouterContextProvider()
-				ctx.set(serverBuildContext, build)
-				return ctx
-			},
+			getLoadContext,
 		}),
 	)
 }
