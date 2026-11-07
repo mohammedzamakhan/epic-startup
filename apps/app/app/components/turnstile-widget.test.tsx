@@ -23,6 +23,11 @@ const turnstile = {
 
 const realAppendChild = document.head.appendChild.bind(document.head)
 
+function isTurnstileScript(node: Node) {
+	if (!(node instanceof HTMLScriptElement) || !node.src) return false
+	return new URL(node.src).hostname === 'challenges.cloudflare.com'
+}
+
 beforeEach(() => {
 	vi.useFakeTimers()
 	network = 'down'
@@ -34,7 +39,7 @@ beforeEach(() => {
 	vi.spyOn(document.head, 'appendChild').mockImplementation(
 		<T extends Node>(node: T): T => {
 			const script = node as unknown as HTMLScriptElement
-			if (script.src?.includes('challenges.cloudflare.com')) {
+			if (isTurnstileScript(script)) {
 				queueMicrotask(() => {
 					if (network === 'up') {
 						window.turnstile = turnstile
