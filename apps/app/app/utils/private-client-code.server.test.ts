@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+	assetLookupPath,
 	documentContextFor,
 	filterRouteDiscovery,
+	rendersPrivateRoute,
 	serveGatedAsset,
 } from './private-client-code.server.ts'
 import { isPublicRouteFile } from './route-visibility.ts'
@@ -58,6 +60,51 @@ describe('serveGatedAsset', () => {
 		})
 		expect(response?.status).toBe(404)
 		expect(await response?.text()).toBe('Not Found')
+	})
+
+	it.each([
+		'/assets/%61pp/_layout-abc123.js',
+		'/assets//app/_layout-abc123.js',
+		'/assets/APP/_layout-abc123.js',
+		'/assets/x/%2e%2e/app/_layout-abc123.js',
+		'/%61ssets/app/_layout-abc123.js',
+		'/assets%2fapp%2f_layout-abc123.js',
+	])('gates the encoded or alternate spelling %s', async (path) => {
+		assets.fetch.mockClear()
+		const response = await serveGatedAsset(request(path), {
+			assets,
+			hasSession: withoutSession,
+		})
+		expect(response?.status).toBe(404)
+		expect(assets.fetch).not.toHaveBeenCalled()
+	})
+
+	it('answers 404 for an undecodable path under /assets', async () => {
+		const response = await serveGatedAsset(request('/assets/%E0%A4%A.js'), {
+			assets,
+			hasSession: withSession,
+		})
+		expect(response?.status).toBe(404)
+	})
+
+	it('keeps a 304 for a signed-in browser revalidating its copy', async () => {
+		const response = await serveGatedAsset(
+			request('/assets/app/_layout-abc123.js'),
+			{
+				assets: { fetch: async () => new Response(null, { status: 304 }) },
+				hasSession: withSession,
+			},
+		)
+		expect(response?.status).toBe(304)
+		expect(response?.headers.get('Cache-Control')).toBe(
+			'private, max-age=31536000, immutable',
+		)
+	})
+
+	it('normalizes lookup paths', () => {
+		expect(assetLookupPath('/assets/%61pp/x.js')).toBe('/assets/app/x.js')
+		expect(assetLookupPath('/assets/login-Ab.js')).toBe('/assets/login-ab.js')
+		expect(assetLookupPath('/assets/%E0%A4%A')).toBeNull()
 	})
 
 	it('always hides the full route manifest file', async () => {
@@ -226,6 +273,21 @@ describe('documentContextFor', () => {
 			{ authenticated: false },
 		)
 		expect(result.manifest.routes).toHaveProperty('routes/_app+/_layout')
+	})
+
+	it('tells whether a private route was rendered', () => {
+		expect(rendersPrivateRoute(context)).toBe(false)
+		expect(
+			rendersPrivateRoute({
+				...context,
+				staticHandlerContext: {
+					matches: [
+						{ route: { id: 'root' } },
+						{ route: { id: 'routes/_app+/_layout' } },
+					],
+				},
+			}),
+		).toBe(true)
 	})
 
 	it('changes nothing for a signed-in visitor', () => {

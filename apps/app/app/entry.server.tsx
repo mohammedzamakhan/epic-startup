@@ -24,7 +24,10 @@ import {
 } from '#app/utils/csp-frame-src.server.ts'
 import { liveKitConnectSrc } from '#app/utils/phone-agent/livekit-csp.ts'
 import { recordingMediaSrc } from '#app/utils/phone-agent/recording-csp.ts'
-import { documentContextFor } from '#app/utils/private-client-code.server.ts'
+import {
+	documentContextFor,
+	rendersPrivateRoute,
+} from '#app/utils/private-client-code.server.ts'
 import { hasActiveSession } from '#app/utils/session-gate.server.ts'
 import { turnstileCspSources } from '#app/utils/turnstile.server.ts'
 import { loadCatalog } from './modules/lingui/lingui'
@@ -192,8 +195,20 @@ export default async function handleRequest(...args: DocRequestArgs) {
 		request.headers.get('x-forwarded-host') ?? request.headers.get('host')
 
 	// A logged-out visitor's page must not name private route modules.
+	const authenticated = await hasActiveSession(request)
+	if (!authenticated && rendersPrivateRoute(reactRouterContext)) {
+		const url = new URL(request.url)
+		const redirectTo = `${url.pathname}${url.search}`
+		return new Response(null, {
+			status: 302,
+			headers: {
+				Location: `/login?${new URLSearchParams({ redirectTo })}`,
+				'Cache-Control': 'no-store',
+			},
+		})
+	}
 	const documentContext = documentContextFor(reactRouterContext, {
-		authenticated: await hasActiveSession(request),
+		authenticated,
 	})
 
 	let didError = false

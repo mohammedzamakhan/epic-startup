@@ -38,7 +38,10 @@ import {
 	ErrorList,
 	convertErrorsToFieldFormat,
 } from '#app/components/forms.tsx'
-import { TurnstileWidget } from '#app/components/turnstile-widget.tsx'
+import {
+	TurnstileWidget,
+	useTurnstileReady,
+} from '#app/components/turnstile-widget.tsx'
 import { ensureLinguiRequestLocale } from '#app/modules/lingui/lingui.server.ts'
 import {
 	checkRateLimit,
@@ -187,6 +190,8 @@ export const meta: Route.MetaFunction = () => {
 
 export default function ForgotPasswordRoute() {
 	const { turnstileSiteKey } = useLoaderData<typeof loader>()
+	const [turnstileReady, setTurnstileReady] =
+		useTurnstileReady(turnstileSiteKey)
 	const actionData = useActionData<typeof action>() as {
 		error?: string
 		error_description?: string
@@ -264,6 +269,7 @@ export default function ForgotPasswordRoute() {
 							siteKey={turnstileSiteKey}
 							action="forgot-password"
 							resetKey={actionData}
+							onReadyChange={setTurnstileReady}
 						/>
 						<ErrorList errors={form.errors} id={form.errorId} />
 
@@ -271,6 +277,7 @@ export default function ForgotPasswordRoute() {
 							className="w-full"
 							status={form.status ?? 'idle'}
 							type="submit"
+							disabled={!turnstileReady}
 						>
 							<Trans>Send reset instructions</Trans>
 						</StatusButton>

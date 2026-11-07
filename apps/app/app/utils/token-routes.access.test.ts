@@ -1,4 +1,6 @@
 import { ConfigFlag, db, inArray } from '@repo/database'
+import { organizationTemplates } from '@repo/reports'
+import { saveReport } from '@repo/reports/server'
 import { STAFFING_FLAG_KEYS } from '@repo/staffing'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -77,17 +79,37 @@ async function enableStaffing(organizationId: string) {
 	flagIds.push(...rows.map((row) => row.id))
 }
 
-function call(loader: Loader, slug: string, subpath: string, cookie?: string) {
+function call(
+	loader: Loader,
+	slug: string,
+	subpath: string,
+	cookie?: string,
+	reportId = 'rpt_missing',
+) {
 	const headers = new Headers()
 	if (cookie) headers.set('Cookie', cookie)
 	return loader({
 		request: new Request(`http://localhost:3000/${slug}/${subpath}`, {
 			headers,
 		}),
-		params: { orgSlug: slug, reportId: 'rpt_missing' },
+		params: { orgSlug: slug, reportId },
 		context: {},
 		url: new URL(`http://localhost:3000/${slug}/${subpath}`),
 	} as never)
+}
+
+/** A saved report in the organization, from the first built-in template. */
+async function createReport(organizationId: string, createdById: string) {
+	const template = organizationTemplates()[0]
+	if (!template) throw new Error('No report templates')
+	const report = await saveReport({
+		scope: 'organization',
+		organizationId,
+		createdById,
+		definition: template.definition,
+	})
+	if (!report) throw new Error('Failed to save the report')
+	return report.id
 }
 
 type Outcome =
@@ -187,4 +209,38 @@ describe('token-minting routes refuse callers outside the organization', () => {
 			expect(result.body).toMatch(JWT_PATTERN)
 		},
 	)
+
+	it('reports+/$reportId.tsx: an outsider cannot open a report that exists', async () => {
+		const target = await setupTestOrgWithUser('admin')
+		const outsider = await setupTestOrgWithUser('admin')
+		const reportId = await createReport(target.organization.id, target.user.id)
+		const subpath = `reports/${reportId}`
+
+		// Control: the organization's admin can open it.
+		const own = await outcome(() =>
+			call(
+				reportLoader,
+				target.organization.slug,
+				subpath,
+				target.cookie,
+				reportId,
+			),
+		)
+		expect(own).toMatchObject({ kind: 'ok' })
+
+		const result = await outcome(() =>
+			call(
+				reportLoader,
+				target.organization.slug,
+				subpath,
+				outsider.cookie,
+				reportId,
+			),
+		)
+		expect(result.kind).toBe('refused')
+		if (result.kind !== 'refused') return
+		expect([403, 404]).toContain(result.status)
+		expect(result.body).not.toMatch(JWT_PATTERN)
+		expect(result.body).not.toMatch(/tenantApiUrl/)
+	})
 })

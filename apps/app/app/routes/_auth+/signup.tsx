@@ -28,7 +28,10 @@ import {
 	ErrorList,
 	convertErrorsToFieldFormat,
 } from '#app/components/forms.tsx'
-import { TurnstileWidget } from '#app/components/turnstile-widget.tsx'
+import {
+	TurnstileWidget,
+	useTurnstileReady,
+} from '#app/components/turnstile-widget.tsx'
 import { ensureLinguiRequestLocale } from '#app/modules/lingui/lingui.server.ts'
 import {
 	ProviderConnectionForm,
@@ -183,6 +186,8 @@ export default function SignupRoute({
 	const redirectTo = searchParams.get('redirectTo')
 	const inviteToken = loaderData?.inviteToken
 	const turnstileSiteKey = loaderData?.turnstileSiteKey ?? null
+	const [turnstileReady, setTurnstileReady] =
+		useTurnstileReady(turnstileSiteKey)
 	const configuredProviders = useConfiguredProviders()
 
 	const [form, fields] = useForm({
@@ -266,6 +271,7 @@ export default function SignupRoute({
 								siteKey={turnstileSiteKey}
 								action="signup"
 								resetKey={actionData?.result}
+								onReadyChange={setTurnstileReady}
 							/>
 							<ErrorList errors={form.errors} id={form.errorId} />
 
@@ -273,7 +279,7 @@ export default function SignupRoute({
 								className="w-full"
 								status={isPending ? 'pending' : (form.status ?? 'idle')}
 								type="submit"
-								disabled={isPending}
+								disabled={isPending || !turnstileReady}
 							>
 								<Trans>Sign up</Trans>
 							</StatusButton>

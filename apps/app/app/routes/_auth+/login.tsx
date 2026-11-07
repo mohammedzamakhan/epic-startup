@@ -39,7 +39,10 @@ import {
 	ErrorList,
 	convertErrorsToFieldFormat,
 } from '#app/components/forms.tsx'
-import { TurnstileWidget } from '#app/components/turnstile-widget.tsx'
+import {
+	TurnstileWidget,
+	useTurnstileReady,
+} from '#app/components/turnstile-widget.tsx'
 import { ensureLinguiRequestLocale } from '#app/modules/lingui/lingui.server.ts'
 import { login } from '#app/utils/auth.server.ts'
 import {
@@ -183,6 +186,17 @@ export async function action({ request }: Route.ActionArgs) {
 	// discovers SSO, so the challenge sits on the password step.
 	const turnstile = await checkOperatorTurnstile(request, formData, 'login')
 	if (!turnstile.ok) {
+		// Keep bot attempts in the failed-login history (SOC 2 CC7.2), without
+		// checking the credentials.
+		const username = formData.get('username')?.toString()
+		void auditService.logAuth(
+			AuditAction.USER_LOGIN_FAILED,
+			undefined,
+			`Failed login attempt for: ${username} (security check)`,
+			{ username, source: 'web', reason: 'turnstile' },
+			request,
+			false,
+		)
 		const submission = parseWithZod(formData, { schema: LoginFormSchema })
 		return data(
 			{
@@ -190,7 +204,7 @@ export async function action({ request }: Route.ActionArgs) {
 					formErrors: [turnstile.error],
 					hideFields: ['password'],
 				}),
-				username: formData.get('username')?.toString(),
+				username,
 				ssoAvailable: false,
 			},
 			{ status: 400 },
@@ -743,6 +757,8 @@ function PasswordLoginStep({
 	})
 
 	const isPending = useIsPending()
+	const [turnstileReady, setTurnstileReady] =
+		useTurnstileReady(turnstileSiteKey)
 	const navigate = useNavigate()
 
 	const [form, fields] = useForm({
@@ -879,6 +895,7 @@ function PasswordLoginStep({
 						siteKey={turnstileSiteKey}
 						action="login"
 						resetKey={actionData?.result}
+						onReadyChange={setTurnstileReady}
 					/>
 					<ErrorList errors={form.errors} id={form.errorId} />
 
@@ -886,7 +903,7 @@ function PasswordLoginStep({
 						className="w-full"
 						status={isPending ? 'pending' : (form.status ?? 'idle')}
 						type="submit"
-						disabled={isPending}
+						disabled={isPending || !turnstileReady}
 					>
 						<Trans>Sign In</Trans>
 					</StatusButton>

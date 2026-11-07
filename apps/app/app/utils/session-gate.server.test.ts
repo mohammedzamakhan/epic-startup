@@ -1,10 +1,11 @@
 import { db, eq, Session, User } from '@repo/database'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { insertTestUser } from '#tests/dashboard-utils.ts'
 import { createTestSession } from '#tests/test-utils.ts'
 import {
 	clearSessionGateCache,
 	hasActiveSession,
+	POSITIVE_CACHE_MS,
 } from './session-gate.server.ts'
 
 function requestWith(cookie?: string) {
@@ -15,6 +16,22 @@ function requestWith(cookie?: string) {
 
 describe('hasActiveSession', () => {
 	beforeEach(() => clearSessionGateCache())
+	afterEach(() => vi.useRealTimers())
+
+	it('trusts a cached session only for a short time after it is revoked', async () => {
+		vi.useFakeTimers({ toFake: ['Date'] })
+		const user = await insertTestUser()
+		const { session, cookie } = await createTestSession(user.id)
+		expect(await hasActiveSession(requestWith(cookie))).toBe(true)
+
+		await db.delete(Session).where(eq(Session.id, session.id))
+		// Still inside the cache window: no database read.
+		vi.advanceTimersByTime(POSITIVE_CACHE_MS - 1000)
+		expect(await hasActiveSession(requestWith(cookie))).toBe(true)
+		// Past it, the revoked session is refused.
+		vi.advanceTimersByTime(2000)
+		expect(await hasActiveSession(requestWith(cookie))).toBe(false)
+	})
 
 	it('is false without a cookie, with a forged cookie, or with an unknown session', async () => {
 		expect(await hasActiveSession(requestWith())).toBe(false)

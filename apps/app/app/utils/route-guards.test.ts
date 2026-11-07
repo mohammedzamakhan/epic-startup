@@ -119,14 +119,11 @@ const PUBLIC_ROUTES: Record<string, string> = {
 	'api+/health.ts': 'liveness probe, no data',
 	'api+/mock-env.ts':
 		'dev switch; 404 unless the host is local and mocks are on',
-	'api+/organizations.ts':
-		'loader uses the bearer JWT (requireAuth); the action only answers 405',
-	'api+/profile.ts':
-		'action uses the bearer JWT (requireAuth); the loader only answers 405',
-	'api+/organizations.create.ts':
-		'action uses the bearer JWT (requireAuth); the loader only answers 405',
-	'api+/organizations.set-default.ts':
-		'action uses the bearer JWT (requireAuth); the loader only answers 405',
+	// The other handler of each uses the bearer JWT (requireAuth) and is swept.
+	'api+/organizations.ts#action': 'only answers 405',
+	'api+/profile.ts#loader': 'only answers 405',
+	'api+/organizations.create.ts#loader': 'only answers 405',
+	'api+/organizations.set-default.ts#loader': 'only answers 405',
 	'api+/status.ts': 'public uptime status',
 	'api+/stripe+/webhook.tsx':
 		'Stripe webhook; stripe-signature verified with the endpoint secret',

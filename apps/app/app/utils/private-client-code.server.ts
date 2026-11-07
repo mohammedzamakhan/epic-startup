@@ -29,11 +29,37 @@ function notFound() {
  * (`assets.run_worker_first`); everything else in `/assets/` is served by
  * Cloudflare before the Worker runs.
  */
+/**
+ * The path a static file server would look up: percent-decoded, with `\` as
+ * `/`, repeated slashes collapsed and dot segments resolved, lowercased so a
+ * case-insensitive file system cannot be used either. Null when it cannot be
+ * decoded. `/assets/%61pp/x.js` must count as `/assets/app/x.js`.
+ */
+export function assetLookupPath(rawPathname: string): string | null {
+	let decoded: string
+	try {
+		decoded = decodeURIComponent(rawPathname)
+	} catch {
+		return null
+	}
+	const slashes = decoded.replace(/\\/g, '/').replace(/\/{2,}/g, '/')
+	try {
+		return new URL(slashes, 'http://x').pathname.toLowerCase()
+	} catch {
+		return null
+	}
+}
+
 export async function serveGatedAsset(
 	request: Request,
 	{ assets, hasSession }: { assets?: AssetFetcher; hasSession: SessionCheck },
 ): Promise<Response | null> {
-	const { pathname } = new URL(request.url)
+	const rawPathname = new URL(request.url).pathname
+	const pathname = assetLookupPath(rawPathname)
+	// An undecodable path under /assets is never a file worth serving.
+	if (pathname === null) {
+		return rawPathname.toLowerCase().startsWith('/assets') ? notFound() : null
+	}
 
 	if (ROUTE_MANIFEST_FILE.test(pathname)) return notFound()
 	if (!pathname.startsWith(PRIVATE_ASSETS_URL_PREFIX)) return null
@@ -42,12 +68,13 @@ export async function serveGatedAsset(
 	if (!assets || !(await hasSession(request))) return notFound()
 
 	const response = await assets.fetch(request)
-	if (!response.ok) return notFound()
+	// 304: the signed-in browser revalidated its cached copy; keep it.
+	if (!response.ok && response.status !== 304) return notFound()
 	const headers = new Headers(response.headers)
 	// Hashed file names never change, but no shared cache may keep a copy and
 	// hand it to someone without a session.
 	headers.set('Cache-Control', 'private, max-age=31536000, immutable')
-	return new Response(response.body, {
+	return new Response(response.status === 304 ? null : response.body, {
 		status: response.status,
 		statusText: response.statusText,
 		headers,
@@ -135,4 +162,21 @@ export function documentContextFor<Context extends DocumentContext>(
 		),
 	)
 	return { ...context, manifest: { ...context.manifest, routes } }
+}
+
+/**
+ * True when a logged-out request rendered a private route: normally its loader
+ * redirects to the login page first, but an error (a POST to a page with no
+ * action, a 404 thrown before the session check) can render it. Such a page
+ * would name private modules that the asset gate refuses, so the caller
+ * redirects to the login page instead.
+ */
+export function rendersPrivateRoute(context: DocumentContext) {
+	return context.staticHandlerContext.matches.some(({ route }) =>
+		isPrivateManifestRoute(
+			context.manifest.routes[route.id] as Parameters<
+				typeof isPrivateManifestRoute
+			>[0],
+		),
+	)
 }
