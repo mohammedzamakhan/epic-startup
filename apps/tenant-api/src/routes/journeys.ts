@@ -210,6 +210,9 @@ journeySystemRoutes.get('/definitions/:journeyId', async (c) => {
 		)
 	}
 
+	const regionDenied = await assertOrgRegion(c, query.data.orgId)
+	if (regionDenied) return regionDenied
+
 	const result = await getJourneyDefinition(query.data.orgId, journeyId)
 
 	if (!result.success) {

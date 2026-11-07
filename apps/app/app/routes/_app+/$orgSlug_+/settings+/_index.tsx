@@ -6,11 +6,13 @@ import { organizationSlugSchema } from '@repo/common'
 import { markStepCompleted } from '@repo/common/onboarding'
 import { redirectWithToast } from '@repo/common/toast'
 import {
+	and,
 	db,
 	eq,
 	Organization,
 	OrganizationImage,
 	OrganizationS3Config,
+	sql,
 	User,
 } from '@repo/database'
 import {
@@ -62,6 +64,7 @@ import {
 	startDomainClaim,
 } from '#app/utils/organization/verified-domain.server.ts'
 import { deleteSubscription } from '#app/utils/payments.server.ts'
+import { deprovisionTenantDatabase } from '#app/utils/sites/tenant-api.server.ts'
 import {
 	countOrgMediaObjectKeys,
 	createAndStartStorageMigration,
@@ -188,6 +191,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			size: true,
 			verifiedDomain: true,
 			stripeSubscriptionId: true,
+			dataRegion: true,
+			hasProvisionedDb: true,
+			customDomain: true,
 		}),
 		// Get user email for domain validation
 		db
@@ -490,7 +496,89 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	}
 
 	if (intent === 'delete-organization') {
+		// Customer data, staff records and call recordings live in the regional
+		// tenant database, which the control-plane cascade cannot reach. Delete it
+		// first (tenant-api still finds the organization by id), and keep the
+		// organization if that fails so the deletion can be retried.
+		// A database may exist even with the flag cleared (a failed region
+		// switch), and deleting a missing one is a no-op, so always ask.
+		const changedConcurrently = () =>
+			Response.json(
+				{
+					error:
+						'The organization was changed by someone else while it was being deleted. Reload the page and try again.',
+				},
+				{ status: 409 },
+			)
+
+		// Claim the organization before deleting anything. A region switch only
+		// proceeds while the row is exactly as it read it, so this write (which
+		// moves `updatedAt` forward) makes a concurrent switch stop, and a switch
+		// that already moved the region makes this claim fail.
+		const [claimed] = await db
+			.update(Organization)
+			.set({
+				hasProvisionedDb: false,
+				updatedAt: sql`max(${Organization.updatedAt} + 1, ${Date.now()})`,
+			})
+			.where(
+				and(
+					eq(Organization.id, organization.id),
+					eq(Organization.dataRegion, organization.dataRegion),
+					eq(Organization.hasProvisionedDb, organization.hasProvisionedDb),
+				),
+			)
+			.returning({
+				dataRegion: Organization.dataRegion,
+				updatedAt: Organization.updatedAt,
+			})
+		if (!claimed) return changedConcurrently()
+		const claimedAt = claimed.updatedAt
+		const unchangedSinceClaim = and(
+			eq(Organization.id, organization.id),
+			eq(Organization.updatedAt, claimedAt),
+		)
+
 		try {
+			await deprovisionTenantDatabase({
+				orgId: organization.id,
+				dataRegion: claimed.dataRegion,
+				slug: organization.slug,
+				customDomain: organization.customDomain,
+			})
+		} catch (error) {
+			console.error('Failed to delete the tenant database', {
+				organizationId: organization.id,
+				error: error instanceof Error ? error.message : String(error),
+			})
+			// Give the flag back, unless someone else has written since the claim.
+			await db
+				.update(Organization)
+				.set({ hasProvisionedDb: organization.hasProvisionedDb })
+				.where(
+					and(unchangedSinceClaim, eq(Organization.hasProvisionedDb, false)),
+				)
+				.catch(() => {})
+			return Response.json(
+				{
+					error:
+						"The organization's customer data could not be deleted, so the organization was not deleted. Try again in a few minutes.",
+				},
+				{ status: 502 },
+			)
+		}
+
+		try {
+			// Delete the organization - cascade deletes will handle all related
+			// data. Only the row this request claimed: a region switch that wrote
+			// since then may have provisioned a database this request did not wipe,
+			// so the organization must stay to own it.
+			const [deleted] = await db
+				.delete(Organization)
+				.where(unchangedSinceClaim)
+				.returning({ id: Organization.id })
+			if (!deleted) return changedConcurrently()
+
 			// Cancel Stripe subscription if it exists
 			if (organization.stripeSubscriptionId) {
 				try {
@@ -499,9 +587,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 					// Don't fail the deletion if subscription cancellation fails
 				}
 			}
-
-			// Delete the organization - cascade deletes will handle all related data
-			await db.delete(Organization).where(eq(Organization.id, organization.id))
 
 			await invalidateUserOrganizationsCache(userId)
 
@@ -545,6 +630,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 				existingConfig: s3Config,
 				dest,
 			})
+			if (!plan) {
+				throw new Error('Your media is already in this bucket')
+			}
 
 			await createAndStartStorageMigration({
 				organizationId: organization.id,
@@ -701,10 +789,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
 							dest,
 						})
 
-						await createAndStartStorageMigration({
-							organizationId: organization.id,
-							...plan,
-						})
+						// null: only the credentials or region of the same
+						// bucket changed, so the media is already in place.
+						if (plan) {
+							await createAndStartStorageMigration({
+								organizationId: organization.id,
+								...plan,
+							})
+						}
 					} catch (error) {
 						const message =
 							error instanceof Error

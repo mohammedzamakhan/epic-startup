@@ -3,8 +3,10 @@ import { z } from 'zod'
 import {
 	parseKioskDeviceSecret,
 	parseKioskPairingCode,
+	parseScheduleLinkToken,
 	STAFFING_TOKEN_AUDIENCE,
 } from '@repo/staffing'
+import { verifyOperatorAnalyticsToken } from '@repo/reports/token'
 import { TENANT_ORG_ID_PATTERN } from '@repo/tenant-db'
 import { brand } from '@repo/config/brand'
 import {
@@ -14,6 +16,7 @@ import {
 import {
 	getBearerToken,
 	getInternalCommandToken,
+	getOperatorAnalyticsToken,
 	timingSafeEqualString,
 } from '../src/lib/secrets.ts'
 import {
@@ -72,6 +75,35 @@ async function orgIdFromOperatorJwt(
 	} catch {
 		return null
 	}
+}
+
+/**
+ * Operator analytics tokens (reports) use their own signing key, issuer and
+ * audience, so the customer JWT check cannot read them. Verified with the same
+ * function and secret as the route; the route re-verifies.
+ */
+async function orgIdFromAnalyticsToken(
+	request: Request,
+): Promise<string | null> {
+	const token = getBearerToken(request.headers.get('Authorization'))
+	if (!token) return null
+	const signingSecret = getOperatorAnalyticsToken()
+	if (!signingSecret) return null
+	const claims = await verifyOperatorAnalyticsToken({ signingSecret, token })
+	return claims && TENANT_ORG_ID_PATTERN.test(claims.orgId)
+		? claims.orgId
+		: null
+}
+
+/**
+ * "My schedule" requests carry the organization as a plain prefix of the
+ * bearer link token. Nothing else (body, query) may choose it. The route
+ * verifies the link itself.
+ */
+function orgIdFromScheduleLink(request: Request): string | null {
+	const token = getBearerToken(request.headers.get('Authorization'))
+	const orgId = parseScheduleLinkToken(token)?.orgId
+	return orgId && TENANT_ORG_ID_PATTERN.test(orgId) ? orgId : null
 }
 
 async function orgIdFromAuthBody(request: Request): Promise<string | null> {
@@ -299,11 +331,15 @@ export async function resolveOrgId(
 		return orgIdFromOperatorJwt(request, env)
 	}
 
-	if (
-		pathname.startsWith('/shop') ||
-		pathname.startsWith('/analytics') ||
-		pathname === '/auth/me'
-	) {
+	if (pathname === '/analytics' || pathname.startsWith('/analytics/')) {
+		return orgIdFromAnalyticsToken(request)
+	}
+
+	if (pathname === '/schedule-link' || pathname.startsWith('/schedule-link/')) {
+		return orgIdFromScheduleLink(request)
+	}
+
+	if (pathname.startsWith('/shop') || pathname === '/auth/me') {
 		return orgIdFromCustomerJwt(request, env)
 	}
 
@@ -411,6 +447,12 @@ export async function assertOrgOnUsNode(
 			},
 			{ status: 409 },
 		)
+	}
+	// Mid region switch, after a failed one, or before provisioning finished:
+	// the object must not be woken (it would rebuild an empty database). Only
+	// `/api/provision` creates it, and that path does not come through here.
+	if (!organization.hasProvisionedDb) {
+		return Response.json({ error: 'org_not_provisioned' }, { status: 404 })
 	}
 	return null
 }

@@ -8,6 +8,7 @@ import {
 	RouterContextProvider,
 } from 'react-router'
 import { initVarlockEnv } from 'varlock/env'
+import { executionContext } from '../app/utils/after-response.server.ts'
 
 const cloudflareContext = createContext<{
 	env: Env
@@ -69,6 +70,7 @@ export default {
 
 		const loadContext = new RouterContextProvider()
 		loadContext.set(cloudflareContext, { env, ctx })
+		loadContext.set(executionContext, ctx)
 
 		return requestHandler(request, loadContext)
 	},

@@ -9,6 +9,7 @@ import {
 	count,
 	db,
 	eq,
+	isNotNull,
 	isNull,
 	Organization as OrganizationTable,
 	OrganizationRole,
@@ -146,6 +147,19 @@ export async function upgradeSubscription(
 	return updatedSubscription
 }
 
+async function requireOfferedPrice(priceId: string) {
+	const { prices } = await paymentProvider.getPlansAndPrices()
+	const offered = [
+		prices.base.monthly,
+		prices.base.yearly,
+		prices.plus.monthly,
+		prices.plus.yearly,
+	].some((price) => price?.id === priceId)
+	if (!offered) {
+		throw new Response('This price is not offered.', { status: 400 })
+	}
+}
+
 export async function createCheckoutSession(
 	request: Request,
 	{
@@ -161,6 +175,9 @@ export async function createCheckoutSession(
 	},
 ) {
 	const userId = await requireUserId(request)
+	// Only a price this app offers: a crafted form must not subscribe (or
+	// switch a plan) to any other price on the Stripe account.
+	await requireOfferedPrice(priceId)
 
 	const trialConfig = getTrialConfig()
 
@@ -309,7 +326,6 @@ export async function handleSubscriptionChange(subscription: {
 }) {
 	const customerId = subscription.customer
 	const subscriptionId = subscription.id
-	const status = subscription.status
 
 	const organization = await getOrganizationByStripeCustomerId(customerId)
 
@@ -317,8 +333,19 @@ export async function handleSubscriptionChange(subscription: {
 		return
 	}
 
+	// Stripe retries failed deliveries and does not order them, so the event's
+	// snapshot can be older than what we already applied: a retried "active"
+	// arriving after "deleted" would revive a cancelled plan, or cancel the
+	// newer subscription below. Act on the subscription as it is now. A failed
+	// read throws, so Stripe retries the event.
+	const current = await paymentProvider.retrieveSubscription(subscriptionId)
+	if (current.customerId !== customerId) {
+		return
+	}
+	const status = current.status
+
 	if (status === 'active' || status === 'trialing') {
-		const productId = subscription.items[0]?.price.product
+		const productId = current.productId || subscription.items[0]?.price.product
 		const previousSubscriptionId = organization.stripeSubscriptionId
 
 		// Get the product before changing local subscription state. A provider
@@ -336,16 +363,22 @@ export async function handleSubscriptionChange(subscription: {
 			subscriptionStatus: status,
 		})
 
-		// If this is a new active subscription and the organization has a different subscription ID,
-		// cancel the old one to prevent multiple active subscriptions
+		// A new active subscription replaces the previous one. A failed cancel
+		// throws, so the webhook answers 500 and Stripe retries the event.
 		if (previousSubscriptionId && previousSubscriptionId !== subscriptionId) {
-			try {
+			const previous = await paymentProvider.retrieveSubscription(
+				previousSubscriptionId,
+			)
+			if (!SUBSCRIPTION_ENDED_STATUSES.includes(previous.status)) {
 				await paymentProvider.cancelSubscription(previousSubscriptionId)
-			} catch (error) {
-				console.error('Error cancelling old subscription:', error)
 			}
 		}
-	} else if (status === 'canceled' || status === 'unpaid') {
+
+		// Two "created" events handled at once both read the same previous id,
+		// and a retry after a failed cancel no longer sees it: settle on one
+		// billable subscription per customer (the newest) every time.
+		await reconcileCustomerSubscriptions(organization.id, customerId)
+	} else if (SUBSCRIPTION_ENDED_STATUSES.includes(status)) {
 		// Only update to null if this is the current subscription
 		if (organization.stripeSubscriptionId === subscriptionId) {
 			await updateOrganizationSubscription(organization.id, {
@@ -355,7 +388,73 @@ export async function handleSubscriptionChange(subscription: {
 				subscriptionStatus: status,
 			})
 		}
+	} else if (organization.stripeSubscriptionId === subscriptionId) {
+		// Dunning and other non-paying states (past_due, incomplete, paused):
+		// keep the plan, but record that it is not being paid.
+		await db
+			.update(OrganizationTable)
+			.set({ subscriptionStatus: status, updatedAt: new Date() })
+			.where(
+				and(
+					eq(OrganizationTable.id, organization.id),
+					eq(OrganizationTable.stripeSubscriptionId, subscriptionId),
+				),
+			)
 	}
+}
+
+/** Statuses that end a subscription: the organization no longer has a plan. */
+const SUBSCRIPTION_ENDED_STATUSES: string[] = [
+	'canceled',
+	'unpaid',
+	'incomplete_expired',
+]
+
+/** Statuses in which the organization's plan is paid for (or on trial). */
+export const PAYING_SUBSCRIPTION_STATUSES: string[] = ['active', 'trialing']
+
+/**
+ * The organization has a subscription that still exists in Stripe, paying
+ * or not (past due, paused): it must reach billing to pay or fix it.
+ */
+export function hasLiveSubscription(organization: {
+	stripeSubscriptionId: string | null
+	subscriptionStatus: string | null
+}) {
+	return Boolean(
+		organization.stripeSubscriptionId &&
+		organization.subscriptionStatus &&
+		!SUBSCRIPTION_ENDED_STATUSES.includes(organization.subscriptionStatus),
+	)
+}
+
+/**
+ * Cancels every billable subscription but the newest for this customer, and
+ * points the organization at the one kept. Throws on a Stripe failure.
+ */
+async function reconcileCustomerSubscriptions(
+	organizationId: string,
+	customerId: string,
+) {
+	const cleanup = await cleanupDuplicateStripeSubscriptions(stripe, customerId)
+	if (!cleanup.keptSubscriptionId) return
+	const kept = await paymentProvider.retrieveSubscription(
+		cleanup.keptSubscriptionId,
+	)
+	const [organization] = await db
+		.select({ stripeSubscriptionId: OrganizationTable.stripeSubscriptionId })
+		.from(OrganizationTable)
+		.where(eq(OrganizationTable.id, organizationId))
+		.limit(1)
+	if (organization?.stripeSubscriptionId === kept.id) return
+	const products = await paymentProvider.getProducts()
+	const product = products.find((p) => p.id === kept.productId)
+	await updateOrganizationSubscription(organizationId, {
+		stripeSubscriptionId: kept.id,
+		stripeProductId: kept.productId || null,
+		planName: product?.name || null,
+		subscriptionStatus: kept.status,
+	})
 }
 
 export async function handleTrialEnd(subscription: {
@@ -458,7 +557,12 @@ export async function getTrialStatus(userId: string, organizationSlug: string) {
 				return { isActive: true, daysRemaining: Math.max(0, daysRemaining) }
 			}
 
-			return { isActive: true, daysRemaining: 0 }
+			// Stripe may know more than the last webhook: past due, paused or
+			// ended is not an active plan.
+			return {
+				isActive: PAYING_SUBSCRIPTION_STATUSES.includes(subscription.status),
+				daysRemaining: 0,
+			}
 		}
 
 		if (trialConfig.creditCardRequired === 'manual') {
@@ -591,6 +695,51 @@ async function syncSeatQuantity(
 	}
 
 	return lastResult
+}
+
+/**
+ * Seat counts drift when a Stripe write fails after a member joins or leaves
+ * (those paths log and carry on). The daily job compares every subscribed
+ * organization's Stripe quantity with its active members and fixes the ones
+ * that differ. One failure never stops the others.
+ */
+export async function reconcileSeatQuantities({ limit = 500 } = {}) {
+	const organizations = await db
+		.select({
+			id: OrganizationTable.id,
+			stripeSubscriptionId: OrganizationTable.stripeSubscriptionId,
+		})
+		.from(OrganizationTable)
+		.where(isNotNull(OrganizationTable.stripeSubscriptionId))
+		.orderBy(OrganizationTable.id)
+		.limit(limit)
+	const result = { checked: 0, updated: 0, failed: 0 }
+	for (const organization of organizations) {
+		try {
+			const subscription = await paymentProvider.retrieveSubscription(
+				organization.stripeSubscriptionId!,
+			)
+			result.checked += 1
+			// Only a live, single-item subscription has a seat count to fix.
+			if (
+				['canceled', 'incomplete_expired'].includes(subscription.status) ||
+				subscription.items.length !== 1
+			) {
+				continue
+			}
+			const seats = await getOrganizationSeatQuantity(organization.id)
+			if (subscription.items[0]?.quantity === seats) continue
+			await updateSeatQuantity(organization.id)
+			result.updated += 1
+		} catch (error) {
+			result.failed += 1
+			console.error(
+				`Seat reconcile failed for organization ${organization.id}:`,
+				error,
+			)
+		}
+	}
+	return result
 }
 
 export const checkoutAction = async (

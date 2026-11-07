@@ -107,8 +107,10 @@ export function verify2FAToken(
 export async function createRefreshToken(
 	userId: string,
 	meta: { userAgent?: string; ip?: string },
+	derived?: { id: string; token: string },
 ): Promise<{ token: string; expiresAt: Date }> {
-	const token = crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex')
+	const token =
+		derived?.token ?? crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex')
 	const tokenHash = await bcrypt.hash(token, 10)
 	const expiresAt = new Date(
 		Date.now() + REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000,
@@ -118,6 +120,7 @@ export async function createRefreshToken(
 	const [refreshToken] = await db
 		.insert(RefreshToken)
 		.values({
+			...(derived ? { id: derived.id } : {}),
 			userId,
 			tokenHash,
 			userAgent: meta.userAgent,
@@ -127,6 +130,32 @@ export async function createRefreshToken(
 		.returning({ id: RefreshToken.id })
 
 	return { token: `${refreshToken!.id}.${token}`, expiresAt }
+}
+
+/**
+ * How long after a rotation the old refresh token may be presented again
+ * (the response was lost, then the app retried) and receive the same
+ * successor instead of a 401 that signs the operator out.
+ */
+export const REFRESH_TOKEN_REUSE_GRACE_MS = 60 * 1000
+
+/**
+ * The successor a refresh token rotates into: deterministic, keyed by
+ * JWT_SECRET, so a retried rotation finds the same row and token.
+ */
+function deriveSuccessor(oldTokenString: string) {
+	const key = getJwtSecret()
+	const id = crypto
+		.createHmac('sha256', key)
+		.update(`refresh-token-successor-id:${oldTokenString}`)
+		.digest('hex')
+		.slice(0, 32)
+	const token = crypto
+		.createHmac('sha512', key)
+		.update(`refresh-token-successor:${oldTokenString}`)
+		.digest('hex')
+		.slice(0, REFRESH_TOKEN_BYTES * 2)
+	return { id, token }
 }
 
 /**
@@ -146,19 +175,17 @@ export async function rotateRefreshToken(
 	const [row] = await db
 		.select()
 		.from(RefreshToken)
-		.where(
-			and(
-				eq(RefreshToken.id, tokenId),
-				eq(RefreshToken.userId, userId),
-				eq(RefreshToken.revoked, false),
-			),
-		)
+		.where(and(eq(RefreshToken.id, tokenId), eq(RefreshToken.userId, userId)))
 		.limit(1)
 
 	if (!row || row.expiresAt < new Date()) return null
 
 	const isMatch = (await bcrypt.compare(oldToken, row.tokenHash)) === true
-	if (isMatch) {
+	if (!isMatch) return null
+
+	const successor = deriveSuccessor(oldTokenString)
+
+	if (!row.revoked) {
 		// Claim the old token atomically: two concurrent rotations of the same
 		// token must not both mint a successor.
 		const claimed = await db
@@ -166,14 +193,44 @@ export async function rotateRefreshToken(
 			.set({ revoked: true })
 			.where(and(eq(RefreshToken.id, row.id), eq(RefreshToken.revoked, false)))
 			.returning({ id: RefreshToken.id })
-		if (claimed.length === 0) return null
-
-		// Create new token
-		const { token, expiresAt } = await createRefreshToken(userId, meta)
-		return { token, expiresAt }
+		if (claimed.length > 0) {
+			return createRefreshToken(userId, meta, successor)
+		}
 	}
 
-	return null
+	// Already rotated (or revoked). A retry shortly after the rotation, while
+	// its successor is still unused, gets that same successor back. Anything
+	// else (late, successor already rotated or revoked, signed out) fails.
+	const [current] = await db
+		.select({
+			revoked: RefreshToken.revoked,
+			updatedAt: RefreshToken.updatedAt,
+		})
+		.from(RefreshToken)
+		.where(eq(RefreshToken.id, row.id))
+		.limit(1)
+	if (
+		!current?.revoked ||
+		Date.now() - current.updatedAt.getTime() > REFRESH_TOKEN_REUSE_GRACE_MS
+	) {
+		return null
+	}
+	const [next] = await db
+		.select()
+		.from(RefreshToken)
+		.where(
+			and(
+				eq(RefreshToken.id, successor.id),
+				eq(RefreshToken.userId, userId),
+				eq(RefreshToken.revoked, false),
+			),
+		)
+		.limit(1)
+	if (!next || next.expiresAt < new Date()) return null
+	return {
+		token: `${successor.id}.${successor.token}`,
+		expiresAt: next.expiresAt,
+	}
 }
 
 /**

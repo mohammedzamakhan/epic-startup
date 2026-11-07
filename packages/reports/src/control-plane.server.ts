@@ -246,9 +246,11 @@ export async function saveReport(options: {
 			organizationId: options.organizationId ?? undefined,
 		})
 		if (!existing) return null
+		// The creator stays the creator: an update never reassigns ownership.
+		const { createdById: ignoredCreatedById, ...updateValues } = values
 		const [updated] = await db
 			.update(SavedReport)
-			.set(values)
+			.set(updateValues)
 			.where(eq(SavedReport.id, options.id))
 			.returning({ id: SavedReport.id })
 		return updated ?? null

@@ -357,6 +357,22 @@ export class ChatEngine {
 			)
 			return
 		}
+		if (frame.clientId) {
+			// A retry of a send whose ack was lost: answer with the first message
+			// and do not post or broadcast it again.
+			const existing = this.store.findByClientId(conn.userId, frame.clientId)
+			if (existing) {
+				if (existing.channel !== frame.channel) {
+					this.sendTo(
+						conn,
+						this.fail(frame.id, 'bad_request', 'Send the message again.'),
+					)
+					return
+				}
+				this.ack(conn, frame.id, { message: existing })
+				return
+			}
+		}
 		const message = this.store.addMessage({
 			channel: frame.channel,
 			author: conn.userId,
@@ -364,6 +380,7 @@ export class ChatEngine {
 			attachmentKeys,
 			parent: frame.parent,
 			now: this.now(),
+			clientId: frame.clientId,
 		})
 		// Sending counts as having read everything up to your own message.
 		this.store.markRead(frame.channel, conn.userId, message.id)

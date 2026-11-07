@@ -1,6 +1,7 @@
 import { ENV } from 'varlock/env'
 import { listTenantOrgIds } from '@repo/tenant-db'
 import { fanOutStaffTick } from '../services/staff-tick-fanout.ts'
+import { runBroadcastTickForOrg } from '../services/broadcast-dispatch.ts'
 import { runStaffTickForOrg } from '../services/staff-tick-service.ts'
 import { syncEnvFromProcess } from './secrets.ts'
 
@@ -52,7 +53,12 @@ export function startStaffTickInterval(
 		(async () =>
 			fanOutStaffTick({
 				orgIds: await listTenantOrgIds(),
-				run: (orgId) => runStaffTickForOrg(orgId).catch(() => null),
+				run: async (orgId) => {
+					const result = await runStaffTickForOrg(orgId).catch(() => null)
+					// Resume interrupted broadcasts and start scheduled ones.
+					await runBroadcastTickForOrg(orgId)
+					return result
+				},
 			}))
 	const timer = (options.setIntervalFn ?? setInterval)(() => {
 		// A slow pass is never overlapped by the next one.

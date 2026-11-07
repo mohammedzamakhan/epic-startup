@@ -172,6 +172,15 @@ value → explicit fallback → built-in default**. For an unknown tag, the fall
 is used when present; otherwise the token is left verbatim. In HTML output the
 substituted value _and_ the fallback are escaped.
 
+A fallback is unescaped once and escaped again, so a double-encoded fallback
+such as `&amp;lt;script&amp;gt;` stays text. Escaping does not make a URL safe,
+so in a URL attribute (`href`, `src`, and the like) the attribute is emptied
+unless the interpolated value is a relative URL or uses `http`, `https`,
+`mailto` or `tel` (`replaceMergeTokensInHtml` in
+`packages/common/src/merge-tags.ts`). The check decodes the attribute once and
+drops tabs, newlines and control characters first, as a browser does, so
+`JavaScript:` or `java&#x09;script:` is refused too.
+
 ### Unsubscribe follow-up
 
 The current email footer is informational only; it must not be treated as a
@@ -232,3 +241,39 @@ To backfill consent a business already holds (for example an existing mailing
 list), insert rows with `source = 'import'` through `setCustomerSubscription()`
 in `apps/tenant-api/src/services/marketing-audience.ts`. Only import people who
 agreed to receive marketing.
+
+## Migration archives
+
+Two migrations remove duplicate rows before they add the unique indexes that
+stop two dispatchers sending twice. Each copies the rows it removes to an
+archive table first, so the deletion can be undone:
+
+- Control plane, `packages/database/drizzle/0027_concurrency_guards.sql`:
+  duplicate `PlatformMarketingMessage` rows per campaign and user. The kept row
+  is the most engaged one (Clicked, Opened, Sent, Processing, then Failed; the
+  oldest on a tie). Removed rows go to
+  `__archived_PlatformMarketingMessage_0027`.
+- Every organization's tenant database,
+  `packages/tenant-db/drizzle/0018_concurrency_guards.sql`:
+  - Journey runs of a once-per-customer trigger (`phone_verified`,
+    `profile_completed`), duplicated per journey and customer. The kept run is
+    completed, then running, then failed, then cancelled (the oldest on a tie).
+    Removed runs go to `__archived_journey_runs_0018`, and their step executions
+    to `__archived_journey_step_executions_0018`. A message sent by a removed
+    step keeps its row with the step link set to `NULL`; a copy with the old
+    link is in `__archived_marketing_messages_0018`
+    (`archive_reason = 'journey_step_unlinked'`).
+  - Broadcast messages duplicated per campaign and customer. The kept row is the
+    most engaged one (Clicked, Opened, Delivered or Sent, Unknown or Processing,
+    then Failed; the oldest on a tie). Removed rows go to
+    `__archived_marketing_messages_0018`
+    (`archive_reason = 'duplicate_broadcast'`).
+
+The archive tables are created even when nothing was removed (then empty). They
+hold customer ids and journey context, so person erasure deletes a customer's
+archived rows too (`eraseArchivedRows` in
+`apps/tenant-api/src/services/person-erasure-service.ts`), and they live in the
+organization's own region like the rows they came from. To restore a row, insert
+it back from the archive (drop `archive_reason`) after removing the row that was
+kept, since the unique index allows one. Drop the archive tables in a later
+migration once the rollout has been checked.

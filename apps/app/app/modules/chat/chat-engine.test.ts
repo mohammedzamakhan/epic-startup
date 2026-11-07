@@ -323,6 +323,107 @@ describe('ChatStore', () => {
 	})
 })
 
+describe('ChatEngine send retries', () => {
+	it('adds the key column to a store created before it existed', () => {
+		const db = new DatabaseSync(':memory:')
+		db.exec(`CREATE TABLE messages (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			channel_id TEXT NOT NULL,
+			parent_id INTEGER,
+			author_id TEXT NOT NULL,
+			body TEXT NOT NULL,
+			created_at INTEGER NOT NULL,
+			edited_at INTEGER,
+			deleted_at INTEGER
+		)`)
+		const store = new ChatStore({
+			exec: (query, ...bindings) => ({
+				toArray: () =>
+					db.prepare(query).all(...(bindings as never[])) as Record<
+						string,
+						unknown
+					>[],
+			}),
+		})
+		store.migrate()
+		store.migrate()
+		const message = store.addMessage({
+			channel: 'c',
+			author: 'a',
+			body: 'hi',
+			now: 1,
+			clientId: 'key-00000001',
+		})
+		expect(store.findByClientId('a', 'key-00000001')?.id).toBe(message.id)
+	})
+
+	it('a send retried after a lost ack posts the message once', async () => {
+		const h = createHarness({ eng: ['alice', 'bob'] })
+		const alice = h.connect('alice')
+		const bob = h.connect('bob')
+		const clientId = 'retry-key-0001'
+		await h.send(alice, {
+			t: 'send',
+			id: 'a1',
+			channel: 'eng',
+			body: 'hello',
+			clientId,
+		})
+		// The ack never reached the client, so it sends again with a new
+		// frame id and the same idempotency key.
+		await h.send(alice, {
+			t: 'send',
+			id: 'a2',
+			channel: 'eng',
+			body: 'hello',
+			clientId,
+		})
+
+		const first = h.ack(alice, 'a1') as { data: { message: { id: number } } }
+		const second = h.ack(alice, 'a2') as {
+			ok: boolean
+			data: { message: { id: number } }
+		}
+		expect(second.ok).toBe(true)
+		expect(second.data.message.id).toBe(first.data.message.id)
+		expect(h.store.history('eng', {}).messages).toHaveLength(1)
+		expect(bob.frames.filter((frame) => frame.t === 'message')).toHaveLength(1)
+	})
+
+	it('two different sends with no key are both posted', async () => {
+		const h = createHarness({ eng: ['alice'] })
+		const alice = h.connect('alice')
+		await h.send(alice, { t: 'send', id: 'a1', channel: 'eng', body: 'ok' })
+		await h.send(alice, { t: 'send', id: 'a2', channel: 'eng', body: 'ok' })
+		expect(h.store.history('eng', {}).messages).toHaveLength(2)
+	})
+
+	it('another author cannot reuse a key to read a message', async () => {
+		const h = createHarness({ eng: ['alice', 'bob'] })
+		const alice = h.connect('alice')
+		const bob = h.connect('bob')
+		const clientId = 'shared-key-0001'
+		await h.send(alice, {
+			t: 'send',
+			id: 'a',
+			channel: 'eng',
+			body: 'a',
+			clientId,
+		})
+		await h.send(bob, {
+			t: 'send',
+			id: 'b',
+			channel: 'eng',
+			body: 'b',
+			clientId,
+		})
+		expect(h.store.history('eng', {}).messages.map((m) => m.body)).toEqual([
+			'a',
+			'b',
+		])
+	})
+})
+
 describe('ChatEngine authorization', () => {
 	it('lets audience members read and post, and fans out only to them', async () => {
 		const h = createHarness({ eng: ['alice', 'bob'] })

@@ -3,6 +3,7 @@ import { requireUserId } from '@repo/auth'
 import {
 	createExportRequest,
 	generateUserDataExport,
+	markExportRequestFailed,
 } from '#app/utils/gdpr.server.ts'
 import { collectStaffExportsForUser } from '#app/utils/staffing/dsar.server.ts'
 import { type Route } from './+types/download-user-data.ts'
@@ -53,6 +54,12 @@ export async function loader({ request }: Route.LoaderArgs) {
 			},
 		)
 	} catch (error) {
+		// A failed export must not stay `processing`: that would block the
+		// user's next export.
+		await markExportRequestFailed(
+			result.requestId,
+			error instanceof Error ? error.message : 'Failed to generate export',
+		).catch(() => {})
 		await auditService.log({
 			action: AuditAction.DATA_EXPORT_FAILED,
 			userId,

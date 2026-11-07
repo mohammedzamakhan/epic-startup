@@ -34,6 +34,7 @@ import {
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 } from 'react-router'
+import { runAfterResponse } from '#app/utils/after-response.server.ts'
 import { resolvePlatformEmailBranding } from '#app/utils/email-branding.server.ts'
 
 function EmailDesignerField() {
@@ -62,7 +63,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 	return { organizations }
 }
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request, context }: ActionFunctionArgs) {
 	const adminUserId = await requireUserWithPermission(
 		request,
 		SYSTEM_PERMISSIONS.UPDATE_PLATFORM_CAMPAIGN_ANY,
@@ -128,6 +129,7 @@ export async function action({ request }: ActionFunctionArgs) {
 					String(formData.get('targetOrganizationId') || '') || undefined,
 			},
 			adminUserId,
+			{ runInBackground: (task) => runAfterResponse(context, task) },
 		)
 	} catch (error) {
 		return {

@@ -7,6 +7,7 @@ import {
 	Organization,
 	OrganizationNote,
 	SavedReport,
+	UserOrganization,
 } from '@repo/database'
 import { organizationTemplates, type ReportDefinition } from '@repo/reports'
 import { describe, expect, it } from 'vitest'
@@ -292,12 +293,37 @@ describe('loadBuiltInBlockData', () => {
 			[7, 6, 5, 4, 3, 2].map((notesCount, index) => ({
 				id: members[notesCount - 1]!.id,
 				name: `Member ${notesCount}`,
-				email: members[notesCount - 1]!.email,
 				notesCount,
 				rank: index + 1,
 				image: null,
 			})),
 		)
+	})
+
+	it('leaves removed members and every email off the leaderboard', async () => {
+		const { viewer, organization } = await setupOrg()
+		const active = await insertTestUser({ name: 'Active Author' })
+		await addOrganizationMember(active.id, organization.id)
+		const removed = await insertTestUser({ name: 'Removed Author' })
+		await addOrganizationMember(removed.id, organization.id)
+		const now = new Date()
+		await insertNotes(organization.id, active.id, [now])
+		await insertNotes(organization.id, removed.id, [now, now, now])
+		await db
+			.update(UserOrganization)
+			.set({ active: false })
+			.where(eq(UserOrganization.userId, removed.id))
+
+		const data = await loadBuiltInBlockData({
+			userId: viewer.id,
+			organization,
+			blocks: onlyBlocks('leaderboard'),
+		})
+
+		expect(data.leaderboard?.map((entry) => entry.id)).toEqual([active.id])
+		for (const entry of data.leaderboard ?? []) {
+			expect(entry).not.toHaveProperty('email')
+		}
 	})
 
 	it('returns an empty leaderboard when the organization has no notes', async () => {

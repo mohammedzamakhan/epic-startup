@@ -39,6 +39,23 @@ type ShopCardProps = {
 	paymentsMock?: PaymentsMockUiState
 }
 
+function OrderStatus({ status }: { status: string }) {
+	switch (status) {
+		case 'paid':
+			return <Trans>Paid</Trans>
+		case 'pending':
+			return <Trans>Pending</Trans>
+		case 'failed':
+			return <Trans>Failed</Trans>
+		case 'refunded':
+			return <Trans>Refunded</Trans>
+		case 'disputed':
+			return <Trans>Disputed</Trans>
+		default:
+			return <>{status}</>
+	}
+}
+
 function formatMoney(cents: number, currency = 'usd') {
 	return new Intl.NumberFormat('en-US', {
 		style: 'currency',
@@ -435,7 +452,7 @@ export function ShopCard({
 												</p>
 											)}
 											<p className="text-muted-foreground">
-												{order.status}
+												<OrderStatus status={order.status} />
 												{order.paymentProvider
 													? ` · ${normalizeShopProcessor(order.paymentProvider)}`
 													: ''}{' '}

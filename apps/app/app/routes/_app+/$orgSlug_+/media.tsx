@@ -7,6 +7,7 @@ import {
 	db,
 	desc,
 	eq,
+	inArray,
 	like,
 	or,
 	sql,
@@ -17,6 +18,7 @@ import {
 	OrganizationMediaAsset,
 	OrganizationNote,
 	OrganizationNoteUpload,
+	SocialPost,
 	WebsitePage,
 	WebsitePageSection,
 } from '@repo/database'
@@ -38,6 +40,7 @@ import { Label } from '@repo/ui/label'
 import { PageHeader } from '@repo/ui/page-header'
 import { Textarea } from '@repo/ui/textarea'
 import { format, formatDistanceToNow } from 'date-fns'
+import { type SQLiteColumn } from 'drizzle-orm/sqlite-core'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Form, useFetcher } from 'react-router'
 import { toast } from 'sonner'
@@ -141,7 +144,14 @@ type SerializedMediaAsset = ReturnType<typeof serializeAsset>
 
 export type MediaReferenceItem = {
 	id: string
-	type: 'note' | 'comment' | 'logo' | 'site-icon' | 'page' | 'source'
+	type:
+		| 'note'
+		| 'comment'
+		| 'logo'
+		| 'site-icon'
+		| 'page'
+		| 'social-post'
+		| 'source'
 	title: string
 	subtitle?: string
 	url?: string
@@ -193,6 +203,36 @@ function configContains(value: string) {
 	return sql`instr(${WebsitePageSection.config}, ${value}) > 0`
 }
 
+function columnContains(column: SQLiteColumn, value: string) {
+	return sql`instr(coalesce(${column}, ''), ${value}) > 0`
+}
+
+/**
+ * Published page snapshots and SEO images keep using an object after the
+ * draft sections stop referencing it. SEO image URLs store the key
+ * URL-encoded.
+ */
+function publishedPageReferenceCondition(objectKey: string, assetId?: string) {
+	const needles = [objectKey, encodeURIComponent(objectKey)]
+	if (assetId) needles.push(assetId)
+	return or(
+		...needles.flatMap((needle) => [
+			columnContains(WebsitePage.publishedData, needle),
+			columnContains(WebsitePage.seoImageUrl, needle),
+		]),
+	)
+}
+
+// Posts that may still be sent load their images by media id, so the library
+// row has to stay until they are published.
+const UNSENT_SOCIAL_POST_STATUSES = [
+	'draft',
+	'scheduled',
+	'publishing',
+	'partial',
+	'failed',
+]
+
 async function hasMediaObjectReferences(
 	organizationId: string,
 	objectKey: string,
@@ -201,7 +241,16 @@ async function hasMediaObjectReferences(
 	const pageReferenceCondition = assetId
 		? or(configContains(objectKey), configContains(assetId))
 		: configContains(objectKey)
-	const [asset, note, comment, logo, siteIcon, page] = await Promise.all([
+	const [
+		asset,
+		note,
+		comment,
+		logo,
+		siteIcon,
+		page,
+		publishedPage,
+		socialPost,
+	] = await Promise.all([
 		db
 			.select({ id: OrganizationMediaAsset.id })
 			.from(OrganizationMediaAsset)
@@ -269,11 +318,40 @@ async function hasMediaObjectReferences(
 				),
 			)
 			.limit(1),
+		db
+			.select({ id: WebsitePage.id })
+			.from(WebsitePage)
+			.where(
+				and(
+					eq(WebsitePage.organizationId, organizationId),
+					publishedPageReferenceCondition(objectKey, assetId),
+				),
+			)
+			.limit(1),
+		assetId
+			? db
+					.select({ id: SocialPost.id })
+					.from(SocialPost)
+					.where(
+						and(
+							eq(SocialPost.organizationId, organizationId),
+							columnContains(SocialPost.media, assetId),
+						),
+					)
+					.limit(1)
+			: Promise.resolve([]),
 	])
 
-	return [asset, note, comment, logo, siteIcon, page].some(
-		(reference) => reference.length > 0,
-	)
+	return [
+		asset,
+		note,
+		comment,
+		logo,
+		siteIcon,
+		page,
+		publishedPage,
+		socialPost,
+	].some((reference) => reference.length > 0)
 }
 
 async function deleteMediaObjectIfUnreferenced({
@@ -421,20 +499,43 @@ export async function action({ request, params }: Route.ActionArgs) {
 				{ status: 400 },
 			)
 		}
+		const assetCondition = and(
+			eq(OrganizationMediaAsset.id, result.data.id),
+			eq(OrganizationMediaAsset.organizationId, organization.id),
+		)
 		const [deleted] = await db
 			.delete(OrganizationMediaAsset)
 			.where(
 				and(
-					eq(OrganizationMediaAsset.id, result.data.id),
-					eq(OrganizationMediaAsset.organizationId, organization.id),
+					assetCondition,
+					sql`NOT EXISTS (SELECT 1 FROM ${SocialPost} WHERE ${SocialPost.organizationId} = ${organization.id} AND ${inArray(SocialPost.status, UNSENT_SOCIAL_POST_STATUSES)} AND instr(${SocialPost.media}, ${result.data.id}) > 0)`,
 				),
 			)
 			.returning({
 				objectKey: OrganizationMediaAsset.objectKey,
 				storageScope: OrganizationMediaAsset.storageScope,
+				source: OrganizationMediaAsset.source,
 			})
 		if (!deleted) {
-			return Response.json({ error: 'Media not found.' }, { status: 404 })
+			const [stillThere] = await db
+				.select({ id: OrganizationMediaAsset.id })
+				.from(OrganizationMediaAsset)
+				.where(assetCondition)
+				.limit(1)
+			return stillThere
+				? Response.json(
+						{
+							error:
+								'This image is attached to a social post that has not been published. Remove it from the post first.',
+						},
+						{ status: 409 },
+					)
+				: Response.json({ error: 'Media not found.' }, { status: 404 })
+		}
+		// Chat messages live in a Durable Object this check cannot read, so a
+		// chat attachment's file is kept when it leaves the library.
+		if (deleted.source === 'chat') {
+			return Response.json({ deleted: true, deletedId: result.data.id })
 		}
 		await deleteMediaObjectIfUnreferenced({
 			organizationId: organization.id,
@@ -696,6 +797,53 @@ export async function action({ request, params }: Route.ActionArgs) {
 				title: `Website Page: ${p.pageTitle || p.pageSlug}`,
 				subtitle: `Used in page section (${p.sectionType}) on /${p.pageSlug}`,
 				url: `/${params.orgSlug}/website/pages/${p.pageId}`,
+			})
+		}
+
+		// Published snapshots and SEO images can still use an image the draft
+		// no longer shows.
+		const publishedPageRefs = await db
+			.select({
+				pageId: WebsitePage.id,
+				pageTitle: WebsitePage.title,
+				pageSlug: WebsitePage.slug,
+			})
+			.from(WebsitePage)
+			.where(
+				and(
+					eq(WebsitePage.organizationId, organization.id),
+					publishedPageReferenceCondition(asset.objectKey, asset.id),
+				),
+			)
+		for (const p of publishedPageRefs) {
+			if (seenPages.has(p.pageId)) continue
+			seenPages.add(p.pageId)
+			references.push({
+				id: `page-${p.pageId}`,
+				type: 'page',
+				title: `Website Page: ${p.pageTitle || p.pageSlug}`,
+				subtitle: `Used on the published page or as its SEO image on /${p.pageSlug}`,
+				url: `/${params.orgSlug}/website/pages/${p.pageId}`,
+			})
+		}
+
+		const socialPostRefs = await db
+			.select({ id: SocialPost.id, createdAt: SocialPost.createdAt })
+			.from(SocialPost)
+			.where(
+				and(
+					eq(SocialPost.organizationId, organization.id),
+					columnContains(SocialPost.media, asset.id),
+				),
+			)
+		for (const post of socialPostRefs) {
+			references.push({
+				id: `social-${post.id}`,
+				type: 'social-post',
+				title: 'Social media post',
+				subtitle: 'Attached to a social media post',
+				url: `/${params.orgSlug}/marketing/social/${post.id}`,
+				createdAt: post.createdAt.toISOString(),
 			})
 		}
 

@@ -976,6 +976,47 @@ export const StorageMigration = sqliteTable(
 	],
 )
 
+/**
+ * The objects a storage migration moves, listed once when it starts. Batches
+ * take the next pending items, so media added or removed while it runs never
+ * shifts which object is next.
+ */
+export const StorageMigrationItem = sqliteTable(
+	'StorageMigrationItem',
+	{
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createId())
+			.notNull(),
+		migrationId: text()
+			.notNull()
+			.references(() => StorageMigration.id, {
+				onDelete: 'cascade',
+				onUpdate: 'cascade',
+			}),
+		objectKey: text().notNull(),
+		contentType: text().notNull(),
+		/** 'pending' | 'done' | 'failed' */
+		status: text().notNull().default('pending'),
+		attempts: integer().notNull().default(0),
+		lastError: text(),
+		updatedAt: integer({ mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.$onUpdate(() => new Date())
+			.notNull(),
+	},
+	(table) => [
+		uniqueIndex('StorageMigrationItem_migrationId_objectKey_key').on(
+			table.migrationId,
+			table.objectKey,
+		),
+		index('StorageMigrationItem_migrationId_status_idx').on(
+			table.migrationId,
+			table.status,
+		),
+	],
+)
+
 export const OrganizationNote = sqliteTable(
 	'OrganizationNote',
 	{
@@ -1199,9 +1240,10 @@ export const OrganizationInviteLink = sqliteTable(
 				onDelete: 'cascade',
 				onUpdate: 'cascade',
 			}),
+		// A link is personal: it goes when its creator's account is deleted.
 		createdById: text()
 			.notNull()
-			.references(() => User.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+			.references(() => User.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
 	},
 	(table) => [
 		uniqueIndex('OrganizationInviteLink_organizationId_createdById_key').on(
@@ -1316,11 +1358,14 @@ export const ConfigFlag = sqliteTable(
 			.notNull(),
 	},
 	(table) => [
-		uniqueIndex('ConfigFlag_key_level_organizationId_userId_key').on(
+		// NULL organization or user ids (system and organization flags) are
+		// compared as '' so they are covered too: SQLite treats NULLs in a
+		// plain unique index as distinct.
+		uniqueIndex('ConfigFlag_key_level_scope_key').on(
 			table.key,
 			table.level,
-			table.organizationId,
-			table.userId,
+			sql`coalesce(${table.organizationId}, '')`,
+			sql`coalesce(${table.userId}, '')`,
 		),
 		index('ConfigFlag_userId_idx').on(table.userId),
 		index('ConfigFlag_organizationId_idx').on(table.organizationId),
@@ -2161,9 +2206,12 @@ export const WebsitePage = sqliteTable(
 			.$defaultFn(() => new Date())
 			.$onUpdate(() => new Date())
 			.notNull(),
-		createdById: text()
-			.notNull()
-			.references(() => User.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+		// Null once the author's account is deleted: the page belongs to the
+		// organization.
+		createdById: text().references(() => User.id, {
+			onDelete: 'set null',
+			onUpdate: 'cascade',
+		}),
 		seoTitle: text(),
 		seoDescription: text(),
 		seoImageUrl: text(),
@@ -2544,7 +2592,12 @@ export const PlatformMarketingMessage = sqliteTable(
 			.notNull(),
 	},
 	(table) => [
-		index('PlatformMarketingMessage_campaignId_idx').on(table.campaignId),
+		// One message per user per campaign: a dispatch sends only to the users
+		// whose row it inserted, so two dispatches never both send.
+		uniqueIndex('PlatformMarketingMessage_campaignId_userId_key').on(
+			table.campaignId,
+			table.userId,
+		),
 		index('PlatformMarketingMessage_userId_idx').on(table.userId),
 		index('PlatformMarketingMessage_providerMessageId_idx').on(
 			table.providerMessageId,
@@ -3011,6 +3064,42 @@ export const StaffingOutbox = sqliteTable(
 			table.nextAttemptAt,
 		),
 		index('StaffingOutbox_organizationId_idx').on(table.organizationId),
+	],
+)
+
+/**
+ * One row per manager emailed about a staffing alert event, written before the
+ * email is sent. A redelivered or concurrent event finds the row and sends
+ * nothing. Ids only.
+ */
+export const StaffingAlertEmail = sqliteTable(
+	'StaffingAlertEmail',
+	{
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createId())
+			.notNull(),
+		organizationId: text()
+			.notNull()
+			.references(() => Organization.id, {
+				onDelete: 'cascade',
+				onUpdate: 'cascade',
+			}),
+		eventId: text().notNull(),
+		userId: text()
+			.notNull()
+			.references(() => User.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+		createdAt: integer({ mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull(),
+	},
+	(table) => [
+		uniqueIndex('StaffingAlertEmail_organizationId_eventId_userId_key').on(
+			table.organizationId,
+			table.eventId,
+			table.userId,
+		),
+		index('StaffingAlertEmail_userId_idx').on(table.userId),
 	],
 )
 

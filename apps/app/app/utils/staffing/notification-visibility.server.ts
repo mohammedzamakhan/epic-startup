@@ -16,6 +16,18 @@ import {
  * anywhere, and the item would only lead to a 404.
  */
 
+/**
+ * `Notification.type` prefix of rows that only record "this member was emailed
+ * about this event" (so a retried delivery does not email again). They are
+ * stored already read and are never shown: lists, counts and the stream skip
+ * them.
+ */
+export const DELIVERY_MARKER_TYPE_PREFIX = 'delivery-marker:'
+
+export function isDeliveryMarkerType(type: string): boolean {
+	return type.startsWith(DELIVERY_MARKER_TYPE_PREFIX)
+}
+
 export function isStaffingNotificationType(type: string): boolean {
 	return type.startsWith(STAFFING_NOTIFICATION_TYPE_PREFIX)
 }
@@ -103,7 +115,8 @@ export async function countVisibleStaffingAlerts(
 /** Drops staffing alerts the member can no longer open; everything else passes. */
 export async function filterVisibleNotifications<
 	T extends { type: string; organizationId: string },
->(userId: string, notifications: readonly T[]): Promise<T[]> {
+>(userId: string, all: readonly T[]): Promise<T[]> {
+	const notifications = all.filter((n) => !isDeliveryMarkerType(n.type))
 	const staffing = notifications.filter((n) =>
 		isStaffingNotificationType(n.type),
 	)
