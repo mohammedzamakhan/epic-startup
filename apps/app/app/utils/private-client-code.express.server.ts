@@ -45,8 +45,10 @@ export async function sendFetchResponse(
 }
 
 /**
- * Express middleware for the Node production server, mounted before
- * `express.static` for `/assets`: the same rules as the Worker
+ * Express middleware for the Node production server, mounted at the root
+ * before every `express.static` (an `/assets` mount would miss
+ * `/%61ssets/app/x.js`, which the root static handler decodes and serves): the
+ * same rules as the Worker
  * (`serveGatedAsset`). It decides on the decoded path, so `/assets/%61pp/x.js`
  * is gated like `/assets/app/x.js`. A request it allows falls through to the
  * static handler.

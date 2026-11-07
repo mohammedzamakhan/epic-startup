@@ -330,7 +330,9 @@ if (IS_DEV) {
 		hasActiveSession: (request: Request) => Promise<boolean>
 	}
 	const handleFetch = createFetchHandler(build, MODE)
-	app.use('/assets', privateAssetsMiddleware(hasActiveSession))
+	// Mounted at the root, not at /assets: `/%61ssets/app/x.js` would skip an
+	// /assets mount and reach the root static handler below, which decodes it.
+	app.use(privateAssetsMiddleware(hasActiveSession))
 	app.get(
 		ROUTE_DISCOVERY_PATH,
 		routeDiscoveryHandler(

@@ -39,7 +39,7 @@ beforeAll(async () => {
 	fs.writeFileSync(path.join(root, 'manifest-abc12345.js'), 'all routes')
 
 	const app = express()
-	app.use('/assets', privateAssetsMiddleware(hasSession))
+	app.use(privateAssetsMiddleware(hasSession))
 	app.get(
 		'/__manifest',
 		routeDiscoveryHandler(async () => {
@@ -64,6 +64,8 @@ beforeAll(async () => {
 			setHeaders: setPrivateAssetHeaders,
 		}),
 	)
+	// Like server/index.ts: the whole client folder is also served at the root.
+	app.use(express.static(path.dirname(root)))
 	server = app.listen(0)
 	await new Promise((resolve) => server.once('listening', resolve))
 	port = (server.address() as AddressInfo).port
@@ -123,6 +125,9 @@ describe('Node server private asset gate', () => {
 		'/assets/x/%2e%2e/app/_layout-abc.js',
 		'/assets/APP/_layout-abc.js',
 		'/assets/app%2f_layout-abc.js',
+		'/%61ssets/app/_layout-abc.js',
+		'/%41SSETS/APP/_layout-abc.js',
+		'//assets/app/_layout-abc.js',
 	])('never serves %s without a session', async (rawPath) => {
 		const response = await get(rawPath)
 		expect(response.status).not.toBe(200)

@@ -102,6 +102,8 @@ export function TurnstileWidget({
 	const onReadyRef = useRef(onReadyChange)
 	onReadyRef.current = onReadyChange
 	const [attempt, setAttempt] = useState(1)
+	// Bumped by the Try again button to start a fresh load.
+	const [loadRun, setLoadRun] = useState(0)
 	const [loadFailed, setLoadFailed] = useState(false)
 	const nonce = useNonce()
 	const { i18n, _ } = useLingui()
@@ -128,9 +130,17 @@ export function TurnstileWidget({
 						theme: options.theme ?? 'auto',
 						language: options.locale || 'auto',
 						size: 'flexible',
-						callback: () => onReadyRef.current?.(true),
+						callback: () => {
+							setLoadFailed(false)
+							onReadyRef.current?.(true)
+						},
 						'expired-callback': () => onReadyRef.current?.(false),
-						'error-callback': () => onReadyRef.current?.(false),
+						// The challenge itself failed (network, blocked iframe): say so
+						// and offer a retry, or the disabled form would be a dead end.
+						'error-callback': () => {
+							onReadyRef.current?.(false)
+							setLoadFailed(true)
+						},
 					}) ?? null
 			})
 			.catch(() => {
@@ -151,7 +161,7 @@ export function TurnstileWidget({
 			onReadyRef.current?.(false)
 			if (widgetId) window.turnstile?.remove(widgetId)
 		}
-	}, [siteKey, action, nonce, attempt])
+	}, [siteKey, action, nonce, attempt, loadRun])
 
 	useEffect(() => {
 		if (resetKey === undefined) return
@@ -186,7 +196,14 @@ export function TurnstileWidget({
 							size="sm"
 							onClick={() => {
 								setLoadFailed(false)
-								setAttempt(1)
+								const widgetId = widgetIdRef.current
+								// A rendered widget gets a fresh challenge; a script that
+								// never loaded starts loading again.
+								if (widgetId) window.turnstile?.reset(widgetId)
+								else {
+									setAttempt(1)
+									setLoadRun((n) => n + 1)
+								}
 							}}
 						>
 							<Trans>Try again</Trans>
