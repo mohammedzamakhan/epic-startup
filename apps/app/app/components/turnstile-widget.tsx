@@ -1,5 +1,7 @@
+import { Trans, msg } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
 import { useNonce } from '@repo/common'
+import { Button } from '@repo/ui/button'
 import { useEffect, useRef, useState } from 'react'
 import { useOptionalTheme } from '#app/routes/resources+/theme-switch.tsx'
 
@@ -100,10 +102,14 @@ export function TurnstileWidget({
 	const onReadyRef = useRef(onReadyChange)
 	onReadyRef.current = onReadyChange
 	const [attempt, setAttempt] = useState(1)
+	const [loadFailed, setLoadFailed] = useState(false)
 	const nonce = useNonce()
+	const { i18n, _ } = useLingui()
+	// Read at render time only: a theme or language change must not throw away
+	// a challenge the visitor already solved.
 	const theme = useOptionalTheme()
-	const { i18n } = useLingui()
-	const locale = i18n.locale
+	const optionsRef = useRef({ theme, locale: i18n.locale })
+	optionsRef.current = { theme, locale: i18n.locale }
 
 	useEffect(() => {
 		const container = containerRef.current
@@ -113,12 +119,14 @@ export function TurnstileWidget({
 		loadTurnstile(nonce)
 			.then((turnstile) => {
 				if (cancelled) return
+				setLoadFailed(false)
+				const options = optionsRef.current
 				widgetIdRef.current =
 					turnstile.render(container, {
 						sitekey: siteKey,
 						action,
-						theme: theme ?? 'auto',
-						language: locale || 'auto',
+						theme: options.theme ?? 'auto',
+						language: options.locale || 'auto',
 						size: 'flexible',
 						callback: () => onReadyRef.current?.(true),
 						'expired-callback': () => onReadyRef.current?.(false),
@@ -126,9 +134,13 @@ export function TurnstileWidget({
 					}) ?? null
 			})
 			.catch(() => {
-				// Blocked or offline: try again with a growing delay. Until then
-				// the form stays disabled, and the server refuses a missing token.
-				if (cancelled || attempt >= MAX_LOAD_ATTEMPTS) return
+				// Blocked or offline: try again with a growing delay, then say so.
+				// Until a token exists the form stays disabled.
+				if (cancelled) return
+				if (attempt >= MAX_LOAD_ATTEMPTS) {
+					setLoadFailed(true)
+					return
+				}
 				retryTimer = setTimeout(() => setAttempt((n) => n + 1), attempt * 2000)
 			})
 		return () => {
@@ -139,7 +151,7 @@ export function TurnstileWidget({
 			onReadyRef.current?.(false)
 			if (widgetId) window.turnstile?.remove(widgetId)
 		}
-	}, [siteKey, action, theme, locale, nonce, attempt])
+	}, [siteKey, action, nonce, attempt])
 
 	useEffect(() => {
 		if (resetKey === undefined) return
@@ -147,12 +159,41 @@ export function TurnstileWidget({
 		if (widgetId) {
 			onReadyRef.current?.(false)
 			window.turnstile?.reset(widgetId)
-		} else {
-			// The script never loaded: a new form result is a good moment to retry.
-			setAttempt((n) => (n >= MAX_LOAD_ATTEMPTS ? 1 : n))
 		}
 	}, [resetKey])
 
 	if (!siteKey) return null
-	return <div ref={containerRef} className="min-h-16.25 w-full" />
+	return (
+		<div className="flex w-full flex-col gap-2">
+			<div
+				ref={containerRef}
+				role="group"
+				aria-label={_(msg`Security check`)}
+				className={loadFailed ? 'w-full' : 'min-h-16.25 w-full'}
+			/>
+			<div aria-live="polite">
+				{loadFailed ? (
+					<div className="text-destructive flex flex-col items-start gap-2 text-sm">
+						<p>
+							<Trans>
+								The security check could not load. Turn off content blockers or
+								check your connection, then try again.
+							</Trans>
+						</p>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								setLoadFailed(false)
+								setAttempt(1)
+							}}
+						>
+							<Trans>Try again</Trans>
+						</Button>
+					</div>
+				) : null}
+			</div>
+		</div>
+	)
 }

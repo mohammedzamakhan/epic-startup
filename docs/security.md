@@ -48,6 +48,10 @@ At the edge:
   the server redirects to the login page.
 - The full route manifest file (`assets/manifest-<hash>.js`) is deleted at build
   time and answered 404.
+- The Node production server (`apps/app/server/index.ts`, used by CI E2E and the
+  Dockerfile) applies the same rules (`private-client-code.express.server.ts`).
+  Development servers serve source modules and gate nothing, so check this
+  behaviour against a production build.
 
 The build fails if public code imports a private route module, or if a chunk
 public pages load is private or names a private file; the error shows the import

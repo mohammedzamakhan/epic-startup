@@ -195,8 +195,14 @@ export default async function handleRequest(...args: DocRequestArgs) {
 		request.headers.get('x-forwarded-host') ?? request.headers.get('host')
 
 	// A logged-out visitor's page must not name private route modules.
-	const authenticated = await hasActiveSession(request)
-	if (!authenticated && rendersPrivateRoute(reactRouterContext)) {
+	// A private route that rendered successfully already passed its loader's
+	// session check (route-guards.test.ts), so the common signed-in page costs
+	// no second lookup; public pages and error pages ask the database.
+	const privateRoute = rendersPrivateRoute(reactRouterContext)
+	const authenticated =
+		(privateRoute && responseStatusCode < 400) ||
+		(await hasActiveSession(request))
+	if (!authenticated && privateRoute) {
 		const url = new URL(request.url)
 		const redirectTo = `${url.pathname}${url.search}`
 		return new Response(null, {
