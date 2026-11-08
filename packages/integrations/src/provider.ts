@@ -60,9 +60,14 @@ export interface IntegrationProvider {
 	/**
 	 * Refresh expired access token
 	 * @param refreshToken - Refresh token
+	 * @param integration - The stored row, for providers whose token endpoint
+	 *   depends on its config (self-hosted instances)
 	 * @returns Promise resolving to new token data
 	 */
-	refreshToken(refreshToken: string): Promise<TokenData>
+	refreshToken(
+		refreshToken: string,
+		integration?: Pick<Integration, 'config'>,
+	): Promise<TokenData>
 	/** Revoke the grant at the provider; `integration` is the stored row. */
 	revokeToken?(token: string, integration?: Integration): Promise<void>
 
@@ -126,7 +131,10 @@ export abstract class BaseIntegrationProvider implements IntegrationProvider {
 	): Promise<string>
 
 	abstract handleCallback(params: OAuthCallbackParams): Promise<TokenData>
-	abstract refreshToken(refreshToken: string): Promise<TokenData>
+	abstract refreshToken(
+		refreshToken: string,
+		integration?: Pick<Integration, 'config'>,
+	): Promise<TokenData>
 	revokeToken?(token: string, integration?: Integration): Promise<void>
 	abstract getAvailableChannels(integration: Integration): Promise<Channel[]>
 	abstract postMessage(

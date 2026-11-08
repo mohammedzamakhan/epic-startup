@@ -2,6 +2,7 @@
  * Tests for GitLabProvider
  */
 
+import dns from 'node:dns'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { server } from '../../setup'
@@ -156,6 +157,34 @@ describe('GitLabProvider', () => {
 			expect(newTokenData.refreshToken).toBe('new-gitlab-refresh-token')
 			expect(newTokenData.expiresAt).toBeInstanceOf(Date)
 			expect(newTokenData.scope).toBe('api read_user')
+		})
+
+		it('refreshes a self-hosted integration on its own instance', async () => {
+			// The SSRF check resolves the instance's hostname: a public address.
+			vi.spyOn(dns.promises, 'resolve4').mockResolvedValue(['93.184.216.34'])
+			vi.spyOn(dns.promises, 'resolve6').mockResolvedValue([])
+			const gitlabCom = vi.fn()
+			server.use(
+				http.post('https://gitlab.com/oauth/token', () => {
+					gitlabCom()
+					return HttpResponse.json({ error: 'invalid_grant' }, { status: 400 })
+				}),
+				http.post('https://gitlab.example.com/oauth/token', () =>
+					HttpResponse.json({
+						access_token: 'self-hosted-access-token',
+						token_type: 'Bearer',
+						expires_in: 7200,
+						refresh_token: 'self-hosted-refresh-token',
+					}),
+				),
+			)
+
+			const newTokenData = await provider.refreshToken!('old-refresh-token', {
+				config: JSON.stringify({ instanceUrl: 'https://gitlab.example.com' }),
+			})
+
+			expect(newTokenData.accessToken).toBe('self-hosted-access-token')
+			expect(gitlabCom).not.toHaveBeenCalled()
 		})
 
 		it('should handle refresh token errors', async () => {

@@ -1,16 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import {
-	and,
-	count,
-	eq,
-	gte,
-	inArray,
-	isNotNull,
-	lt,
-	lte,
-	min,
-	or,
-} from 'drizzle-orm'
+import { and, count, eq, gte, isNotNull, lt, lte, min, or } from 'drizzle-orm'
 import { sendSms } from '@repo/sms'
 import {
 	getTenantDb,
@@ -56,6 +45,11 @@ export const BROADCAST_BATCH_SIZE = 25
 /** A `Processing` campaign with no heartbeat for this long is resumed. */
 export const BROADCAST_STALE_MS = 10 * 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
+/**
+ * A campaign whose dispatch still throws this long after it was due (or
+ * created) is marked `Failed` instead of being resumed again.
+ */
+export const BROADCAST_GIVE_UP_MS = 3 * 24 * HOUR_MS
 /** Campaigns claimed per organization per tick. */
 const MAX_CAMPAIGNS_PER_TICK = 3
 
@@ -149,7 +143,7 @@ export type BroadcastDispatchOptions = {
 }
 
 export type BroadcastDispatchOutcome =
-	'completed' | 'failed' | 'throttled' | 'lost_lease' | 'missing'
+	'completed' | 'failed' | 'retry' | 'throttled' | 'lost_lease' | 'missing'
 
 /**
  * Sends a `Processing` campaign the caller holds (it created it or claimed it
@@ -340,13 +334,30 @@ export async function dispatchBroadcast(
 			campaignId,
 			reason: error instanceof Error ? error.message : 'unknown',
 		})
+		// An unexpected error (a database or storage blip) is usually
+		// transient: leave the campaign `Processing`, so its lease goes stale
+		// and a later tick resumes it. Message rows already written are never
+		// resent. Only a campaign that keeps failing past
+		// `BROADCAST_GIVE_UP_MS` is given up on.
 		try {
 			const handle = db ?? (await getTenantDb(orgId))
-			await finish(handle, campaignId, currentLease, 'Failed')
+			const row = await handle
+				.select({
+					createdAt: marketingCampaigns.createdAt,
+					scheduledAt: marketingCampaigns.scheduledAt,
+				})
+				.from(marketingCampaigns)
+				.where(eq(marketingCampaigns.id, campaignId))
+				.get()
+			const startedAt = row?.scheduledAt ?? row?.createdAt
+			if (!startedAt || clock() - startedAt.getTime() > BROADCAST_GIVE_UP_MS) {
+				await finish(handle, campaignId, currentLease, 'Failed')
+				return 'failed'
+			}
 		} catch {
 			// The tick resumes a campaign left Processing.
 		}
-		return 'failed'
+		return 'retry'
 	}
 }
 
@@ -422,7 +433,7 @@ export async function claimBroadcast(
 						),
 					),
 					and(
-						inArray(marketingCampaigns.status, ['Scheduled', 'Draft']),
+						eq(marketingCampaigns.status, 'Scheduled'),
 						isNotNull(marketingCampaigns.scheduledAt),
 						lte(marketingCampaigns.scheduledAt, new Date(now)),
 					),
@@ -461,7 +472,7 @@ export async function claimDueBroadcasts(db: Db, now: number) {
 					lt(marketingCampaigns.updatedAt, new Date(now - BROADCAST_STALE_MS)),
 				),
 				and(
-					inArray(marketingCampaigns.status, ['Scheduled', 'Draft']),
+					eq(marketingCampaigns.status, 'Scheduled'),
 					isNotNull(marketingCampaigns.scheduledAt),
 					lte(marketingCampaigns.scheduledAt, new Date(now)),
 				),
@@ -512,7 +523,7 @@ export async function nextBroadcastWakeAt(
 		.from(marketingCampaigns)
 		.where(
 			and(
-				inArray(marketingCampaigns.status, ['Scheduled', 'Draft']),
+				eq(marketingCampaigns.status, 'Scheduled'),
 				isNotNull(marketingCampaigns.scheduledAt),
 			),
 		)

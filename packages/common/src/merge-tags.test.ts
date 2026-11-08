@@ -173,6 +173,24 @@ describe('replaceMergeTokensInHtml', () => {
 		)
 	})
 
+	it('checks a URL attribute after a quoted value that contains >', () => {
+		expect(
+			replaceMergeTokensInHtml('<a title="x>y" href="{{a}}">x</a>', resolve),
+		).toBe('<a title="x>y" href="">x</a>')
+		expect(
+			replaceMergeTokensInHtml("<a title='x>y' href={{a}}>x</a>", resolve),
+		).toBe('<a title=\'x>y\' href="">x</a>')
+		expect(
+			replaceMergeTokensInHtml('<p>1 > 0</p><a href="{{b}}">x</a>', resolve),
+		).toBe('<p>1 > 0</p><a href="https://x.test">x</a>')
+	})
+
+	it('treats a quote outside a value as part of the tag', () => {
+		expect(
+			replaceMergeTokensInHtml('<a data-x"y href="{{a}}">x</a>', resolve),
+		).toBe('<a data-x"y href="">x</a>')
+	})
+
 	it('does not re-read a substituted value as a token', () => {
 		expect(replaceMergeTokensInHtml('<a href="{{c}}">{{c}}</a>', resolve)).toBe(
 			'<a href="{{b}}">{{b}}</a>',

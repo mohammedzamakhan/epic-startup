@@ -144,7 +144,7 @@ export class GitLabProvider extends BaseIntegrationProvider {
 		return clientSecret
 	}
 
-	private getBaseUrl(integration?: Integration): string {
+	private getBaseUrl(integration?: Pick<Integration, 'config'>): string {
 		// Support for self-hosted GitLab instances
 		const config = integration?.config
 			? typeof integration.config === 'string'
@@ -313,15 +313,23 @@ export class GitLabProvider extends BaseIntegrationProvider {
 	}
 
 	/**
-	 * Refresh GitLab access token
+	 * Refresh GitLab access token on the integration's instance: a self-hosted
+	 * refresh token must never be sent to gitlab.com.
 	 */
-	async refreshToken(refreshToken: string): Promise<TokenData> {
+	async refreshToken(
+		refreshToken: string,
+		integration?: Pick<Integration, 'config'>,
+	): Promise<TokenData> {
 		if (!refreshToken) {
 			throw new Error('Refresh token is required')
 		}
 
 		try {
-			const tokenResponse = await fetch(`${this.authBaseUrl}/token`, {
+			const tokenUrl = this.getBaseUrl(integration).replace(
+				/\/api\/v4$/,
+				'/oauth/token',
+			)
+			const tokenResponse = await ssrfSafeFetch(tokenUrl, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',

@@ -258,6 +258,20 @@ export async function action({ request }: ActionFunctionArgs) {
 				})
 				return Response.json({ success: true })
 			}
+			// The App ran nothing and reported no error or hold: another run (the
+			// scheduled job or an earlier click) already claimed the request.
+			if (
+				outcome.ok &&
+				outcome.processed === 0 &&
+				outcome.failed === 0 &&
+				outcome.held === 0 &&
+				outcome.errors.length === 0
+			) {
+				return Response.json(
+					{ error: 'This deletion is already in progress' },
+					{ status: 409 },
+				)
+			}
 
 			const errorMessage = !outcome.ok
 				? outcome.error

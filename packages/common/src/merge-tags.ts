@@ -216,7 +216,57 @@ export function isSafeUrlAttributeValue(attributeValue: string): boolean {
 	return false
 }
 
-const HTML_TAG = /<[a-zA-Z][^<>]*>/g
+/**
+ * Calls `replace` with every start tag (`<name ...>`) in `html` and splices in
+ * its result. A tag ends at the first `>` outside a quoted attribute value, as
+ * in a browser, so `<a title="x>y" href="...">` is one tag (a regex that stops
+ * at any `>` would leave its `href` unchecked). A quote opens a value only
+ * right after `=`. A tag whose quoted value never closes is left as it is: a
+ * browser drops it.
+ */
+function replaceStartTags(
+	html: string,
+	replace: (tag: string) => string,
+): string {
+	let out = ''
+	let copied = 0
+	let i = html.indexOf('<')
+	while (i !== -1 && i < html.length - 1) {
+		if (!/[a-zA-Z]/.test(html[i + 1]!)) {
+			i = html.indexOf('<', i + 1)
+			continue
+		}
+		let j = i + 2
+		let end = -1
+		while (j < html.length) {
+			const char = html[j]!
+			if (char === '>') {
+				end = j
+				break
+			}
+			if (char === '=') {
+				let k = j + 1
+				while (k < html.length && /\s/.test(html[k]!)) k++
+				const quote = html[k]
+				if (quote === '"' || quote === "'") {
+					const close = html.indexOf(quote, k + 1)
+					if (close === -1) break
+					j = close + 1
+					continue
+				}
+				j = k
+				continue
+			}
+			j++
+		}
+		if (end === -1) break
+		out += html.slice(copied, i) + replace(html.slice(i, end + 1))
+		copied = end + 1
+		i = html.indexOf('<', copied)
+	}
+	return out + html.slice(copied)
+}
+
 const HTML_ATTRIBUTE =
 	/(\s)([^\s"'<>/=]+)(\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/g
 
@@ -233,7 +283,7 @@ export function replaceMergeTokensInHtml(
 	resolve: (tag: string, fallback: string, raw: string) => string,
 ): string {
 	if (!template) return ''
-	const guardedTags = template.replace(HTML_TAG, (tag) =>
+	const guardedTags = replaceStartTags(template, (tag) =>
 		tag.replace(
 			HTML_ATTRIBUTE,
 			(

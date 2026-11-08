@@ -208,6 +208,20 @@ describe('expedited GDPR erasure', () => {
 		).toHaveLength(1)
 	})
 
+	it('says the deletion is already running when the App processed nothing', async () => {
+		const user = await createUser()
+		const dsr = await scheduleErasure(user.id)
+		app.answer = () =>
+			Response.json({ processed: 0, failed: 0, held: 0, errors: [] })
+
+		const response = await expedite(dsr.id)
+
+		expect(response.status).toBe(409)
+		expect(await response.json()).toEqual({
+			error: 'This deletion is already in progress',
+		})
+	})
+
 	it('leaves the request due for the job when the App cannot be reached', async () => {
 		const user = await createUser()
 		const dsr = await scheduleErasure(user.id)

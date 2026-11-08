@@ -42,6 +42,9 @@ import {
 	type IntegrationLogEntry,
 } from './types'
 
+/** How long a disconnect waits for the provider to revoke the grant. */
+const REVOKE_TIMEOUT_MS = 5000
+
 /**
  * Extended Integration type with relations
  */
@@ -391,7 +394,21 @@ export class IntegrationManager {
 			const { tokenManager } = await import('./token-manager')
 			const tokenData = await tokenManager.getTokenData(integration.id)
 			if (!tokenData?.accessToken) return
-			await provider.revokeToken(tokenData.accessToken, integration)
+			// A provider that never answers must not stall the disconnect.
+			let timer: ReturnType<typeof setTimeout> | undefined
+			try {
+				await Promise.race([
+					provider.revokeToken(tokenData.accessToken, integration),
+					new Promise<never>((_, reject) => {
+						timer = setTimeout(
+							() => reject(new Error('Token revoke timed out')),
+							REVOKE_TIMEOUT_MS,
+						)
+					}),
+				])
+			} finally {
+				clearTimeout(timer)
+			}
 		} catch (error) {
 			console.warn(
 				`Failed to revoke ${integration.providerName} grant on disconnect:`,

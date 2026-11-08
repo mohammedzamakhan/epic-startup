@@ -252,6 +252,15 @@ it wakes when its lease could go stale (to resume a throttled or interrupted
 send). Creating a campaign and the hourly tick arm it, so a scheduled broadcast
 does not wait for the hourly cron.
 
+Only `Scheduled` campaigns are sent on their `scheduledAt`; a `Draft` never is.
+Older releases saved scheduled broadcasts as `Draft` and never sent them: tenant
+migration `0019_legacy_scheduled_drafts` moves those still ahead to `Scheduled`
+and marks past ones `Failed`, so an old campaign does not go out late. An
+unexpected error during a send (a database or storage failure) leaves the
+campaign `Processing`, and the tick resumes it once its lease goes stale. Only a
+campaign that still fails three days after it was due (`BROADCAST_GIVE_UP_MS`)
+is marked `Failed`.
+
 ## Journey consent
 
 Journeys (App > Marketing > Automations) are marketing, so every email and SMS

@@ -684,7 +684,7 @@ function applyTargetPatches(
 	if (appKey === 'jobs-cron') {
 		patch(
 			'name',
-			[`JOBS_CRON_WORKER_NAME${suffix}`, 'JOBS_CRON_WORKER_NAME'],
+			[`JOBS_CRON_WORKER_NAME${suffix}`],
 			`bindings.${targetEnv === 'staging' ? 'staging' : 'production'}.jobs_cron.worker_name`,
 		)
 		patchVar('APP_BASE_URL', 'APP_BASE_URL', 'app_base_url')
@@ -695,7 +695,7 @@ function applyTargetPatches(
 	if (appKey === 'tenant-api') {
 		patch(
 			'name',
-			[`TENANT_API_US_WORKER_NAME${suffix}`, 'TENANT_API_US_WORKER_NAME'],
+			[`TENANT_API_US_WORKER_NAME${suffix}`],
 			`bindings.${targetEnv === 'staging' ? 'staging' : 'production'}.tenant_api.worker_name`,
 		)
 		patchVar('APP_URL', 'APP_BASE_URL', 'app_base_url')
@@ -1152,6 +1152,9 @@ function patchAstroTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		return false
 	}
 
+	// Resource ids and worker names take only the suffixed variable: a staging
+	// deploy must never fall back to the production database, bucket or worker
+	// name (same rule as `resourceEnvNames` in `patchTomlApp`).
 	if (appKey === 'web') {
 		// Astro copies wrangler.toml vars into its generated config. Deployment
 		// must omit those defaults so dashboard values remain the source of truth.
@@ -1160,7 +1163,7 @@ function patchAstroTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		if (
 			!patch(
 				'd1_databases[0].database_id',
-				[`WEB_D1_DATABASE_ID${suffix}`, 'WEB_D1_DATABASE_ID'],
+				[`WEB_D1_DATABASE_ID${suffix}`],
 				`bindings.${bindingEnv}.web.d1_database_id`,
 			) &&
 			requireBindings
@@ -1169,7 +1172,7 @@ function patchAstroTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		}
 		patch(
 			'r2_buckets[0].bucket_name',
-			[`WEB_R2_BUCKET_NAME${suffix}`, 'WEB_R2_BUCKET_NAME'],
+			[`WEB_R2_BUCKET_NAME${suffix}`],
 			`bindings.${bindingEnv}.web.r2_bucket_name`,
 		)
 		const logsDestination = readEnv(
@@ -1188,7 +1191,7 @@ function patchAstroTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		} else {
 			patch(
 				'name',
-				[`WEB_WORKER_NAME${suffix}`, 'WEB_WORKER_NAME'],
+				[`WEB_WORKER_NAME${suffix}`],
 				`bindings.${bindingEnv}.web.worker_name`,
 			)
 		}
@@ -1214,7 +1217,7 @@ function patchAstroTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 		)
 		patch(
 			'name',
-			[`SITES_WORKER_NAME${suffix}`, 'SITES_WORKER_NAME'],
+			[`SITES_WORKER_NAME${suffix}`],
 			`bindings.${bindingEnv}.sites.worker_name`,
 		)
 

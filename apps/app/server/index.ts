@@ -254,6 +254,7 @@ app.use((req, res, next) => {
 		'/settings/profile',
 		'/resources/login',
 		'/resources/verify',
+		'/webauthn/authentication',
 	]
 	if (req.method !== 'GET' && req.method !== 'HEAD') {
 		if (strongPaths.some((p) => req.path.includes(p))) {
@@ -266,6 +267,10 @@ app.use((req, res, next) => {
 	// can have a token in the query string
 	if (req.path.includes('/verify')) {
 		return strongestRateLimit(req, res, next)
+	}
+	// Each passkey challenge GET writes a row to the database.
+	if (req.path.includes('/webauthn/authentication')) {
+		return strongRateLimit(req, res, next)
 	}
 
 	return generalRateLimit(req, res, next)
