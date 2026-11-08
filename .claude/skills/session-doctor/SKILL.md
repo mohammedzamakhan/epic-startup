@@ -42,8 +42,10 @@ Claude Code layout: Each line is a JSON event. Human prompts have
    python3 -I .claude/skills/session-doctor/scripts/mine-other-agents.py --since <UTC timestamp>
    ```
    Use the UTC timestamp (`2026-11-08T21:40:00Z`) of the last run from `LOG.md`,
-   so a second run on the same day only sees new events. With no log, run over
-   everything. Write the timestamp of each run in the log.
+   so a second run on the same day only sees new events. The boundary is strict
+   (events after it), and events with no timestamp are left out when `--since`
+   is set. With no log, run over everything. Write the timestamp of each run in
+   the log.
 2. **Score a sample.** Pick sessions with the most failed tool calls or
    correction prompts, plus a few random ones. Give each to one subagent with
    one rubric from `rubrics/` (efficiency, followed-instructions, verbosity).

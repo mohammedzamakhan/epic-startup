@@ -10,7 +10,7 @@ SINCE="${3:-1970-01-01T00:00:00Z}"
 
 [[ "$PR" =~ ^[0-9]+$ ]] || { echo "pr must be a number" >&2; exit 2; }
 [[ "$REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "repo must be owner/name" >&2; exit 2; }
-[[ "$SINCE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9:.]+Z)?$ ]] || { echo "since must be ISO 8601 (2026-11-08T05:10:00Z)" >&2; exit 2; }
+[[ "$SINCE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?$ ]] || { echo "since must be YYYY-MM-DD or YYYY-MM-DDTHH:MM:SSZ (UTC, no fractions)" >&2; exit 2; }
 OWNER="${REPO%/*}"
 NAME="${REPO#*/}"
 
@@ -51,7 +51,7 @@ query($o:String!,$n:String!,$pr:Int!,$endCursor:String){repository(owner:$o,name
   -f o="$OWNER" -f n="$NAME" -F pr="$PR" \
   --jq '.data.repository.pullRequest.reviewThreads.nodes[]
     | select(.isResolved==false)
-    | "[\(.id)] \(.path):\(.line // "outdated") outdated=\(.isOutdated) last=\(.comments.nodes[0].author.login) comment=\(.comments.nodes[0].databaseId)\n    \(.comments.nodes[0].body | gsub("(?s)<details>.*?</details>";"") | gsub("<[^>]+>";"") | gsub("\\s+";" ") | .[0:500])"'
+    | "[\(.id)] \(.path):\(.line // "outdated") outdated=\(.isOutdated) last=\(.comments.nodes[0].author.login) comment=\(.comments.nodes[0].databaseId)\n    \(.comments.nodes[0].body | '"$CLEAN"' | gsub("\\s+";" ") | .[0:500])"'
 
 echo
 echo "## Inline comments since $SINCE (top-level only; reply with gh api .../pulls/$PR/comments -F in_reply_to=<id>)"

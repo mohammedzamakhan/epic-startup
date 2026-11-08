@@ -10,7 +10,7 @@ Antigravity keeps conversations as binary protobuf in ~/.gemini/antigravity/conv
 which cannot be read here. Its readable record is ~/.gemini/antigravity/brain/<id>/*.md
 (task, implementation_plan, walkthrough): grep those instead.
 """
-import argparse, collections, glob, json, os, re, subprocess
+import argparse, collections, datetime, glob, json, os, re, subprocess
 
 REDACT = [
     (re.compile(r'\b(sk|ghp|gho|ghs|xox[bp]|gls)[-_][A-Za-z0-9_-]{12,}'), '[token]'),
@@ -46,9 +46,28 @@ def in_scope(cwd):
     return any(cwd == r or cwd.startswith(r + '/') for r in ROOTS)
 
 
+def instant(ts):
+    # parse an ISO timestamp (or YYYY-MM-DD) into an aware UTC datetime; None if it cannot be parsed
+    if not ts:
+        return None
+    try:
+        dt = datetime.datetime.fromisoformat(ts.replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=datetime.timezone.utc)
+
+
+SINCE = instant(a.since) if a.since else None
+if a.since and SINCE is None:
+    raise SystemExit('--since must be a date or an ISO 8601 timestamp, e.g. 2026-11-08T21:40:00Z')
+
+
 def after(ts):
-    # ISO timestamps compare correctly as strings when both are UTC
-    return not a.since or (ts or '9') >= a.since
+    # strictly after the boundary; an undated event cannot be placed, so it is left out when --since is set
+    if SINCE is None:
+        return True
+    t = instant(ts)
+    return t is not None and t > SINCE
 
 
 class Stats:
@@ -170,7 +189,8 @@ for f in glob.glob(H + '/.factory/sessions/*/*.jsonl'):
             elif b.get('type') == 'text' and m.get('role') == 'user':
                 s = b['text'].strip()
                 # a limit event is a harness message at the start of a user turn, not text the user typed
-                if s.startswith(("Your standard model budget", "You've reached your")):
+                if s.startswith('Your standard model budget is exhausted') or (
+                        s.startswith("You've reached your") and 'usage limit' in s[:120] and 'resets in' in s):
                     hit = True
                 if s and not s.startswith('<') and not s.startswith(NOISE):
                     dr.msgs += 1

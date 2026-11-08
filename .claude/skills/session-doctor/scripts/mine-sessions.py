@@ -8,7 +8,7 @@ Default DIR is ~/.claude/projects/<this repo>. Read-only. Prints:
   - repeated human instructions (candidates for a skill or memory)
   - Bash command prefixes (candidates for an allowlist or helper script)
 """
-import argparse, collections, glob, json, os, re, subprocess, sys
+import argparse, collections, datetime, glob, json, os, re, subprocess, sys
 
 REDACT = [
     (re.compile(r'\b(sk|ghp|gho|ghs|xox[bp]|gls)[-_][A-Za-z0-9_-]{12,}'), '[token]'),
@@ -33,12 +33,34 @@ def default_dir():
     return os.path.expanduser('~/.claude/projects/' + top.replace('/', '-'))
 
 
+def instant(ts):
+    # parse an ISO timestamp (or YYYY-MM-DD) into an aware UTC datetime; None if it cannot be parsed
+    if not ts:
+        return None
+    try:
+        dt = datetime.datetime.fromisoformat(ts.replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=datetime.timezone.utc)
+
+
 ap = argparse.ArgumentParser()
 ap.add_argument('--dir', default=default_dir(), help='session folder (default: derived from the git repo)')
 ap.add_argument('--since', default='')
 ap.add_argument('--json', action='store_true')
 ap.add_argument('--verbose', action='store_true', help='include example tool input (redacted)')
 a = ap.parse_args()
+SINCE = instant(a.since) if a.since else None
+if a.since and SINCE is None:
+    sys.exit('--since must be a date or an ISO 8601 timestamp, e.g. 2026-11-08T21:40:00Z')
+
+
+def after(ts):
+    # strictly after the boundary; an undated event cannot be placed, so it is left out when --since is set
+    if SINCE is None:
+        return True
+    t = instant(ts)
+    return t is not None and t > SINCE
 if not a.dir or not glob.glob(os.path.join(a.dir, '*.jsonl')):
     sys.exit(f'no session files found in {a.dir!r}; pass --dir')
 
@@ -70,7 +92,7 @@ for f in glob.glob(os.path.join(a.dir, '*.jsonl')):
             d = json.loads(line)
         except Exception:
             continue
-        if a.since and (d.get('timestamp') or '9') < a.since:
+        if not after(d.get('timestamp')):
             continue
         active = True
         m = d.get('message') or {}
