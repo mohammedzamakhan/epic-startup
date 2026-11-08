@@ -194,10 +194,22 @@ describe('replaceMergeTokensInHtml', () => {
 		).toBe('<a title=a=\'b href="">x</a>')
 	})
 
-	it('escapes a tag whose quoted value never closes and checks later tags', () => {
+	it('escapes everything from a tag that never ends', () => {
 		expect(
 			replaceMergeTokensInHtml(`<a title='x>y<a href="{{a}}">z</a>`, resolve),
-		).toBe(`&lt;a title='x>y<a href="">z</a>`)
+		).toBe(`&lt;a title='x>y&lt;a href="javascript:alert(1)">z&lt;/a>`)
+		expect(replaceMergeTokensInHtml('<b>ok</b><a<a<a', resolve)).toBe(
+			'<b>ok</b>&lt;a&lt;a&lt;a',
+		)
+	})
+
+	it('stays linear on many broken tags', () => {
+		const input = '<a'.repeat(200_000)
+		const started = performance.now()
+		expect(replaceMergeTokensInHtml(input, resolve)).toBe(
+			'&lt;a'.repeat(200_000),
+		)
+		expect(performance.now() - started).toBeLessThan(1000)
 	})
 
 	it('treats a quote outside a value as part of the tag', () => {

@@ -264,9 +264,16 @@ app.use((req, res, next) => {
 		'/resources/verify',
 		'/webauthn/authentication',
 	]
-	// Routes match case-insensitively, so compare a lowercased path: `/LOGIN`
-	// must not dodge the stricter limit.
-	const path = req.path.toLowerCase()
+	// Routes match case-insensitively and decode the path, so compare it the
+	// same way: `/LOGIN` must not dodge the stricter limit.
+	// Decoded too: `/%77ebauthn/...` reaches the same route.
+	let path = req.path
+	try {
+		path = decodeURIComponent(path)
+	} catch {
+		// An undecodable path matches no route; compare it as written.
+	}
+	path = path.toLowerCase()
 	if (req.method !== 'GET' && req.method !== 'HEAD') {
 		if (strongPaths.some((p) => path.includes(p))) {
 			return strongestRateLimit(req, res, next)

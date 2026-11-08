@@ -329,6 +329,18 @@ export class GitLabProvider extends BaseIntegrationProvider {
 		if (!refreshToken) {
 			throw new Error('Refresh token is required')
 		}
+		// The OAuth flow always stores the instance (gitlab.com included). With
+		// none recorded the token's host is unknown: never guess gitlab.com for
+		// a refresh token and the client secret; the integration must reconnect.
+		const config =
+			typeof integration?.config === 'string'
+				? (JSON.parse(integration.config) as unknown)
+				: integration?.config
+		if (!storedGitLabInstanceUrl(config)) {
+			throw new Error(
+				'GitLab token refresh failed: the instance is unknown; reconnect the integration',
+			)
+		}
 
 		try {
 			const tokenUrl = this.getBaseUrl(integration).replace(
@@ -849,6 +861,6 @@ export class GitLabProvider extends BaseIntegrationProvider {
 			typeof integration.config === 'string'
 				? JSON.parse(integration.config)
 				: (integration.config as any)
-		return config?.instanceUrl
+		return storedGitLabInstanceUrl(config)
 	}
 }

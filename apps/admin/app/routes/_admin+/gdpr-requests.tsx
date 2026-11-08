@@ -31,12 +31,13 @@ import {
 	TableHeader,
 	TableRow,
 } from '@repo/ui/table'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 	useLoaderData,
 	useFetcher,
+	useLocation,
 } from 'react-router'
 import { TablePagination } from '#app/components/data-table/table-pagination.tsx'
 import { UrlFilters } from '#app/components/data-table/url-filters.tsx'
@@ -274,6 +275,18 @@ export async function action({ request }: ActionFunctionArgs) {
 					.from(DataSubjectRequest)
 					.where(eq(DataSubjectRequest.id, requestId))
 				if (current?.status === 'completed') {
+					// Record the admin's request: the run that finished it logs no
+					// admin identity.
+					await auditService.log({
+						action: AuditAction.DATA_DELETION_COMPLETED,
+						userId: adminId,
+						details: `Admin expedited deletion for user ${dsr.user?.email}; another run completed it`,
+						resourceType: 'data_subject_request',
+						resourceId: requestId,
+						request,
+						metadata: { ...metadata, completedByOtherRun: true },
+						severity: 'warning',
+					})
 					return Response.json({ success: true })
 				}
 				return Response.json(
@@ -351,8 +364,21 @@ export default function GDPRRequestsPage() {
 	const { _ } = useLingui()
 	const { requests, pagination, statistics } = useLoaderData<typeof loader>()
 	const fetcher = useFetcher<{ error?: string }>()
+	const location = useLocation()
+	// An error belongs to the view it happened in: changing filters or pages
+	// hides it. The view is noted when a result arrives (state adjusted while
+	// rendering, as React recommends for derived state).
+	const [result, setResult] = useState<{
+		data: unknown
+		view: string
+	} | null>(null)
+	if (fetcher.data && result?.data !== fetcher.data) {
+		setResult({ data: fetcher.data, view: location.search })
+	}
 	const actionError =
-		fetcher.state === 'idle' ? (fetcher.data?.error ?? null) : null
+		fetcher.state === 'idle' && result?.view === location.search
+			? (fetcher.data?.error ?? null)
+			: null
 
 	// App's erasure run holds a request whose user would leave an organization
 	// without an admin, and records `sole_admin: <organization ids>`.

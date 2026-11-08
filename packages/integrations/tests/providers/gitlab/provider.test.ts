@@ -141,6 +141,30 @@ describe('GitLabProvider', () => {
 	})
 
 	describe('refreshToken', () => {
+		// As the OAuth flow stores a gitlab.com integration.
+		const gitlabCom = {
+			config: JSON.stringify({
+				metadata: { instanceUrl: 'https://gitlab.com' },
+			}),
+		}
+
+		it('refuses to refresh when the instance is unknown', async () => {
+			const tokenEndpoint = vi.fn()
+			server.use(
+				http.post('https://gitlab.com/oauth/token', () => {
+					tokenEndpoint()
+					return HttpResponse.json({ access_token: 'x' })
+				}),
+			)
+			await expect(
+				provider.refreshToken!('old-refresh-token', { config: '{}' }),
+			).rejects.toThrow('the instance is unknown')
+			await expect(provider.refreshToken!('old-refresh-token')).rejects.toThrow(
+				'the instance is unknown',
+			)
+			expect(tokenEndpoint).not.toHaveBeenCalled()
+		})
+
 		it('should refresh token successfully', async () => {
 			// Override MSW handler for token refresh
 			server.use(
@@ -155,7 +179,10 @@ describe('GitLabProvider', () => {
 				}),
 			)
 
-			const newTokenData = await provider.refreshToken!('old-refresh-token')
+			const newTokenData = await provider.refreshToken!(
+				'old-refresh-token',
+				gitlabCom,
+			)
 
 			expect(newTokenData.accessToken).toBe('new-gitlab-access-token')
 			expect(newTokenData.refreshToken).toBe('new-gitlab-refresh-token')
@@ -164,10 +191,10 @@ describe('GitLabProvider', () => {
 		})
 
 		it('refreshes a self-hosted integration on its own instance', async () => {
-			const gitlabCom = vi.fn()
+			const gitlabComEndpoint = vi.fn()
 			server.use(
 				http.post('https://gitlab.com/oauth/token', () => {
-					gitlabCom()
+					gitlabComEndpoint()
 					return HttpResponse.json({ error: 'invalid_grant' }, { status: 400 })
 				}),
 				http.post('https://gitlab.example.com/oauth/token', () =>
@@ -193,7 +220,7 @@ describe('GitLabProvider', () => {
 				})
 				expect(newTokenData.accessToken).toBe('self-hosted-access-token')
 			}
-			expect(gitlabCom).not.toHaveBeenCalled()
+			expect(gitlabComEndpoint).not.toHaveBeenCalled()
 		})
 
 		it('should handle refresh token errors', async () => {
@@ -211,7 +238,7 @@ describe('GitLabProvider', () => {
 			)
 
 			await expect(
-				provider.refreshToken!('invalid-refresh-token'),
+				provider.refreshToken!('invalid-refresh-token', gitlabCom),
 			).rejects.toThrow('Token refresh failed')
 		})
 	})

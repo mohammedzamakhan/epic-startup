@@ -224,9 +224,9 @@ export function isSafeUrlAttributeValue(attributeValue: string): boolean {
  * value does not end the tag. So `<a title="x>y" href="...">` and
  * `<a title=a"b href="...">` are each one tag whose `href` is checked.
  *
- * Fails closed: a tag whose quoted value never closes has its `<` escaped to
- * `&lt;`, and scanning goes on after it, so nothing later in the template is
- * passed through unchecked.
+ * Fails closed: from a tag that never ends (no `>`, or a quoted value that
+ * never closes) every `<` is escaped to `&lt;`, so nothing later in the
+ * template is passed through as markup unchecked.
  */
 function replaceStartTags(
 	html: string,
@@ -294,10 +294,11 @@ function replaceStartTags(
 		}
 		const end = tagEnd(i + 1)
 		if (end === -1) {
-			out += `${html.slice(copied, i)}&lt;`
-			copied = i + 1
-			i = html.indexOf('<', copied)
-			continue
+			// Fail closed, in one pass: a browser reads the rest as part of this
+			// tag, so escape every `<` from here and stop. Rescanning after each
+			// broken tag would be quadratic on input like `<a<a<a...`.
+			out += html.slice(copied, i) + html.slice(i).replaceAll('<', '&lt;')
+			return out
 		}
 		out += html.slice(copied, i) + replace(html.slice(i, end + 1))
 		copied = end + 1

@@ -241,7 +241,10 @@ describe('token refresh persistence and races', () => {
 			accessToken: 'enc:old-access',
 			refreshToken: 'enc:gl-r1',
 			tokenExpiresAt: null,
-			config: '{}',
+			// As the OAuth flow stores a gitlab.com integration.
+			config: JSON.stringify({
+				metadata: { instanceUrl: 'https://gitlab.com' },
+			}),
 		})
 		let refreshSent: string | undefined
 		server.use(

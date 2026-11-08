@@ -284,16 +284,6 @@ export async function dispatchBroadcast(
 			const insertedIds = new Set(inserted.map((row) => row.id))
 			const items = candidates.filter((item) => insertedIds.has(item.messageId))
 
-			// A batch is going out: earlier failed attempts were transient. Only
-			// while we hold the lease (like `heartbeat` and `finish`).
-			if (!failuresReset && campaign.dispatchFailures > 0) {
-				await db
-					.update(marketingCampaigns)
-					.set({ dispatchFailures: 0 })
-					.where(holdsLease(campaignId, currentLease))
-				failuresReset = true
-			}
-
 			const results = await Promise.allSettled(
 				items.map(({ messageId, customer }) =>
 					sendOne({
@@ -349,6 +339,20 @@ export async function dispatchBroadcast(
 							eq(marketingMessages.status, 'Processing'),
 						),
 					)
+			}
+			// A batch went out and was recorded: earlier failed attempts were
+			// transient. Only while we hold the lease (like `heartbeat` and
+			// `finish`).
+			if (
+				!failuresReset &&
+				sentIds.length > 0 &&
+				campaign.dispatchFailures > 0
+			) {
+				await db
+					.update(marketingCampaigns)
+					.set({ dispatchFailures: 0 })
+					.where(holdsLease(campaignId, currentLease))
+				failuresReset = true
 			}
 			if (capReached) {
 				console.warn('Broadcast reached the hourly send cap; will resume', {
