@@ -2,17 +2,16 @@ import { invariantResponse } from '@epic-web/invariant'
 import { auditService, AuditAction } from '@repo/audit'
 import {
 	requireUserWithRole,
-	endImpersonationSessions,
+	startImpersonationSession,
 	impersonationSessionStorage,
 	impersonationSessionKey,
-	getImpersonationExpirationDate,
 	getClientIp,
 	hashIp,
 	IMPERSONATION_COOKIE_MAX_AGE,
 } from '@repo/auth'
 import { getOperatorAppUrl } from '@repo/common/cookie-domain'
 import { createToastHeaders } from '@repo/common/toast'
-import { ImpersonationSession, User, db, eq } from '@repo/database'
+import { User, db, eq } from '@repo/database'
 import { data, redirect } from 'react-router'
 import { ENV } from 'varlock/env'
 
@@ -77,29 +76,14 @@ export async function action({
 	const clientIp = getClientIp(request)
 	const ipHash = hashIp(clientIp)
 
-	// An admin has one impersonation at a time. End any earlier one with an
-	// audited END (reason `replaced`, or `expired`) before starting this one.
-	await endImpersonationSessions({
-		where: eq(ImpersonationSession.adminUserId, adminUserId),
-		reason: 'replaced',
+	// An admin has one impersonation at a time: starting replaces any earlier
+	// one (audited END) and is safe against overlapping starts.
+	const impersonationSession = await startImpersonationSession({
+		adminUserId,
+		targetUserId: targetUser.id,
+		ipHash,
 		request,
 	})
-
-	// Create a new impersonation session with 15-minute TTL and IP binding
-	const [impersonationSession] = await db
-		.insert(ImpersonationSession)
-		.values({
-			adminUserId,
-			targetUserId: targetUser.id,
-			expiresAt: getImpersonationExpirationDate(),
-			ipHash,
-		})
-		.returning({
-			id: ImpersonationSession.id,
-			expiresAt: ImpersonationSession.expiresAt,
-		})
-	if (!impersonationSession)
-		throw new Error('Could not create impersonation session')
 
 	// Log the impersonation start using the audit service
 	await auditService.logAdminOperation(

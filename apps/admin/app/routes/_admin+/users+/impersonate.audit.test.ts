@@ -98,6 +98,69 @@ describe('impersonation audit trail', () => {
 		).toHaveLength(0)
 	})
 
+	it('leaves one session when the same admin starts impersonation twice at once', async () => {
+		const { admin, cookie } = await adminWithCookie()
+		const first = await createUser()
+		const second = await createUser()
+		// Both starts select this session before either inserts a replacement.
+		const [existing] = await db
+			.insert(ImpersonationSession)
+			.values({
+				adminUserId: admin.id,
+				targetUserId: first.id,
+				expiresAt: new Date(Date.now() + 10 * 60_000),
+				ipHash: 'hash',
+			})
+			.returning()
+		const start = (userId: string) =>
+			action({
+				request: new Request(
+					`http://localhost:3004/users/${userId}/impersonate`,
+					{ method: 'POST', headers: { Cookie: cookie } },
+				),
+				params: { userId },
+			}).catch((thrown: unknown) => thrown)
+
+		await Promise.all(
+			Array.from({ length: 6 }, (_, i) => start(i % 2 ? first.id : second.id)),
+		)
+
+		const sessions = await db
+			.select()
+			.from(ImpersonationSession)
+			.where(eq(ImpersonationSession.adminUserId, admin.id))
+		expect(sessions).toHaveLength(1)
+		const starts = log.mock.calls.filter(
+			([action]) => action === AuditAction.ADMIN_IMPERSONATION_START,
+		)
+		const ends = endEntries(log)
+		type EndMeta = { reason: string; impersonationSessionId: string }
+		const metas = ends.map(([, , , meta]) => meta as EndMeta)
+		expect(starts).toHaveLength(6)
+		// Every session but the survivor was ended exactly once, as replaced.
+		expect(metas).toHaveLength(6)
+		expect(
+			metas.filter((meta) => meta.impersonationSessionId === existing!.id),
+		).toHaveLength(1)
+		expect(metas.every((meta) => meta.reason === 'replaced')).toBe(true)
+		const endedIds = new Set(metas.map((meta) => meta.impersonationSessionId))
+		expect(endedIds.size).toBe(6)
+		expect(endedIds.has(sessions[0]!.id)).toBe(false)
+	})
+
+	it('rejects a second session row for the same admin at the database', async () => {
+		const admin = await createUser()
+		const target = await createUser()
+		const row = {
+			adminUserId: admin.id,
+			targetUserId: target.id,
+			expiresAt: new Date(Date.now() + 10 * 60_000),
+			ipHash: 'hash',
+		}
+		await db.insert(ImpersonationSession).values(row)
+		await expect(db.insert(ImpersonationSession).values(row)).rejects.toThrow()
+	})
+
 	it('logs END (expired) when expired sessions are cleaned up', async () => {
 		const admin = await createUser()
 		const target = await createUser()

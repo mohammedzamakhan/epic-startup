@@ -11,6 +11,7 @@ import {
 import {
 	impersonationSessionStorage,
 	impersonationSessionKey,
+	getImpersonationExpirationDate,
 	getClientIp,
 	hashIp,
 } from './impersonation-session.server.ts'
@@ -221,4 +222,48 @@ export async function cleanupExpiredImpersonationSessions(): Promise<number> {
 		where: lte(ImpersonationSession.expiresAt, new Date()),
 		reason: 'expired',
 	})
+}
+
+const START_ATTEMPTS = 5
+
+/**
+ * Starts an impersonation for `adminUserId`, ending any earlier one (audited
+ * END, reason `replaced` or `expired`). `ImpersonationSession.adminUserId` is
+ * unique, so of two overlapping starts only one insert wins; the loser sees
+ * no row back, ends the winner's session (audited) and tries again. Never
+ * leaves more than one session for the admin.
+ */
+export async function startImpersonationSession({
+	adminUserId,
+	targetUserId,
+	ipHash,
+	request,
+}: {
+	adminUserId: string
+	targetUserId: string
+	ipHash: string
+	request?: Request
+}): Promise<{ id: string; expiresAt: Date }> {
+	for (let attempt = 0; attempt < START_ATTEMPTS; attempt++) {
+		await endImpersonationSessions({
+			where: eq(ImpersonationSession.adminUserId, adminUserId),
+			reason: 'replaced',
+			request,
+		})
+		const [created] = await db
+			.insert(ImpersonationSession)
+			.values({
+				adminUserId,
+				targetUserId,
+				expiresAt: getImpersonationExpirationDate(),
+				ipHash,
+			})
+			.onConflictDoNothing({ target: ImpersonationSession.adminUserId })
+			.returning({
+				id: ImpersonationSession.id,
+				expiresAt: ImpersonationSession.expiresAt,
+			})
+		if (created) return created
+	}
+	throw new Error('Could not create impersonation session')
 }
