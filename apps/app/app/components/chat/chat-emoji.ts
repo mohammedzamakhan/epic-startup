@@ -6,6 +6,8 @@ import { type MarkdownNodeSpec } from 'tiptap-markdown'
  * writes the literal text `[emoji]`. Write the unicode character instead (or
  * the `:shortcode:` when the name has no unicode form).
  */
+const SAFE_SHORTCODE = /^[a-z0-9_+-]+$/i
+
 export const ChatEmoji = Emoji.extend({
 	addStorage() {
 		const parentStorage = this.parent!()
@@ -14,7 +16,11 @@ export const ChatEmoji = Emoji.extend({
 			serialize(state, node) {
 				const name = String(node.attrs.name ?? '')
 				const item = shortcodeToEmoji(name, emojis)
-				state.write(item?.emoji ?? `:${name}:`)
+				// `name` can come from pasted HTML, so never write it unless it is a
+				// plain shortcode (state.write does not escape markdown).
+				state.write(
+					item?.emoji ?? (SAFE_SHORTCODE.test(name) ? `:${name}:` : ''),
+				)
 			},
 			parse: {},
 		}
