@@ -86,17 +86,15 @@ export async function action({
 		request,
 	}).catch(async (error: unknown) => {
 		if (!(error instanceof ImpersonationStartConflictError)) throw error
-		throw data(
-			{ error: 'Another impersonation start is in progress' },
-			{
-				status: 409,
-				headers: await createToastHeaders({
-					type: 'error',
-					title: 'Impersonation Failed',
-					description: 'Another impersonation is starting. Try again.',
-				}),
-			},
-		)
+		// Back to the user page with a toast, not an error response: a 409 from
+		// this resource route would show the layout error boundary.
+		throw redirect(`/users/${targetUser.id}`, {
+			headers: await createToastHeaders({
+				type: 'error',
+				title: 'Impersonation Failed',
+				description: 'Another impersonation is starting. Try again.',
+			}),
+		})
 	})
 
 	// Log the impersonation start using the audit service

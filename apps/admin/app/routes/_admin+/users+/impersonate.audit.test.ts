@@ -136,7 +136,7 @@ describe('impersonation audit trail', () => {
 		const ends = endEntries(log)
 		type EndMeta = { reason: string; impersonationSessionId: string }
 		const metas = ends.map(([, , , meta]) => meta as EndMeta)
-		// A losing start fails with 409 instead of ending the winner's session.
+		// A losing start redirects back with a toast instead of ending the winner's session.
 		type StartMeta = { impersonationSessionId: string }
 		const startedIds = starts.map(
 			([, , , meta]) => (meta as StartMeta).impersonationSessionId,
