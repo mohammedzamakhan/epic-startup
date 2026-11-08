@@ -35,6 +35,23 @@ describe('pinGitLabInstanceUrl', () => {
 		})
 	})
 
+	it('refuses moving the token through the metadata field', () => {
+		expect(
+			pinGitLabInstanceUrl('{}', {
+				metadata: { instanceUrl: 'https://attacker.example' },
+			}),
+		).toHaveProperty('error')
+		expect(
+			pinGitLabInstanceUrl(selfHosted, {
+				instanceUrl: 'https://gitlab.acme.example',
+				metadata: { instanceUrl: 'https://attacker.example' },
+			}),
+		).toHaveProperty('error')
+		// The OAuth metadata as stored passes.
+		const oauth = { metadata: { instanceUrl: 'https://gitlab.com' } }
+		expect(pinGitLabInstanceUrl('{}', oauth)).toEqual({ config: oauth })
+	})
+
 	it('keeps the stored instance when an update omits it', () => {
 		expect(pinGitLabInstanceUrl(selfHosted, { defaultProject: 'p' })).toEqual({
 			config: {

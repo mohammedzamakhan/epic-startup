@@ -342,6 +342,27 @@ describe('broadcast dispatch', () => {
 		expect(emailedTo()).toEqual([customer!.email])
 	})
 
+	it('a dispatcher that lost its lease does not count a failure', async () => {
+		const db = await getTenantDb(orgId)
+		await emailCustomers(db, 1)
+		const now = Date.now()
+		// Another dispatcher holds the campaign now (a newer lease).
+		const id = await campaign(db, {
+			dispatchFailures: BROADCAST_MAX_FAILURES - 1,
+			updatedAt: broadcastLease(now),
+		})
+		vi.mocked(getBroadcastHourlyCap).mockImplementationOnce(() => {
+			throw new Error('storage blip')
+		})
+
+		expect(
+			await dispatchBroadcast(orgId, id, broadcastLease(now - 60_000)),
+		).toBe('lost_lease')
+		const stored = await getCampaign(db, id)
+		expect(stored?.status).toBe('Processing')
+		expect(stored?.dispatchFailures).toBe(BROADCAST_MAX_FAILURES - 1)
+	})
+
 	it('fails a broadcast after repeated errors, and a sent batch resets the count', async () => {
 		const db = await getTenantDb(orgId)
 		await emailCustomers(db, 1)

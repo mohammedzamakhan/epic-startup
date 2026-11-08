@@ -133,6 +133,15 @@ async function heartbeat(db: Db, campaignId: string, lease: Date, now: number) {
 	return rows.length > 0 ? next : null
 }
 
+/** The campaign is still `Processing` under this dispatcher's lease. */
+function holdsLease(campaignId: string, lease: Date) {
+	return and(
+		eq(marketingCampaigns.id, campaignId),
+		eq(marketingCampaigns.status, 'Processing'),
+		eq(marketingCampaigns.updatedAt, lease),
+	)
+}
+
 async function finish(
 	db: Db,
 	campaignId: string,
@@ -275,12 +284,13 @@ export async function dispatchBroadcast(
 			const insertedIds = new Set(inserted.map((row) => row.id))
 			const items = candidates.filter((item) => insertedIds.has(item.messageId))
 
-			// A batch is going out: earlier failed attempts were transient.
+			// A batch is going out: earlier failed attempts were transient. Only
+			// while we hold the lease (like `heartbeat` and `finish`).
 			if (!failuresReset && campaign.dispatchFailures > 0) {
 				await db
 					.update(marketingCampaigns)
 					.set({ dispatchFailures: 0 })
-					.where(eq(marketingCampaigns.id, campaignId))
+					.where(holdsLease(campaignId, currentLease))
 				failuresReset = true
 			}
 
@@ -369,9 +379,12 @@ export async function dispatchBroadcast(
 				.set({
 					dispatchFailures: sql`${marketingCampaigns.dispatchFailures} + 1`,
 				})
-				.where(eq(marketingCampaigns.id, campaignId))
+				// A dispatcher that lost its lease must not count against the
+				// campaign another one now holds.
+				.where(holdsLease(campaignId, currentLease))
 				.returning({ failures: marketingCampaigns.dispatchFailures })
-			if (!row || row.failures >= BROADCAST_MAX_FAILURES) {
+			if (!row) return 'lost_lease'
+			if (row.failures >= BROADCAST_MAX_FAILURES) {
 				await finish(handle, campaignId, currentLease, 'Failed')
 				return 'failed'
 			}
