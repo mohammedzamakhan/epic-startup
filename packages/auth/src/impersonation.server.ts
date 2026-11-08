@@ -224,14 +224,20 @@ export async function cleanupExpiredImpersonationSessions(): Promise<number> {
 	})
 }
 
-const START_ATTEMPTS = 5
+/** Another start for the same admin created its session first. */
+export class ImpersonationStartConflictError extends Error {
+	constructor() {
+		super('Another impersonation start for this admin is in progress')
+		this.name = 'ImpersonationStartConflictError'
+	}
+}
 
 /**
  * Starts an impersonation for `adminUserId`, ending any earlier one (audited
  * END, reason `replaced` or `expired`). `ImpersonationSession.adminUserId` is
- * unique, so of two overlapping starts only one insert wins; the loser sees
- * no row back, ends the winner's session (audited) and tries again. Never
- * leaves more than one session for the admin.
+ * unique, so of two overlapping starts only one insert wins. The loser throws
+ * `ImpersonationStartConflictError` instead of ending the winner's session,
+ * so a session id handed to a caller is never one a concurrent start deleted.
  */
 export async function startImpersonationSession({
 	adminUserId,
@@ -244,26 +250,24 @@ export async function startImpersonationSession({
 	ipHash: string
 	request?: Request
 }): Promise<{ id: string; expiresAt: Date }> {
-	for (let attempt = 0; attempt < START_ATTEMPTS; attempt++) {
-		await endImpersonationSessions({
-			where: eq(ImpersonationSession.adminUserId, adminUserId),
-			reason: 'replaced',
-			request,
+	await endImpersonationSessions({
+		where: eq(ImpersonationSession.adminUserId, adminUserId),
+		reason: 'replaced',
+		request,
+	})
+	const [created] = await db
+		.insert(ImpersonationSession)
+		.values({
+			adminUserId,
+			targetUserId,
+			expiresAt: getImpersonationExpirationDate(),
+			ipHash,
 		})
-		const [created] = await db
-			.insert(ImpersonationSession)
-			.values({
-				adminUserId,
-				targetUserId,
-				expiresAt: getImpersonationExpirationDate(),
-				ipHash,
-			})
-			.onConflictDoNothing({ target: ImpersonationSession.adminUserId })
-			.returning({
-				id: ImpersonationSession.id,
-				expiresAt: ImpersonationSession.expiresAt,
-			})
-		if (created) return created
-	}
-	throw new Error('Could not create impersonation session')
+		.onConflictDoNothing({ target: ImpersonationSession.adminUserId })
+		.returning({
+			id: ImpersonationSession.id,
+			expiresAt: ImpersonationSession.expiresAt,
+		})
+	if (!created) throw new ImpersonationStartConflictError()
+	return created
 }

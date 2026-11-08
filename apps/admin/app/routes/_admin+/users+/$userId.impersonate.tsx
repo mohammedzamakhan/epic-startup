@@ -2,6 +2,7 @@ import { invariantResponse } from '@epic-web/invariant'
 import { auditService, AuditAction } from '@repo/audit'
 import {
 	requireUserWithRole,
+	ImpersonationStartConflictError,
 	startImpersonationSession,
 	impersonationSessionStorage,
 	impersonationSessionKey,
@@ -83,6 +84,19 @@ export async function action({
 		targetUserId: targetUser.id,
 		ipHash,
 		request,
+	}).catch(async (error: unknown) => {
+		if (!(error instanceof ImpersonationStartConflictError)) throw error
+		throw data(
+			{ error: 'Another impersonation start is in progress' },
+			{
+				status: 409,
+				headers: await createToastHeaders({
+					type: 'error',
+					title: 'Impersonation Failed',
+					description: 'Another impersonation is starting. Try again.',
+				}),
+			},
+		)
 	})
 
 	// Log the impersonation start using the audit service
