@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+"""Mine Claude Code session transcripts for signals a self-improvement pass can act on.
+
+usage: python3 -I mine-sessions.py [--dir DIR] [--since YYYY-MM-DD] [--json]
+Default DIR is ~/.claude/projects/<this repo>. Read-only. Prints:
+  - failed tool calls grouped by tool and normalized message (wasted effort)
+  - human prompts that look like corrections (the agent got it wrong or quit early)
+  - repeated human instructions (candidates for a skill or memory)
+  - Bash command prefixes (candidates for an allowlist or helper script)
+"""
+import argparse, collections, glob, json, os, re
+
+ap = argparse.ArgumentParser()
+ap.add_argument('--dir', default=os.path.expanduser('~/.claude/projects/-Users-zama-epic-startup'))
+ap.add_argument('--since', default='')
+ap.add_argument('--json', action='store_true')
+a = ap.parse_args()
+
+CORR = re.compile(r"\b(no[,. ]|don'?t|stop|wrong|not what|why did you|you (forgot|missed|didn)|still (the same|getting|failing|seeing)|what did i tell|are you sure|try again|that'?s not|i said|i asked)\b", re.I)
+errs = collections.Counter()
+err_ex = {}
+corr = []
+prompts = collections.Counter()
+bash = collections.Counter()
+sessions = 0
+
+for f in glob.glob(os.path.join(a.dir, '*.jsonl')):
+    sessions += 1
+    pend = {}
+    for line in open(f, errors='ignore'):
+        try:
+            d = json.loads(line)
+        except Exception:
+            continue
+        if a.since and (d.get('timestamp') or '9') < a.since:
+            continue
+        m = d.get('message') or {}
+        c = m.get('content')
+        t = d.get('type')
+        if t == 'user' and (d.get('origin') or {}).get('kind') == 'human' and isinstance(c, str):
+            s = c.strip()
+            if s and not s.startswith('<'):
+                prompts[re.sub(r'\s+', ' ', s[:60].lower())] += 1
+                if CORR.search(s[:200]) and len(s) < 400:
+                    corr.append((os.path.basename(f)[:8], s[:200].replace('\n', ' ')))
+        if t == 'assistant' and isinstance(c, list):
+            for b in c:
+                if b.get('type') == 'tool_use':
+                    pend[b['id']] = (b['name'], json.dumps(b.get('input'))[:200])
+                    if b['name'] == 'Bash':
+                        bash[' '.join((b['input'].get('command') or '').split()[:2])] += 1
+        if t == 'user' and isinstance(c, list):
+            for b in c:
+                if b.get('type') == 'tool_result' and b.get('is_error'):
+                    name, inp = pend.get(b.get('tool_use_id'), ('?', ''))
+                    txt = b.get('content')
+                    txt = txt if isinstance(txt, str) else json.dumps(txt)
+                    key = (name, re.sub(r'\d+', 'N', txt[:110]))
+                    errs[key] += 1
+                    err_ex.setdefault(key, inp)
+
+out = {
+    'sessions': sessions,
+    'failed_tool_calls': [{'n': n, 'tool': k[0], 'msg': k[1], 'example_input': err_ex[k]} for k, n in errs.most_common(40)],
+    'corrections': corr[:80],
+    'repeated_prompts': [(p, n) for p, n in prompts.most_common(15) if n > 1],
+    'bash_prefixes': bash.most_common(25),
+}
+if a.json:
+    print(json.dumps(out, indent=1))
+else:
+    print(f"{sessions} sessions")
+    print('\n## Failed tool calls')
+    for r in out['failed_tool_calls']:
+        print(f"{r['n']:>3}x {r['tool']}: {r['msg']}")
+    print('\n## Correction-like prompts (session, text)')
+    for s, t in out['corrections']:
+        print(f'- [{s}] {t}')
+    print('\n## Repeated prompts')
+    for p, n in out['repeated_prompts']:
+        print(f'{n:>3}x {p}')
+    print('\n## Bash prefixes')
+    for p, n in out['bash_prefixes']:
+        print(f'{n:>4} {p}')
