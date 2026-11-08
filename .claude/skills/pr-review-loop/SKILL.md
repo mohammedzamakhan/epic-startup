@@ -21,8 +21,11 @@ keep posting new comments after each push, so one pass is never the end.
    (CodeRabbit hides "outside diff" and "nitpick" items there), conversation
    comments, and failing checks. Do not stop at the inline comments.
 3. **Never declare done early.** Finish a round, push, then re-check. Stop only
-   when there are no unresolved threads that are new since your last push, all
-   checks pass, and CodeRabbit has finished its review of the latest commit.
+   when every unresolved thread is handled, whatever its age (the `since`
+   argument is for reading, not for deciding what to skip; run the script once
+   without it before you stop), all checks pass, and CodeRabbit has finished its
+   review of the latest commit. A thread you disagree with counts as handled
+   once you replied with evidence.
 4. **Do not break CI.** Run the affected tests, plus `npm run typecheck -w app`
    or the workspace's own typecheck, before each push.
 5. **Fix at the root.** Before editing, grep for the same pattern elsewhere in
@@ -57,6 +60,10 @@ keep posting new comments after each push, so one pass is never the end.
      -F in_reply_to=<comment-id> -f body="Fixed in <sha>: <what changed>"
    ```
 
+   That path only works for inline review comments. For feedback from a review
+   body or a conversation comment, post a conversation comment that names the
+   item and the SHA:
+   `gh pr comment <pr> -R <owner>/<repo> -b "Re: <reviewer>'s <topic>: fixed in <sha>"`.
    End each reply with the attribution line your harness requires for GitHub
    text.
 

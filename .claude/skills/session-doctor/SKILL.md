@@ -16,9 +16,12 @@ changes, then measure whether the changes helped. Based on Ben Holmes' (Warp)
 Sources (all local, read-only):
 
 - Claude Code: `~/.claude/projects/<repo path with / as ->/*.jsonl`
-  (`scripts/mine-sessions.py`, derives the folder from the git repo)
+  (`scripts/mine-sessions.py`, derives the folder from the git repo; a worktree
+  or another checkout has its own folder, so pass `--dir`)
 - Codex: `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`, and Droid (factory.ai):
-  `~/.factory/sessions/<cwd-slug>/*.jsonl` (`scripts/mine-other-agents.py`)
+  `~/.factory/sessions/<cwd-slug>/*.jsonl` (`scripts/mine-other-agents.py`,
+  sessions whose cwd is inside the repo root; repeat `--root` for other
+  checkouts)
 - Antigravity: conversations are binary protobuf and cannot be read. Use the
   `~/.gemini/antigravity/brain/<id>/{task,implementation_plan,walkthrough}.md`
   artifacts.
@@ -35,20 +38,23 @@ Claude Code layout: Each line is a JSON event. Human prompts have
 
 1. **Mine signals** (cheap, no LLM):
    ```bash
-   python3 -I .claude/skills/session-doctor/scripts/mine-sessions.py --since <YYYY-MM-DD>
-   python3 -I .claude/skills/session-doctor/scripts/mine-other-agents.py --since <YYYY-MM-DD>
+   python3 -I .claude/skills/session-doctor/scripts/mine-sessions.py --since <UTC timestamp>
+   python3 -I .claude/skills/session-doctor/scripts/mine-other-agents.py --since <UTC timestamp>
    ```
-   Use the date of the last run from `.claude/skills/session-doctor/LOG.md`.
-   With no log, run over all sessions.
+   Use the UTC timestamp (`2026-11-08T21:40:00Z`) of the last run from `LOG.md`,
+   so a second run on the same day only sees new events. With no log, run over
+   everything. Write the timestamp of each run in the log.
 2. **Score a sample.** Pick sessions with the most failed tool calls or
    correction prompts, plus a few random ones. Give each to one subagent with
    one rubric from `rubrics/` (efficiency, followed-instructions, verbosity).
    Ask for score, pass or fail, and one sentence naming the cause. Run subagents
    in batches, within the concurrency limit (the Agent tool refuses above it, so
-   do not retry past it). Subagents must read the transcript with a script that
-   prints only the human prompts, tool names, errors and the last assistant
-   message. Whole transcripts are huge (the project directory is hundreds of
-   MB).
+   do not retry past it). Whole transcripts are huge (the project directory is
+   hundreds of MB), so give a subagent a redacted extract: human prompts, tool
+   names and the inputs of the calls the rubric is about (repeated or failed
+   calls, long messages), errors and the last assistant message. Let it open
+   more of the transcript when the extract is not enough. If the evidence is
+   missing, the score is **inconclusive**, not a pass.
 3. **Find commonalities.** Group failures by cause. A fix needs 2+ sessions.
 4. **Propose the smallest change that removes the cause**, in this order:
    - a script or skill, when the user repeats a multi-step job (like

@@ -49,10 +49,20 @@ corr = []
 prompts = collections.Counter()
 bash = collections.Counter()
 sessions = 0
+per_session = collections.Counter()
+
+
+def prompt_text(c):
+    # a human prompt is a string, or a list of blocks when an image is attached
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list):
+        return ' '.join(b.get('text', '') for b in c if isinstance(b, dict) and b.get('type') == 'text')
+    return ''
+
 
 for f in glob.glob(os.path.join(a.dir, '*.jsonl')):
-    sessions += 1
-    pend = {}
+    pend, active = {}, False
     with open(f, errors='ignore') as fh:
         lines = fh.readlines()
     for line in lines:
@@ -62,11 +72,12 @@ for f in glob.glob(os.path.join(a.dir, '*.jsonl')):
             continue
         if a.since and (d.get('timestamp') or '9') < a.since:
             continue
+        active = True
         m = d.get('message') or {}
         c = m.get('content')
         t = d.get('type')
-        if t == 'user' and (d.get('origin') or {}).get('kind') == 'human' and isinstance(c, str):
-            s = c.strip()
+        if t == 'user' and (d.get('origin') or {}).get('kind') == 'human':
+            s = prompt_text(c).strip()
             if s and not s.startswith('<'):
                 prompts[redact(re.sub(r'\s+', ' ', s[:60].lower()))] += 1
                 if CORR.search(s[:200]) and len(s) < 400:
@@ -86,6 +97,8 @@ for f in glob.glob(os.path.join(a.dir, '*.jsonl')):
                     key = (name, redact(re.sub(r'\d+', 'N', txt[:110])))
                     errs[key] += 1
                     err_ex.setdefault(key, redact(inp))
+                    per_session[os.path.basename(f)[:8]] += 1
+    sessions += active
 
 out = {
     'sessions': sessions,
@@ -93,14 +106,18 @@ out = {
     'corrections': corr[:80],
     'repeated_prompts': [(p, n) for p, n in prompts.most_common(15) if n > 1],
     'bash_prefixes': bash.most_common(25),
+    'sessions_by_failures': per_session.most_common(10),
 }
 if a.json:
     print(json.dumps(out, indent=1))
 else:
-    print(f"{sessions} sessions")
+    print(f"{sessions} sessions with events in period")
     print('\n## Failed tool calls')
     for r in out['failed_tool_calls']:
         print(f"{r['n']:>3}x {r['tool']}: {r['msg']}")
+    print('\n## Sessions with the most failed calls (file id, count)')
+    for sid, n in out['sessions_by_failures']:
+        print(f'{n:>4} {sid}')
     print('\n## Correction-like prompts (session, text)')
     for s, t in out['corrections']:
         print(f'- [{s}] {t}')
