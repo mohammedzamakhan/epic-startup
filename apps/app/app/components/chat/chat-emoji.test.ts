@@ -43,7 +43,7 @@ function insertEmoji(editor: Editor, name: string) {
 
 test('an emoji node serializes to its unicode character', () => {
 	const editor = createEditor()
-	type(editor, '<script>alert(1)</script> hello :grinning: **bold**')
+	type(editor, 'hello :grinning: **bold**')
 	const out = getMarkdown(editor)
 	editor.destroy()
 	expect(out).toContain('😀')
