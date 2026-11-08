@@ -37,6 +37,7 @@ export const ChatEmoji = Emoji.extend({
 					for (const text of texts) {
 						const value = text.data
 						if (!value.includes(':')) continue
+						if (text.parentElement?.closest('code, pre')) continue
 						const fragment = element.ownerDocument.createDocumentFragment()
 						let last = 0
 						let changed = false

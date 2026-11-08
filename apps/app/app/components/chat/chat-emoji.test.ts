@@ -88,3 +88,9 @@ test('an image-only emoji shortcode loads back as an emoji node', () => {
 	expect(getMarkdown(editor)).toBe('so :octocat: here')
 	editor.destroy()
 })
+
+test('shortcodes inside code stay literal when loading', () => {
+	const editor = createEditor('`:octocat:`\n\n```\n:octocat:\n```')
+	expect(JSON.stringify(editor.getJSON())).not.toContain('"type":"emoji"')
+	editor.destroy()
+})
