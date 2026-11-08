@@ -90,7 +90,7 @@ def show(name, st):
         print('WARNING: not in a git repo and no --root given; nothing is in scope')
     print('tools:', st.tools.most_common(10))
     if st.limit:
-        print(f'sessions with a usage-limit event in period: {st.limit}')
+        print(f'sessions with a usage-limit event in period (estimate, matched by message shape): {st.limit}')
     print('## failed tool calls')
     for (t, m), c in st.errs.most_common(20):
         print(f'{c:>4}x {t}: {redact(m)}')
@@ -189,8 +189,8 @@ for f in glob.glob(H + '/.factory/sessions/*/*.jsonl'):
             elif b.get('type') == 'text' and m.get('role') == 'user':
                 s = b['text'].strip()
                 # a limit event is a harness message at the start of a user turn, not text the user typed
-                if s.startswith('Your standard model budget is exhausted') or (
-                        s.startswith("You've reached your") and 'usage limit' in s[:120] and 'resets in' in s):
+                if m.get('visibility') == 'user_only' and (s.startswith('Your standard model budget is exhausted') or (
+                        s.startswith("You've reached your") and 'usage limit' in s[:120] and 'resets in' in s)):
                     hit = True
                 if s and not s.startswith('<') and not s.startswith(NOISE):
                     dr.msgs += 1
