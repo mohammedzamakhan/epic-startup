@@ -111,32 +111,16 @@ copies seed data into local D1.
 
 **Agent gotchas (from reviewing past sessions).**
 
-- zsh aborts on an unquoted glob with "no matches found". Quote it
-  (`--include='*.ts'`) or use `rg -g '*.ts'`.
-- Shell one-liners with `$VAR`, `$(...)` or `cd x; ...` chains trigger approval
-  prompts. Put a longer job in a script file, or pass paths as arguments.
-- The Grep tool may be missing. Search with `rg` or `grep` through Bash.
-- The Agent tool has a concurrent subagent limit. Run in batches and do not
-  retry past the limit.
-- Droid and Codex sessions often read or edit paths that do not exist
-  (`node_modules/...`, files from a sibling checkout such as `~/epic-stack`).
-  Run `git rev-parse --show-toplevel` and use `rg --files -g '<name>'` to find a
-  file before you read it. Do not guess a path.
-- The same template lives in sibling checkouts. Confirm you are in the repo the
-  user means before editing, and say so if a change belongs in another one.
-- Before an `Edit`, re-read the lines you are replacing. A failed "text not
-  found" edit means the file changed or the indentation (tabs) differs.
-- Long fan-outs (many parallel workers) can exhaust a model usage limit and
-  silently fall back to a weaker model or kill workers. Keep workers few, scoped
-  and resumable, and stop and report when a limit message appears.
-- A commit can be blocked by `node scripts/check-lingui.mjs`. Run
-  `npm run lingui:extract -w <app>`, fill each new `msgstr` in `ar` (and the
-  Sites locales), stage the `.po` files, then commit. Do not use `--no-verify`.
-- Deploys run on a push to `main` or `dev`, not when a PR opens. Do not add a PR
-  trigger to a deploy workflow, even to test.
-- PR review feedback: use `.claude/skills/pr-review-loop` (fetches inline,
-  review, conversation comments and failing checks in one pass).
-- To review how agents are doing, use `.claude/skills/session-doctor`.
+- Find a file with `rg --files -g '<name>'` before you read it. Do not guess
+  paths: past sessions lost many calls to `node_modules/...` and wrong-checkout
+  paths.
+- This template is often checked out more than once. Confirm
+  (`git rev-parse --show-toplevel`) you are in the repo the user means before
+  editing, and say so if the change belongs in another checkout.
+- Keep parallel workers few, scoped and resumable. A usage-limit message ends or
+  downgrades a worker silently: stop and report it.
+- PR review feedback: `.claude/skills/pr-review-loop`. Reviewing how agents
+  perform: `.claude/skills/session-doctor`.
 
 ### Headless Linux sandbox setup
 

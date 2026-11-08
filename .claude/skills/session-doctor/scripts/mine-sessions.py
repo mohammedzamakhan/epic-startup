@@ -8,13 +8,39 @@ Default DIR is ~/.claude/projects/<this repo>. Read-only. Prints:
   - repeated human instructions (candidates for a skill or memory)
   - Bash command prefixes (candidates for an allowlist or helper script)
 """
-import argparse, collections, glob, json, os, re
+import argparse, collections, glob, json, os, re, subprocess, sys
+
+REDACT = [
+    (re.compile(r'\b(sk|ghp|gho|ghs|xox[bp]|gls)[-_][A-Za-z0-9_-]{12,}'), '[token]'),
+    (re.compile(r'Bearer\s+\S+', re.I), 'Bearer [token]'),
+    (re.compile(r'\b[A-Z0-9_]*(KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*\s*[=:]\s*\S+'), '[secret]'),
+    (re.compile(r'\b[0-9a-f]{32,}\b'), '[hex]'),
+]
+
+
+def redact(text):
+    for rx, rep in REDACT:
+        text = rx.sub(rep, text)
+    return text
+
+
+def default_dir():
+    # Claude Code stores a repo's sessions under ~/.claude/projects/<repo path with / as ->
+    try:
+        top = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], text=True).strip()
+    except Exception:
+        return ''
+    return os.path.expanduser('~/.claude/projects/' + top.replace('/', '-'))
+
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--dir', default=os.path.expanduser('~/.claude/projects/-Users-zama-epic-startup'))
+ap.add_argument('--dir', default=default_dir(), help='session folder (default: derived from the git repo)')
 ap.add_argument('--since', default='')
 ap.add_argument('--json', action='store_true')
+ap.add_argument('--verbose', action='store_true', help='include example tool input (redacted)')
 a = ap.parse_args()
+if not a.dir or not glob.glob(os.path.join(a.dir, '*.jsonl')):
+    sys.exit(f'no session files found in {a.dir!r}; pass --dir')
 
 CORR = re.compile(r"\b(no[,. ]|don'?t|stop|wrong|not what|why did you|you (forgot|missed|didn)|still (the same|getting|failing|seeing)|what did i tell|are you sure|try again|that'?s not|i said|i asked)\b", re.I)
 errs = collections.Counter()
@@ -27,7 +53,9 @@ sessions = 0
 for f in glob.glob(os.path.join(a.dir, '*.jsonl')):
     sessions += 1
     pend = {}
-    for line in open(f, errors='ignore'):
+    with open(f, errors='ignore') as fh:
+        lines = fh.readlines()
+    for line in lines:
         try:
             d = json.loads(line)
         except Exception:
@@ -40,9 +68,9 @@ for f in glob.glob(os.path.join(a.dir, '*.jsonl')):
         if t == 'user' and (d.get('origin') or {}).get('kind') == 'human' and isinstance(c, str):
             s = c.strip()
             if s and not s.startswith('<'):
-                prompts[re.sub(r'\s+', ' ', s[:60].lower())] += 1
+                prompts[redact(re.sub(r'\s+', ' ', s[:60].lower()))] += 1
                 if CORR.search(s[:200]) and len(s) < 400:
-                    corr.append((os.path.basename(f)[:8], s[:200].replace('\n', ' ')))
+                    corr.append((os.path.basename(f)[:8], redact(s[:200].replace('\n', ' '))))
         if t == 'assistant' and isinstance(c, list):
             for b in c:
                 if b.get('type') == 'tool_use':
@@ -55,13 +83,13 @@ for f in glob.glob(os.path.join(a.dir, '*.jsonl')):
                     name, inp = pend.get(b.get('tool_use_id'), ('?', ''))
                     txt = b.get('content')
                     txt = txt if isinstance(txt, str) else json.dumps(txt)
-                    key = (name, re.sub(r'\d+', 'N', txt[:110]))
+                    key = (name, redact(re.sub(r'\d+', 'N', txt[:110])))
                     errs[key] += 1
-                    err_ex.setdefault(key, inp)
+                    err_ex.setdefault(key, redact(inp))
 
 out = {
     'sessions': sessions,
-    'failed_tool_calls': [{'n': n, 'tool': k[0], 'msg': k[1], 'example_input': err_ex[k]} for k, n in errs.most_common(40)],
+    'failed_tool_calls': [{'n': n, 'tool': k[0], 'msg': k[1], **({'example_input': err_ex[k]} if a.verbose else {})} for k, n in errs.most_common(40)],
     'corrections': corr[:80],
     'repeated_prompts': [(p, n) for p, n in prompts.most_common(15) if n > 1],
     'bash_prefixes': bash.most_common(25),

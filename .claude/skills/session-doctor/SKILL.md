@@ -15,8 +15,8 @@ changes, then measure whether the changes helped. Based on Ben Holmes' (Warp)
 
 Sources (all local, read-only):
 
-- Claude Code: `~/.claude/projects/-Users-zama-epic-startup/*.jsonl`
-  (`scripts/mine-sessions.py`)
+- Claude Code: `~/.claude/projects/<repo path with / as ->/*.jsonl`
+  (`scripts/mine-sessions.py`, derives the folder from the git repo)
 - Codex: `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`, and Droid (factory.ai):
   `~/.factory/sessions/<cwd-slug>/*.jsonl` (`scripts/mine-other-agents.py`)
 - Antigravity: conversations are binary protobuf and cannot be read. Use the

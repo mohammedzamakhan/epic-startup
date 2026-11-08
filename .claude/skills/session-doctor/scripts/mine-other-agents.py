@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Mine Codex and Droid (factory.ai) session transcripts, like mine-sessions.py does for Claude Code.
 
-usage: python3 -I mine-other-agents.py [--match epic,menuza] [--since YYYY-MM-DD]
+usage: python3 -I mine-other-agents.py [--match name1,name2] [--since YYYY-MM-DD]
 Read-only. Only sessions whose cwd contains one of the --match words are counted.
 Codex:  ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl
 Droid:  ~/.factory/sessions/<cwd-slug>/<id>.jsonl
@@ -9,10 +9,27 @@ Antigravity keeps conversations as binary protobuf in ~/.gemini/antigravity/conv
 which cannot be read here. Its readable record is ~/.gemini/antigravity/brain/<id>/*.md
 (task, implementation_plan, walkthrough): grep those instead.
 """
-import argparse, collections, glob, json, os, re
+import argparse, collections, glob, json, os, re, subprocess
+
+REDACT = [
+    (re.compile(r'\b(sk|ghp|gho|ghs|xox[bp]|gls)[-_][A-Za-z0-9_-]{12,}'), '[token]'),
+    (re.compile(r'Bearer\s+\S+', re.I), 'Bearer [token]'),
+    (re.compile(r'\b[A-Z0-9_]*(KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*\s*[=:]\s*\S+'), '[secret]'),
+    (re.compile(r'\b[0-9a-f]{32,}\b'), '[hex]'),
+]
+
+
+def redact(text):
+    for rx, rep in REDACT:
+        text = rx.sub(rep, text)
+    return text
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--match', default='epic,menuza')
+try:
+    _top = os.path.basename(subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], text=True).strip())
+except Exception:
+    _top = ''
+ap.add_argument('--match', default=_top, help='comma-separated words a session cwd must contain (default: this repo name)')
 ap.add_argument('--since', default='')
 a = ap.parse_args()
 H = os.path.expanduser('~')
@@ -25,26 +42,32 @@ def ok(cwd):
     return any(w in cwd for w in WORDS)
 
 
-def show(name, n, kept, tools, errs, corr, limit_hits):
-    print(f'\n######## {name}: {n} sessions, {kept} in scope')
+def show(name, n, kept, tools, errs, corr, limit_hits, msgs):
+    print(f'\n######## {name}: {n} sessions, {kept} in scope, {msgs} user messages parsed, {sum(tools.values())} tool calls')
+    if n == 0:
+        print('WARNING: no session files found; check the path')
+    elif kept and msgs == 0:
+        print('WARNING: zero user messages parsed; the schema may have changed')
     print('tools:', tools.most_common(10))
     if limit_hits:
         print(f'usage-limit or model-exhausted hits: {limit_hits} sessions')
     print('## failed tool calls')
     for (t, m), c in errs.most_common(20):
-        print(f'{c:>4}x {t}: {m}')
+        print(f'{c:>4}x {t}: {redact(m)}')
     print('## correction-like prompts')
     for s in corr[:30]:
-        print('-', s)
+        print('-', redact(s))
 
 
 # ---- Codex
 tools, errs, corr = collections.Counter(), collections.Counter(), []
-n = kept = 0
+n = kept = msgs = 0
 for f in glob.glob(H + '/.codex/sessions/*/*/*/*.jsonl'):
     n += 1
     cwd, pend, on = '', {}, False
-    for line in open(f, errors='ignore'):
+    with open(f, errors='ignore') as fh:
+        lines = fh.readlines()
+    for line in lines:
         try:
             d = json.loads(line)
         except Exception:
@@ -61,8 +84,10 @@ for f in glob.glob(H + '/.codex/sessions/*/*/*/*.jsonl'):
             it = p.get('item') or {}
             if it.get('type') == 'UserMessage':
                 s = ' '.join(c.get('text', '') for c in it.get('content', [])).strip()
-                if s and not s.startswith('<') and CORR.search(s[:200]) and len(s) < 400:
-                    corr.append(s[:180].replace('\n', ' '))
+                if s and not s.startswith('<'):
+                    msgs += 1
+                    if CORR.search(s[:200]) and len(s) < 400:
+                        corr.append(s[:180].replace('\n', ' '))
         if d.get('type') == 'response_item' and t in ('function_call', 'custom_tool_call'):
             tools[p.get('name')] += 1
             pend[p['call_id']] = p.get('name')
@@ -72,15 +97,17 @@ for f in glob.glob(H + '/.codex/sessions/*/*/*/*.jsonl'):
             if m and m.group(1) != '0':
                 i = o.find('"output"')
                 errs[(pend.get(p.get('call_id'), '?'), re.sub(r'\d+', 'N', o[i:i + 110].replace('\\n', ' ')))] += 1
-show('CODEX', n, kept, tools, errs, corr, 0)
+show('CODEX', n, kept, tools, errs, corr, 0, msgs)
 
 # ---- Droid
 tools, errs, corr = collections.Counter(), collections.Counter(), []
-n = kept = limit = 0
+n = kept = limit = msgs = 0
 for f in glob.glob(H + '/.factory/sessions/*/*.jsonl'):
     n += 1
     cwd, pend, on, hit = '', {}, False, False
-    for line in open(f, errors='ignore'):
+    with open(f, errors='ignore') as fh:
+        lines = fh.readlines()
+    for line in lines:
         if not hit and ('model_usage_exhausted' in line or 'usage limit' in line):
             hit = True
         try:
@@ -107,7 +134,9 @@ for f in glob.glob(H + '/.factory/sessions/*/*.jsonl'):
                 errs[(pend.get(b['tool_use_id'], '?'), re.sub(r'\d+', 'N', tx[:100].replace('\n', ' ')))] += 1
             elif b.get('type') == 'text' and m.get('role') == 'user':
                 s = b['text'].strip()
-                if s and not s.startswith('<') and not s.startswith(NOISE) and CORR.search(s[:200]) and len(s) < 400:
-                    corr.append(s[:180].replace('\n', ' '))
-    limit += on and hit
-show('DROID', n, kept, tools, errs, corr, limit)
+                if s and not s.startswith('<') and not s.startswith(NOISE):
+                    msgs += 1
+                    if CORR.search(s[:200]) and len(s) < 400:
+                        corr.append(s[:180].replace('\n', ' '))
+    limit += 1 if (on and hit) else 0
+show('DROID', n, kept, tools, errs, corr, limit, msgs)

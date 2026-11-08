@@ -27,11 +27,13 @@ keep posting new comments after each push, so one pass is never the end.
    or the workspace's own typecheck, before each push.
 5. **Fix at the root.** Before editing, grep for the same pattern elsewhere in
    the diff. Bots re-raise the same bug at the next call site.
-6. **No data migrations** for schema changes. The user has zero production
-   users. Do not add backfills or "legacy row" handling unless they ask.
+6. **Ask before adding backfills.** Do not add data migrations, backfills or
+   "legacy row" handling because a bot suggested it. Ask the user first. (As of
+   2026-11 the user said there are no production users; check that is still
+   true.) Follow AGENTS.md "widen then narrow" for schema changes.
 7. **Check the remote first.** Run `git fetch && git status -sb`. The remote
    branch may have new commits. Rebase or merge before pushing. Never
-   force-push.
+   force-push, and never rewrite history on a branch someone else pushed to.
 
 ## Steps
 
@@ -49,14 +51,25 @@ keep posting new comments after each push, so one pass is never the end.
    `fix(tenant-api): refuse oversized public form posts at the edge`.
 4. Push, then reply to **each** comment with the short SHA and what changed (or
    why it is not a bug):
+
    ```bash
    gh api repos/<owner>/<repo>/pulls/<pr>/comments -X POST \
      -F in_reply_to=<comment-id> -f body="Fixed in <sha>: <what changed>"
    ```
+
+   End each reply with the attribution line your harness requires for GitHub
+   text.
+
 5. Resolve the threads you answered (GraphQL `resolveReviewThread`, with the
    thread `id` the script prints). Leave a thread open when you disagree.
 6. Wait for bots to re-review the new head (poll `gh pr checks <pr>` and re-run
    the script with `since` set to your push time). Repeat from step 2.
+
+## No `gh` CLI (cloud or CI agent)
+
+Use the GitHub MCP tools instead: `pull_request_read` (`get_review_comments`,
+`get_reviews`, `get_check_runs`), `add_reply_to_pull_request_comment`, and
+`resolve_review_thread`. The rules above still apply.
 
 ## Failing CI
 
