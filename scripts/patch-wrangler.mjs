@@ -351,6 +351,31 @@ function readEnv(name, launchConfig, launchPath) {
 }
 
 /**
+ * A staging deploy must never land on a production database, bucket or worker.
+ * Exits when the staging value is missing, or equals the production one, even
+ * without `--require-bindings`: falling back would point staging at
+ * production.
+ *
+ * @param {string} appKey
+ * @param {string} label variable name without the `_STAGING` suffix
+ * @param {string | undefined} stagingValue the value staging will deploy with
+ * @param {string | undefined} productionValue
+ */
+function assertStagingValue(appKey, label, stagingValue, productionValue) {
+	let problem = null
+	if (!stagingValue) problem = `${label}_STAGING is not set`
+	else if (productionValue && stagingValue === productionValue) {
+		problem = `the staging ${label} (${stagingValue}) is also the production one`
+	}
+	if (!problem) return
+	console.error(
+		`Refusing the ${appKey} staging deploy: ${problem}, so it would use production.`,
+	)
+	console.error('Set GitHub repository variables or run npm run launch:setup')
+	process.exit(1)
+}
+
+/**
  * Resolve a URL-related GitHub Variable or launch.config field for production/staging.
  * Staging prefers `*_STAGING` env vars and `urls.<key>_staging` before production fallbacks.
  *
@@ -826,6 +851,24 @@ function patchJsoncApp(appKey, deployEnv, launchConfig, requireBindings) {
 			patches,
 			missing,
 		)
+		const workerNameVar = {
+			'jobs-cron': ['JOBS_CRON_WORKER_NAME', 'jobs_cron'],
+			'tenant-api': ['TENANT_API_US_WORKER_NAME', 'tenant_api'],
+		}[appKey]
+		if (deployEnv === 'staging' && workerNameVar) {
+			// Wrangler names an env without its own name `<name>-staging`.
+			const [label, key] = workerNameVar
+			assertStagingValue(
+				appKey,
+				label,
+				target.name || `${config.name}-staging`,
+				readEnv(
+					label,
+					launchConfig,
+					`bindings.production.${key}.worker_name`,
+				) || config.name,
+			)
+		}
 
 		delete config.account_id
 		if (config.env?.staging) delete config.env.staging.account_id
@@ -1195,6 +1238,24 @@ function patchAstroTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 				`bindings.${bindingEnv}.web.worker_name`,
 			)
 		}
+		if (deployEnv === 'staging') {
+			for (const [label, key] of [
+				['WEB_D1_DATABASE_ID', 'd1_database_id'],
+				['WEB_R2_BUCKET_NAME', 'r2_bucket_name'],
+				['WEB_WORKER_NAME', 'worker_name'],
+			]) {
+				assertStagingValue(
+					appKey,
+					label,
+					readEnv(
+						`${label}_STAGING`,
+						launchConfig,
+						`bindings.staging.web.${key}`,
+					),
+					readEnv(label, launchConfig, `bindings.production.web.${key}`),
+				)
+			}
+		}
 	}
 
 	if (appKey === 'sites') {
@@ -1220,6 +1281,22 @@ function patchAstroTomlApp(appKey, deployEnv, launchConfig, requireBindings) {
 			[`SITES_WORKER_NAME${suffix}`],
 			`bindings.${bindingEnv}.sites.worker_name`,
 		)
+		if (deployEnv === 'staging') {
+			assertStagingValue(
+				appKey,
+				'SITES_WORKER_NAME',
+				readEnv(
+					'SITES_WORKER_NAME_STAGING',
+					launchConfig,
+					'bindings.staging.sites.worker_name',
+				),
+				readEnv(
+					'SITES_WORKER_NAME',
+					launchConfig,
+					'bindings.production.sites.worker_name',
+				),
+			)
+		}
 
 		const sitesDataKvId =
 			readEnv(

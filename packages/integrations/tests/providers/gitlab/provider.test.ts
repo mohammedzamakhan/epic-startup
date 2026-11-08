@@ -30,6 +30,10 @@ describe('GitLabProvider', () => {
 
 		provider = new GitLabProvider()
 		vi.clearAllMocks()
+		// The SSRF check resolves each host it fetches: answer with a public
+		// address so no test depends on network DNS.
+		vi.spyOn(dns.promises, 'resolve4').mockResolvedValue(['93.184.216.34'])
+		vi.spyOn(dns.promises, 'resolve6').mockResolvedValue([])
 
 		// Reset the mock for decryptToken
 		vi.mocked(decryptToken).mockResolvedValue('access-token')
@@ -160,9 +164,6 @@ describe('GitLabProvider', () => {
 		})
 
 		it('refreshes a self-hosted integration on its own instance', async () => {
-			// The SSRF check resolves the instance's hostname: a public address.
-			vi.spyOn(dns.promises, 'resolve4').mockResolvedValue(['93.184.216.34'])
-			vi.spyOn(dns.promises, 'resolve6').mockResolvedValue([])
 			const gitlabCom = vi.fn()
 			server.use(
 				http.post('https://gitlab.com/oauth/token', () => {
@@ -179,11 +180,19 @@ describe('GitLabProvider', () => {
 				),
 			)
 
-			const newTokenData = await provider.refreshToken!('old-refresh-token', {
-				config: JSON.stringify({ instanceUrl: 'https://gitlab.example.com' }),
-			})
-
-			expect(newTokenData.accessToken).toBe('self-hosted-access-token')
+			// As the OAuth flow stores it, and as a later config update may.
+			for (const config of [
+				{
+					scope: 'api',
+					metadata: { instanceUrl: 'https://gitlab.example.com' },
+				},
+				{ instanceUrl: 'https://gitlab.example.com' },
+			]) {
+				const newTokenData = await provider.refreshToken!('old-refresh-token', {
+					config: JSON.stringify(config),
+				})
+				expect(newTokenData.accessToken).toBe('self-hosted-access-token')
+			}
 			expect(gitlabCom).not.toHaveBeenCalled()
 		})
 

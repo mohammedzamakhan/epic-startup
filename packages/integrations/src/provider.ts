@@ -68,8 +68,15 @@ export interface IntegrationProvider {
 		refreshToken: string,
 		integration?: Pick<Integration, 'config'>,
 	): Promise<TokenData>
-	/** Revoke the grant at the provider; `integration` is the stored row. */
-	revokeToken?(token: string, integration?: Integration): Promise<void>
+	/**
+	 * Revoke the grant at the provider; `integration` is the stored row.
+	 * `signal` aborts the request (the caller's timeout).
+	 */
+	revokeToken?(
+		token: string,
+		integration?: Integration,
+		options?: { signal?: AbortSignal },
+	): Promise<void>
 
 	// Provider-specific operations
 
@@ -104,7 +111,11 @@ export interface IntegrationProvider {
 	 * Optionally revoke an access token
 	 * @param token - Access token to revoke
 	 */
-	revokeToken?: (token: string, integration?: Integration) => Promise<void>
+	revokeToken?: (
+		token: string,
+		integration?: Integration,
+		options?: { signal?: AbortSignal },
+	) => Promise<void>
 
 	/**
 	 * Get provider-specific configuration schema
@@ -135,7 +146,11 @@ export abstract class BaseIntegrationProvider implements IntegrationProvider {
 		refreshToken: string,
 		integration?: Pick<Integration, 'config'>,
 	): Promise<TokenData>
-	revokeToken?(token: string, integration?: Integration): Promise<void>
+	revokeToken?(
+		token: string,
+		integration?: Integration,
+		options?: { signal?: AbortSignal },
+	): Promise<void>
 	abstract getAvailableChannels(integration: Integration): Promise<Channel[]>
 	abstract postMessage(
 		connection: NoteIntegrationConnection & { integration: Integration },

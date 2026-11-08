@@ -41,7 +41,7 @@ import {
 	convertErrorsToFieldFormat,
 } from '#app/components/forms.tsx'
 import {
-	TurnstileSubmitHint,
+	TurnstileSubmitStatus,
 	TurnstileWidget,
 	useTurnstileReady,
 } from '#app/components/turnstile-widget.tsx'
@@ -278,9 +278,11 @@ export default function ForgotPasswordRoute() {
 						/>
 						<ErrorList errors={form.errors} id={form.errorId} />
 
-						{turnstileReady ? null : (
-							<TurnstileSubmitHint id={turnstileHintId} />
-						)}
+						<TurnstileSubmitStatus
+							id={turnstileHintId}
+							siteKey={turnstileSiteKey}
+							ready={turnstileReady}
+						/>
 						<StatusButton
 							className="w-full"
 							status={isPending ? 'pending' : (form.status ?? 'idle')}

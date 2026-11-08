@@ -163,9 +163,10 @@ export async function reserveSmsSend(
 }
 
 /**
- * Deletes send events older than the retention window. Inserts prune only now
- * and then, so a quiet organization's rows (phone and IP hashes) would linger:
- * the regional tick calls this for every organization.
+ * Deletes send events older than the retention window (served by
+ * `idx_sms_send_events_at`). Inserts prune only now and then, so a quiet
+ * organization's rows (phone and IP hashes) would linger: the hourly tick
+ * fan-out calls this for every organization.
  */
 export async function pruneSmsSendEvents(db: TenantDatabase, now = Date.now()) {
 	await db

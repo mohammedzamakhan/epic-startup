@@ -326,6 +326,7 @@ describe('token refresh persistence and races', () => {
 		expect(revoke).toHaveBeenCalledWith(
 			'gl-access',
 			expect.objectContaining({ id: 'int-1' }),
+			{ signal: expect.any(AbortSignal) },
 		)
 		expect(mockDb.delete).toHaveBeenCalledTimes(3)
 	})

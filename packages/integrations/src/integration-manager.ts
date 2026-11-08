@@ -394,11 +394,15 @@ export class IntegrationManager {
 			const { tokenManager } = await import('./token-manager')
 			const tokenData = await tokenManager.getTokenData(integration.id)
 			if (!tokenData?.accessToken) return
-			// A provider that never answers must not stall the disconnect.
+			// A provider that never answers must not stall the disconnect. The
+			// signal aborts the request itself (it carries the client secret);
+			// the race also bounds a provider that ignores the signal.
 			let timer: ReturnType<typeof setTimeout> | undefined
 			try {
 				await Promise.race([
-					provider.revokeToken(tokenData.accessToken, integration),
+					provider.revokeToken(tokenData.accessToken, integration, {
+						signal: AbortSignal.timeout(REVOKE_TIMEOUT_MS),
+					}),
 					new Promise<never>((_, reject) => {
 						timer = setTimeout(
 							() => reject(new Error('Token revoke timed out')),

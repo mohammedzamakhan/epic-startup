@@ -1,6 +1,24 @@
 /**
+ * The instance an integration's token belongs to. The OAuth flow stores it as
+ * `config.metadata.instanceUrl`; a config saved later may also carry
+ * `config.instanceUrl`. Undefined means gitlab.com.
+ */
+export function storedGitLabInstanceUrl(config: unknown): string | undefined {
+	if (!config || typeof config !== 'object') return undefined
+	const record = config as {
+		instanceUrl?: unknown
+		metadata?: { instanceUrl?: unknown } | null
+	}
+	if (typeof record.instanceUrl === 'string' && record.instanceUrl) {
+		return record.instanceUrl
+	}
+	const fromOAuth = record.metadata?.instanceUrl
+	return typeof fromOAuth === 'string' && fromOAuth ? fromOAuth : undefined
+}
+
+/**
  * The GitLab access token was issued by the instance chosen when the org
- * connected (stored in `config.instanceUrl` by the OAuth callback). Every API
+ * connected (see `storedGitLabInstanceUrl`). Every API
  * call sends that token to `config.instanceUrl`, so a later config update must
  * not move it: that would hand the org's token to any public host. Changing the
  * instance means reconnecting, which gets a token from the new instance.
@@ -22,8 +40,7 @@ export function pinGitLabInstanceUrl(
 	} catch {
 		stored = {}
 	}
-	const storedUrl =
-		typeof stored.instanceUrl === 'string' ? stored.instanceUrl : undefined
+	const storedUrl = storedGitLabInstanceUrl(stored)
 	const nextUrl = nextConfig.instanceUrl
 	if (nextUrl === undefined) {
 		return {

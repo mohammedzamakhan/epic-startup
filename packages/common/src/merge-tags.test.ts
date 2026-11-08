@@ -185,6 +185,21 @@ describe('replaceMergeTokensInHtml', () => {
 		).toBe('<p>1 > 0</p><a href="https://x.test">x</a>')
 	})
 
+	it('treats a quote inside an unquoted value as an ordinary character', () => {
+		expect(
+			replaceMergeTokensInHtml('<a title=a"b href="{{a}}">x</a>', resolve),
+		).toBe('<a title=a"b href="">x</a>')
+		expect(
+			replaceMergeTokensInHtml("<a title=a='b href={{a}}>x</a>", resolve),
+		).toBe('<a title=a=\'b href="">x</a>')
+	})
+
+	it('escapes a tag whose quoted value never closes and checks later tags', () => {
+		expect(
+			replaceMergeTokensInHtml(`<a title='x>y<a href="{{a}}">z</a>`, resolve),
+		).toBe(`&lt;a title='x>y<a href="">z</a>`)
+	})
+
 	it('treats a quote outside a value as part of the tag', () => {
 		expect(
 			replaceMergeTokensInHtml('<a data-x"y href="{{a}}">x</a>', resolve),

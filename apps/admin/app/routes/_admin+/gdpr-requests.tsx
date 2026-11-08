@@ -14,6 +14,7 @@ import {
 	like,
 	or,
 } from '@repo/database'
+import { Alert, AlertDescription, AlertTitle } from '@repo/ui/alert'
 import { Badge } from '@repo/ui/badge'
 import { Button } from '@repo/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/ui/card'
@@ -259,7 +260,8 @@ export async function action({ request }: ActionFunctionArgs) {
 				return Response.json({ success: true })
 			}
 			// The App ran nothing and reported no error or hold: another run (the
-			// scheduled job or an earlier click) already claimed the request.
+			// scheduled job or an earlier click) got to the request first. Answer
+			// from the request's state now, not from the empty counts.
 			if (
 				outcome.ok &&
 				outcome.processed === 0 &&
@@ -267,8 +269,20 @@ export async function action({ request }: ActionFunctionArgs) {
 				outcome.held === 0 &&
 				outcome.errors.length === 0
 			) {
+				const [current] = await db
+					.select({ status: DataSubjectRequest.status })
+					.from(DataSubjectRequest)
+					.where(eq(DataSubjectRequest.id, requestId))
+				if (current?.status === 'completed') {
+					return Response.json({ success: true })
+				}
 				return Response.json(
-					{ error: 'This deletion is already in progress' },
+					{
+						error:
+							current?.status === 'processing'
+								? 'This deletion is already in progress'
+								: `The deletion did not run (status: ${current?.status ?? 'missing'})`,
+					},
 					{ status: 409 },
 				)
 			}
@@ -336,7 +350,9 @@ export async function action({ request }: ActionFunctionArgs) {
 export default function GDPRRequestsPage() {
 	const { _ } = useLingui()
 	const { requests, pagination, statistics } = useLoaderData<typeof loader>()
-	const fetcher = useFetcher()
+	const fetcher = useFetcher<{ error?: string }>()
+	const actionError =
+		fetcher.state === 'idle' ? (fetcher.data?.error ?? null) : null
 
 	// App's erasure run holds a request whose user would leave an organization
 	// without an admin, and records `sole_admin: <organization ids>`.
@@ -433,6 +449,17 @@ export default function GDPRRequestsPage() {
 					<Trans>Manage data export and deletion requests for compliance</Trans>
 				}
 			/>
+
+			<div aria-live="polite">
+				{actionError ? (
+					<Alert variant="destructive">
+						<AlertTitle>
+							<Trans>The request was not completed</Trans>
+						</AlertTitle>
+						<AlertDescription>{actionError}</AlertDescription>
+					</Alert>
+				) : null}
+			</div>
 
 			<div className="grid gap-4 md:grid-cols-4">
 				<Card>

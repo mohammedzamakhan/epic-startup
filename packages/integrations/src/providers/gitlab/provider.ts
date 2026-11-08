@@ -15,6 +15,7 @@ import {
 	type MessageData,
 	type OAuthCallbackParams,
 } from '../../types'
+import { storedGitLabInstanceUrl } from './instance-pin.js'
 
 /**
  * GitLab API response interfaces
@@ -151,7 +152,7 @@ export class GitLabProvider extends BaseIntegrationProvider {
 				? JSON.parse(integration.config)
 				: integration.config
 			: null
-		const instanceUrl = (config as any)?.instanceUrl as string
+		const instanceUrl = storedGitLabInstanceUrl(config)
 
 		if (instanceUrl) {
 			const validation = validateInstanceUrl(instanceUrl)
@@ -293,13 +294,18 @@ export class GitLabProvider extends BaseIntegrationProvider {
 	 * Revoke the access token on the integration's GitLab instance (best
 	 * effort, used on disconnect).
 	 */
-	async revokeToken(token: string, integration?: Integration): Promise<void> {
+	async revokeToken(
+		token: string,
+		integration?: Integration,
+		options: { signal?: AbortSignal } = {},
+	): Promise<void> {
 		const revokeUrl = this.getBaseUrl(integration).replace(
 			/\/api\/v4$/,
 			'/oauth/revoke',
 		)
-		const response = await fetch(revokeUrl, {
+		const response = await ssrfSafeFetch(revokeUrl, {
 			method: 'POST',
+			signal: options.signal,
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: new URLSearchParams({
 				client_id: this.clientId,

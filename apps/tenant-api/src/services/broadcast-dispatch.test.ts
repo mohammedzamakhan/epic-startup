@@ -22,7 +22,7 @@ import { getBroadcastHourlyCap } from '../lib/rate-limit.ts'
 import { sendTenantEmail } from '../lib/tenant-email.ts'
 import { operatorRoutes } from '../routes/operator.ts'
 import {
-	BROADCAST_GIVE_UP_MS,
+	BROADCAST_MAX_FAILURES,
 	BROADCAST_STALE_MS,
 	broadcastLease,
 	dispatchBroadcast,
@@ -342,12 +342,12 @@ describe('broadcast dispatch', () => {
 		expect(emailedTo()).toEqual([customer!.email])
 	})
 
-	it('fails a broadcast that still errors long after it was due', async () => {
+	it('fails a broadcast after repeated errors, and a sent batch resets the count', async () => {
 		const db = await getTenantDb(orgId)
 		await emailCustomers(db, 1)
 		const now = Date.now()
 		const id = await campaign(db, {
-			scheduledAt: new Date(now - BROADCAST_GIVE_UP_MS - 60_000),
+			dispatchFailures: BROADCAST_MAX_FAILURES - 1,
 			updatedAt: broadcastLease(now),
 		})
 		vi.mocked(getBroadcastHourlyCap).mockImplementationOnce(() => {
@@ -358,6 +358,15 @@ describe('broadcast dispatch', () => {
 			'failed',
 		)
 		expect((await getCampaign(db, id))?.status).toBe('Failed')
+
+		const recovering = await campaign(db, {
+			dispatchFailures: BROADCAST_MAX_FAILURES - 1,
+			updatedAt: broadcastLease(now),
+		})
+		expect(
+			await dispatchBroadcast(orgId, recovering, broadcastLease(now)),
+		).toBe('completed')
+		expect((await getCampaign(db, recovering))?.dispatchFailures).toBe(0)
 	})
 
 	it('the tick pass claims a due broadcast and sends it detached, without holding the tick', async () => {

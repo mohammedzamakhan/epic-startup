@@ -2,7 +2,6 @@ import { ENV } from 'varlock/env'
 import { listTenantOrgIds } from '@repo/tenant-db'
 import { fanOutStaffTick } from '../services/staff-tick-fanout.ts'
 import { startBroadcastTickForOrg } from '../services/broadcast-dispatch.ts'
-import { pruneSmsSendEventsForOrg } from '../services/sms-send-limits.ts'
 import { runStaffTickForOrg } from '../services/staff-tick-service.ts'
 import { syncEnvFromProcess } from './secrets.ts'
 
@@ -60,7 +59,6 @@ export function startStaffTickInterval(
 					// send in the background (the process keeps running them), so a
 					// large campaign does not delay the next pass.
 					await startBroadcastTickForOrg(orgId)
-					await pruneSmsSendEventsForOrg(orgId)
 					return result
 				},
 			}))

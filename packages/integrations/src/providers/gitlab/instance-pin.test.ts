@@ -18,6 +18,23 @@ describe('pinGitLabInstanceUrl', () => {
 		).toHaveProperty('error')
 	})
 
+	it('pins the instance the OAuth flow stored in metadata', () => {
+		const fromOAuth = JSON.stringify({
+			metadata: { instanceUrl: 'https://gitlab.acme.example' },
+		})
+		expect(
+			pinGitLabInstanceUrl(fromOAuth, {
+				instanceUrl: 'https://attacker.example',
+			}),
+		).toHaveProperty('error')
+		expect(pinGitLabInstanceUrl(fromOAuth, { defaultProject: 'p' })).toEqual({
+			config: {
+				defaultProject: 'p',
+				instanceUrl: 'https://gitlab.acme.example',
+			},
+		})
+	})
+
 	it('keeps the stored instance when an update omits it', () => {
 		expect(pinGitLabInstanceUrl(selfHosted, { defaultProject: 'p' })).toEqual({
 			config: {

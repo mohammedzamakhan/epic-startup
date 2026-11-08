@@ -9,8 +9,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 /**
  * Migration 0019 settles broadcasts saved as scheduled `Draft` rows before the
- * dispatcher existed: future ones become `Scheduled`, past ones `Failed`, so
- * an old campaign is never sent late.
+ * dispatcher existed: future ones become `Scheduled`; past ones stay `Draft`,
+ * which is never sent, so an old campaign never goes out late.
  */
 
 const drizzleDir = path.join(
@@ -47,7 +47,7 @@ describe('migration 0019 (legacy scheduled drafts)', () => {
 		fs.rmSync(tempDir, { recursive: true, force: true })
 	})
 
-	it('schedules future drafts, fails past ones and leaves the rest alone', async () => {
+	it('schedules future drafts and leaves past ones as drafts', async () => {
 		const now = Math.floor(Date.now() / 1000)
 		await client.execute({
 			sql: `INSERT INTO marketing_campaigns (id, name, status, scheduled_at) VALUES
@@ -68,7 +68,7 @@ describe('migration 0019 (legacy scheduled drafts)', () => {
 		expect(rows).toEqual([
 			{ id: 'done', status: 'Completed' },
 			{ id: 'future', status: 'Scheduled' },
-			{ id: 'past', status: 'Failed' },
+			{ id: 'past', status: 'Draft' },
 			{ id: 'plain-draft', status: 'Draft' },
 		])
 	})

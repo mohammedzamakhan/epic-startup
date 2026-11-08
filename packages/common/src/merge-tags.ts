@@ -218,16 +218,72 @@ export function isSafeUrlAttributeValue(attributeValue: string): boolean {
 
 /**
  * Calls `replace` with every start tag (`<name ...>`) in `html` and splices in
- * its result. A tag ends at the first `>` outside a quoted attribute value, as
- * in a browser, so `<a title="x>y" href="...">` is one tag (a regex that stops
- * at any `>` would leave its `href` unchecked). A quote opens a value only
- * right after `=`. A tag whose quoted value never closes is left as it is: a
- * browser drops it.
+ * its result. Tag boundaries follow the HTML tokenizer's attribute states: a
+ * quote opens a value only right after `=` (a quote inside an unquoted value
+ * or an attribute name is an ordinary character), and a `>` inside a quoted
+ * value does not end the tag. So `<a title="x>y" href="...">` and
+ * `<a title=a"b href="...">` are each one tag whose `href` is checked.
+ *
+ * Fails closed: a tag whose quoted value never closes has its `<` escaped to
+ * `&lt;`, and scanning goes on after it, so nothing later in the template is
+ * passed through unchecked.
  */
 function replaceStartTags(
 	html: string,
 	replace: (tag: string) => string,
 ): string {
+	const isSpace = (char: string | undefined) =>
+		char === ' ' ||
+		char === '\t' ||
+		char === '\n' ||
+		char === '\r' ||
+		char === '\f'
+	/** Index of the tag's closing `>`, or -1 when a quoted value never closes. */
+	function tagEnd(start: number): number {
+		let j = start
+		while (
+			j < html.length &&
+			!isSpace(html[j]) &&
+			html[j] !== '/' &&
+			html[j] !== '>'
+		)
+			j++
+		while (j < html.length) {
+			const char = html[j]!
+			if (char === '>') return j
+			if (isSpace(char) || char === '/') {
+				j++
+				continue
+			}
+			// Attribute name (its first character may be `=`).
+			j++
+			while (
+				j < html.length &&
+				!isSpace(html[j]) &&
+				html[j] !== '/' &&
+				html[j] !== '>' &&
+				html[j] !== '='
+			) {
+				j++
+			}
+			let k = j
+			while (isSpace(html[k])) k++
+			if (html[k] !== '=') continue
+			k++
+			while (isSpace(html[k])) k++
+			const quote = html[k]
+			if (quote === '"' || quote === "'") {
+				const close = html.indexOf(quote, k + 1)
+				if (close === -1) return -1
+				j = close + 1
+			} else {
+				while (k < html.length && !isSpace(html[k]) && html[k] !== '>') k++
+				j = k
+			}
+		}
+		return -1
+	}
+
 	let out = ''
 	let copied = 0
 	let i = html.indexOf('<')
@@ -236,30 +292,13 @@ function replaceStartTags(
 			i = html.indexOf('<', i + 1)
 			continue
 		}
-		let j = i + 2
-		let end = -1
-		while (j < html.length) {
-			const char = html[j]!
-			if (char === '>') {
-				end = j
-				break
-			}
-			if (char === '=') {
-				let k = j + 1
-				while (k < html.length && /\s/.test(html[k]!)) k++
-				const quote = html[k]
-				if (quote === '"' || quote === "'") {
-					const close = html.indexOf(quote, k + 1)
-					if (close === -1) break
-					j = close + 1
-					continue
-				}
-				j = k
-				continue
-			}
-			j++
+		const end = tagEnd(i + 1)
+		if (end === -1) {
+			out += `${html.slice(copied, i)}&lt;`
+			copied = i + 1
+			i = html.indexOf('<', copied)
+			continue
 		}
-		if (end === -1) break
 		out += html.slice(copied, i) + replace(html.slice(i, end + 1))
 		copied = end + 1
 		i = html.indexOf('<', copied)

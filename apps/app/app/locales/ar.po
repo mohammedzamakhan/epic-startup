@@ -2582,7 +2582,7 @@ msgstr "محجوز مسبقًا"
 msgid "Already exists."
 msgstr "موجود بالفعل."
 
-#: app/routes/_auth+/signup.tsx:298
+#: app/routes/_auth+/signup.tsx:300
 msgid "Already have an account?"
 msgstr "هل لديك حساب بالفعل؟"
 
@@ -3288,7 +3288,7 @@ msgid "Back to latest"
 msgstr "العودة إلى أحدث الرسائل"
 
 #: app/routes/_auth+/forgot-password.sent.tsx:49
-#: app/routes/_auth+/forgot-password.tsx:300
+#: app/routes/_auth+/forgot-password.tsx:302
 msgid "Back to login"
 msgstr "العودة لتسجيل الدخول"
 
@@ -5090,7 +5090,7 @@ msgstr "أكمل الخطوات التالية."
 msgid "Complete the OAuth flow when prompted"
 msgstr "أكمل عملية OAuth عند المطالبة"
 
-#: app/components/turnstile-widget.tsx:104
+#: app/components/turnstile-widget.tsx:117
 msgid "Complete the security check to continue."
 msgstr "أكمل التحقق الأمني للمتابعة."
 
@@ -15727,7 +15727,7 @@ msgid "Remember me"
 msgstr "تذكرني"
 
 #: app/routes/_auth+/forgot-password.sent.tsx:47
-#: app/routes/_auth+/forgot-password.tsx:298
+#: app/routes/_auth+/forgot-password.tsx:300
 msgid "Remember your password?"
 msgstr "هل تتذكر كلمة المرور الخاصة بك؟"
 
@@ -17208,9 +17208,13 @@ msgstr "أمّن حسابك بخطوة تحقق إضافية"
 msgid "Security"
 msgstr "الأمان"
 
-#: app/components/turnstile-widget.tsx:210
+#: app/components/turnstile-widget.tsx:224
 msgid "Security check"
 msgstr "التحقق الأمني"
+
+#: app/components/turnstile-widget.tsx:115
+msgid "Security check complete."
+msgstr "اكتمل التحقق الأمني."
 
 #: app/components/settings/passkey-manager.tsx:200
 msgid "Security Key"
@@ -17473,7 +17477,7 @@ msgstr "إرسال الآن"
 msgid "Send request"
 msgstr "إرسال الطلب"
 
-#: app/routes/_auth+/forgot-password.tsx:292
+#: app/routes/_auth+/forgot-password.tsx:294
 msgid "Send reset instructions"
 msgstr "إرسال تعليمات إعادة التعيين"
 
@@ -17997,11 +18001,11 @@ msgstr "مرضية"
 msgid "Sick leave"
 msgstr "إجازة مرضية"
 
-#: app/routes/_auth+/signup.tsx:307
+#: app/routes/_auth+/signup.tsx:309
 msgid "Sign in"
 msgstr "تسجيل الدخول"
 
-#: app/routes/_auth+/login.tsx:912
+#: app/routes/_auth+/login.tsx:916
 msgid "Sign In"
 msgstr "تسجيل الدخول"
 
@@ -18017,7 +18021,7 @@ msgstr "تسجيل الخروج"
 msgid "Sign out of all other devices"
 msgstr "تسجيل الخروج من جميع الأجهزة الأخرى"
 
-#: app/routes/_auth+/signup.tsx:291
+#: app/routes/_auth+/signup.tsx:293
 msgid "Sign up"
 msgstr "إنشاء حساب"
 
@@ -19898,7 +19902,7 @@ msgstr "لا يمكن أن تنتهي الوردية الثانية عند وق�
 msgid "The second shift overlaps the first."
 msgstr "الوردية الثانية تتداخل مع الأولى."
 
-#: app/components/turnstile-widget.tsx:217
+#: app/components/turnstile-widget.tsx:231
 msgid "The security check could not load. Turn off content blockers or check your connection, then try again."
 msgstr "تعذّر تحميل التحقق الأمني. أوقف أدوات حظر المحتوى أو تحقق من اتصالك، ثم حاول مرة أخرى."
 
@@ -21322,7 +21326,7 @@ msgstr "جرّب تعديل البحث أو الفلتر."
 #: app/components/staff/schedule/schedule-page.tsx:408
 #: app/components/staff/timeclock-today.tsx:232
 #: app/components/staff/timesheets/timesheets-page.tsx:692
-#: app/components/turnstile-widget.tsx:238
+#: app/components/turnstile-widget.tsx:252
 #: app/routes/_app+/$orgSlug_+/mailbox.tsx:372
 #: app/routes/_app+/$orgSlug_+/phone-agent+/calls.tsx:806
 #: app/routes/_app+/$orgSlug_+/staff+/positions.tsx:159

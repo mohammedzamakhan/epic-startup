@@ -1,5 +1,16 @@
 import { randomUUID } from 'node:crypto'
-import { and, count, eq, gte, isNotNull, lt, lte, min, or } from 'drizzle-orm'
+import {
+	and,
+	count,
+	eq,
+	gte,
+	isNotNull,
+	lt,
+	lte,
+	min,
+	or,
+	sql,
+} from 'drizzle-orm'
 import { sendSms } from '@repo/sms'
 import {
 	getTenantDb,
@@ -46,10 +57,12 @@ export const BROADCAST_BATCH_SIZE = 25
 export const BROADCAST_STALE_MS = 10 * 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
 /**
- * A campaign whose dispatch still throws this long after it was due (or
- * created) is marked `Failed` instead of being resumed again.
+ * Dispatch attempts in a row that may end in an unexpected error before the
+ * campaign is marked `Failed`. Each retry waits for the lease to go stale
+ * (`BROADCAST_STALE_MS`), so this is roughly an hour of failures; a batch that
+ * goes out resets the count.
  */
-export const BROADCAST_GIVE_UP_MS = 3 * 24 * HOUR_MS
+export const BROADCAST_MAX_FAILURES = 6
 /** Campaigns claimed per organization per tick. */
 const MAX_CAMPAIGNS_PER_TICK = 3
 
@@ -205,6 +218,7 @@ export async function dispatchBroadcast(
 
 		const pending = targets.filter((c) => !alreadyMessaged.has(c.id))
 		const cap = getBroadcastHourlyCap(channel)
+		let failuresReset = false
 
 		for (let i = 0; i < pending.length; i += BROADCAST_BATCH_SIZE) {
 			const next = await heartbeat(db, campaignId, currentLease, clock())
@@ -260,6 +274,15 @@ export async function dispatchBroadcast(
 			)
 			const insertedIds = new Set(inserted.map((row) => row.id))
 			const items = candidates.filter((item) => insertedIds.has(item.messageId))
+
+			// A batch is going out: earlier failed attempts were transient.
+			if (!failuresReset && campaign.dispatchFailures > 0) {
+				await db
+					.update(marketingCampaigns)
+					.set({ dispatchFailures: 0 })
+					.where(eq(marketingCampaigns.id, campaignId))
+				failuresReset = true
+			}
 
 			const results = await Promise.allSettled(
 				items.map(({ messageId, customer }) =>
@@ -337,20 +360,18 @@ export async function dispatchBroadcast(
 		// An unexpected error (a database or storage blip) is usually
 		// transient: leave the campaign `Processing`, so its lease goes stale
 		// and a later tick resumes it. Message rows already written are never
-		// resent. Only a campaign that keeps failing past
-		// `BROADCAST_GIVE_UP_MS` is given up on.
+		// resent. After `BROADCAST_MAX_FAILURES` failed attempts in a row the
+		// campaign is marked `Failed`, so an error that never clears stops.
 		try {
 			const handle = db ?? (await getTenantDb(orgId))
-			const row = await handle
-				.select({
-					createdAt: marketingCampaigns.createdAt,
-					scheduledAt: marketingCampaigns.scheduledAt,
+			const [row] = await handle
+				.update(marketingCampaigns)
+				.set({
+					dispatchFailures: sql`${marketingCampaigns.dispatchFailures} + 1`,
 				})
-				.from(marketingCampaigns)
 				.where(eq(marketingCampaigns.id, campaignId))
-				.get()
-			const startedAt = row?.scheduledAt ?? row?.createdAt
-			if (!startedAt || clock() - startedAt.getTime() > BROADCAST_GIVE_UP_MS) {
+				.returning({ failures: marketingCampaigns.dispatchFailures })
+			if (!row || row.failures >= BROADCAST_MAX_FAILURES) {
 				await finish(handle, campaignId, currentLease, 'Failed')
 				return 'failed'
 			}
