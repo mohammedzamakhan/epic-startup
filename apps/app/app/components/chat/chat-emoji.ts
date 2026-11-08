@@ -7,6 +7,7 @@ import { type MarkdownNodeSpec } from 'tiptap-markdown'
  * the `:shortcode:` when the name has no unicode form).
  */
 const SAFE_SHORTCODE = /^[a-z0-9_+-]+$/i
+const SHORTCODE_PATTERN = /:([a-z0-9_+-]+):/gi
 
 export const ChatEmoji = Emoji.extend({
 	addStorage() {
@@ -22,7 +23,41 @@ export const ChatEmoji = Emoji.extend({
 					item?.emoji ?? (SAFE_SHORTCODE.test(name) ? `:${name}:` : ''),
 				)
 			},
-			parse: {},
+			parse: {
+				// Restore image-only emoji (no unicode form) saved as `:name:`.
+				updateDOM(element) {
+					const walker = element.ownerDocument.createTreeWalker(
+						element,
+						NodeFilter.SHOW_TEXT,
+					)
+					const texts: Text[] = []
+					for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+						texts.push(n as Text)
+					}
+					for (const text of texts) {
+						const value = text.data
+						if (!value.includes(':')) continue
+						const fragment = element.ownerDocument.createDocumentFragment()
+						let last = 0
+						let changed = false
+						for (const match of value.matchAll(SHORTCODE_PATTERN)) {
+							const name = match[1]!
+							const item = shortcodeToEmoji(name, emojis)
+							if (!item || item.emoji) continue
+							fragment.append(value.slice(last, match.index))
+							const span = element.ownerDocument.createElement('span')
+							span.setAttribute('data-type', 'emoji')
+							span.setAttribute('data-name', item.name)
+							fragment.append(span)
+							last = match.index + match[0].length
+							changed = true
+						}
+						if (!changed) continue
+						fragment.append(value.slice(last))
+						text.replaceWith(fragment)
+					}
+				},
+			},
 		}
 		return { ...parentStorage, markdown } as typeof parentStorage
 	},

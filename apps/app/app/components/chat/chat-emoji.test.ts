@@ -80,3 +80,11 @@ test('serialized output loads back as text and serializes the same', () => {
 	expect(getMarkdown(reloaded)).toBe(first)
 	reloaded.destroy()
 })
+
+test('an image-only emoji shortcode loads back as an emoji node', () => {
+	const editor = createEditor('so :octocat: here')
+	const json = JSON.stringify(editor.getJSON())
+	expect(json).toContain('"type":"emoji"')
+	expect(getMarkdown(editor)).toBe('so :octocat: here')
+	editor.destroy()
+})
