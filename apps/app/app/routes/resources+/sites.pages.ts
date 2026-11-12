@@ -19,7 +19,11 @@ import {
 	PUBLIC_SITE_RATE_LIMIT,
 } from '#app/utils/rate-limit.server.ts'
 
-/** Search engines take up to 50,000 URLs per sitemap. */
+/**
+ * Most pages one answer lists. Search engines take 50,000 URLs per sitemap and
+ * Sites repeats each page once per language, so 500 stays far below that. A
+ * site with more pages is cut off here, and it is logged.
+ */
 const MAX_LISTED_PAGES = 500
 
 export type PublicSitePageListing = {
@@ -33,6 +37,12 @@ export type PublicSitePageListing = {
 
 export type PublicSitePagesPayload = {
 	pages: PublicSitePageListing[]
+	/**
+	 * What the site's home page is, whether or not it is listed: `none` (no CMS
+	 * home page, so Sites falls back to `/`), `indexable`, or `noindex` (marked
+	 * "hide from search engines", so `/` must stay out of the sitemap).
+	 */
+	homePage: 'none' | 'indexable' | 'noindex'
 }
 
 /**
@@ -41,7 +51,8 @@ export type PublicSitePagesPayload = {
  * `?host=www.acme.com`.
  *
  * Public content only. Drafts and pages marked "hide from search engines" are
- * left out, and it answers 404 until the site is published.
+ * left out of `pages` (the home page's state is still reported in `homePage`),
+ * and it answers 404 until the site is published.
  */
 export async function loader({ request }: LoaderFunctionArgs) {
 	const url = new URL(request.url)
@@ -90,6 +101,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 			title: WebsitePage.title,
 			seoTitle: WebsitePage.seoTitle,
 			seoDescription: WebsitePage.seoDescription,
+			seoNoIndex: WebsitePage.seoNoIndex,
 			updatedAt: WebsitePage.updatedAt,
 		})
 		.from(WebsitePage)
@@ -97,31 +109,47 @@ export async function loader({ request }: LoaderFunctionArgs) {
 			and(
 				eq(WebsitePage.organizationId, org.id),
 				eq(WebsitePage.status, 'published'),
-				eq(WebsitePage.seoNoIndex, false),
 			),
 		)
 		.orderBy(asc(WebsitePage.position), asc(WebsitePage.createdAt))
 		.limit(MAX_LISTED_PAGES)
 
-	const pages: PublicSitePageListing[] = rows.map((row) => {
-		const title =
-			pickLocalized(row.title, defaultLocale, defaultLocale) || row.title
-		const description = row.seoDescription
-			? pickLocalized(row.seoDescription, defaultLocale, defaultLocale) || null
-			: null
-		return {
-			slug: row.slug,
-			isHomePage: row.isHomePage,
-			title:
+	if (rows.length === MAX_LISTED_PAGES) {
+		console.warn(
+			`sites/pages: organization ${org.id} reached the ${MAX_LISTED_PAGES} page cap`,
+		)
+	}
+
+	const home = rows.find((row) => row.isHomePage)
+	const homePage: PublicSitePagesPayload['homePage'] = !home
+		? 'none'
+		: home.seoNoIndex
+			? 'noindex'
+			: 'indexable'
+
+	const pages: PublicSitePageListing[] = rows
+		.filter((row) => !row.seoNoIndex)
+		.map((row) => {
+			const title =
 				(row.seoTitle
 					? pickLocalized(row.seoTitle, defaultLocale, defaultLocale)
-					: '') || title,
-			description,
-			updatedAt: row.updatedAt.toISOString(),
-		}
-	})
+					: '') ||
+				pickLocalized(row.title, defaultLocale, defaultLocale) ||
+				row.slug
+			const description = row.seoDescription
+				? pickLocalized(row.seoDescription, defaultLocale, defaultLocale) ||
+					null
+				: null
+			return {
+				slug: row.slug,
+				isHomePage: row.isHomePage,
+				title,
+				description,
+				updatedAt: row.updatedAt.toISOString(),
+			}
+		})
 
-	return Response.json({ pages } satisfies PublicSitePagesPayload, {
+	return Response.json({ pages, homePage } satisfies PublicSitePagesPayload, {
 		headers: { 'Cache-Control': 'public, max-age=300' },
 	})
 }

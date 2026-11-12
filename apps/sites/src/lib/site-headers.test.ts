@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
 	asAstroResponse,
 	isCareersPage,
+	isSeoFilePath,
 	isSitesAppRoute,
 	publishedHtmlCacheUrl,
 	shouldCachePublishedHtml,
@@ -77,6 +78,22 @@ describe('isSitesAppRoute', () => {
 		expect(isSitesAppRoute('/llms.txt')).toBe(true)
 		expect(isSitesAppRoute('/')).toBe(false)
 		expect(isSitesAppRoute('/about')).toBe(false)
+	})
+})
+
+describe('isSeoFilePath', () => {
+	it('keeps the generated SEO files out of the published-HTML cache', () => {
+		for (const path of ['/robots.txt', '/sitemap.xml', '/llms.txt']) {
+			expect(isSeoFilePath(path)).toBe(true)
+			expect(
+				shouldCachePublishedHtml(
+					new Request(`https://x.test${path}`),
+					new URL(`https://x.test${path}`),
+					true,
+				),
+			).toBe(false)
+		}
+		expect(isSeoFilePath('/about')).toBe(false)
 	})
 })
 

@@ -18,6 +18,19 @@ describe('robots.txt', () => {
 		expect(robots).toContain('Sitemap: https://studio.example/sitemap.xml')
 	})
 
+	it('repeats the rules under every other language prefix', () => {
+		const robots = buildRobotsTxt({
+			origin,
+			indexable: true,
+			locales: { locales: ['en', 'ar'], defaultLocale: 'en' },
+		})
+		expect(robots).toContain('Disallow: /login\n')
+		expect(robots).toContain('Disallow: /ar/login\n')
+		expect(robots).toContain('Disallow: /ar/profile\n')
+		expect(robots).toContain('Disallow: /ar/shop/\n')
+		expect(robots).not.toContain('/en/login')
+	})
+
 	it('closes a host with no published site', () => {
 		expect(buildRobotsTxt({ origin, indexable: false })).toBe(
 			'User-agent: *\nDisallow: /\n',
@@ -103,6 +116,11 @@ describe('llms.txt', () => {
 			'- [About us](https://studio.example/about): Our story',
 		)
 		expect(text.endsWith('\n')).toBe(true)
+	})
+
+	it('escapes backslashes and brackets in text', () => {
+		const text = buildLlmsTxt({ ...base, name: 'A\\B [C]' })
+		expect(text.startsWith('# A\\\\B \\[C\\]\n')).toBe(true)
 	})
 
 	it('leaves out the description, languages and pages when there are none', () => {

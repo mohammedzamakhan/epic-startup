@@ -15,11 +15,20 @@ export const prerender = false
  */
 export const GET: APIRoute = (context) => {
 	if (!isRootSeoRequest(context)) return notFound()
+	const organization = context.locals.organization
 	return textResponse(
 		buildRobotsTxt({
 			origin: seoOrigin(context),
-			indexable: context.locals.organization !== null,
+			indexable: organization !== null,
+			locales: {
+				locales: organization?.locales?.length ? organization.locales : ['en'],
+				defaultLocale: context.locals.defaultLocale,
+			},
 		}),
 		'text/plain; charset=utf-8',
+		200,
+		// A host that is not published yet answers `Disallow: /`; never let that
+		// outlive the publish.
+		organization ? undefined : 'no-store',
 	)
 }

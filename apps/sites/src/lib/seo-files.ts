@@ -33,14 +33,29 @@ export function buildRobotsTxt(options: {
 	origin: string
 	/** False when the host serves no published site. */
 	indexable: boolean
+	/**
+	 * The site's languages. The middleware serves `/<locale>/login` and the
+	 * rest from the same routes, and robots rules match by prefix, so each
+	 * non-default language gets its own copy of the rules.
+	 */
+	locales?: SeoLocales
 }): string {
 	if (!options.indexable) {
 		return 'User-agent: *\nDisallow: /\n'
 	}
+	const { locales = [], defaultLocale } = options.locales ?? {}
+	const prefixes = [
+		'',
+		...locales
+			.filter((locale) => locale !== defaultLocale)
+			.map((locale) => `/${locale}`),
+	]
 	return [
 		'User-agent: *',
 		'Allow: /',
-		...DISALLOWED_PATHS.map((path) => `Disallow: ${path}`),
+		...prefixes.flatMap((prefix) =>
+			DISALLOWED_PATHS.map((path) => `Disallow: ${prefix}${path}`),
+		),
 		'',
 		`Sitemap: ${options.origin}/sitemap.xml`,
 		'',
@@ -143,7 +158,7 @@ export type LlmsInput = {
 function inline(value: string | null | undefined): string {
 	return (value ?? '')
 		.replace(/\s+/g, ' ')
-		.replace(/([[\]])/g, '\\$1')
+		.replace(/([\\[\]])/g, '\\$1')
 		.trim()
 }
 

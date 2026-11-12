@@ -251,22 +251,30 @@ export type PublicSitePageListing = {
 	updatedAt: string
 }
 
+export type PublicSitePages = {
+	pages: PublicSitePageListing[]
+	homePage: 'none' | 'indexable' | 'noindex'
+}
+
 /**
  * Published pages that may appear in search results (no drafts, no pages
  * marked "hide from search engines"), for `sitemap.xml` and `llms.txt`.
+ * `null` means the call failed (App down, rate limited), which is different
+ * from a site that really has no pages.
  */
 export async function fetchPublishedSitePages(options: {
 	slug?: string | null
 	host?: string | null
-}): Promise<PublicSitePageListing[]> {
+}): Promise<PublicSitePages | null> {
 	const params = new URLSearchParams()
 	if (options.slug) params.set('slug', options.slug)
 	if (options.host) params.set('host', options.host)
-	if (!params.size) return []
-	const data = await fetchAppJson<{ pages: PublicSitePageListing[] }>(
+	if (!params.size) return null
+	const data = await fetchAppJson<Partial<PublicSitePages>>(
 		`${getAppUrl()}/resources/sites/pages?${params.toString()}`,
 	)
-	return Array.isArray(data?.pages) ? data.pages : []
+	if (!data || !Array.isArray(data.pages)) return null
+	return { pages: data.pages, homePage: data.homePage ?? 'none' }
 }
 
 export type PublicShopProduct = {

@@ -66,6 +66,27 @@ describe('GET /resources/sites/pages', () => {
 			isHomePage: false,
 		})
 		expect(typeof body.pages[1].updatedAt).toBe('string')
+		expect(body.homePage).toBe('indexable')
+	})
+
+	it('reports a noindex home page without listing it', async () => {
+		const org = await setup()
+		await page(org.id, { slug: 'home', isHomePage: true, seoNoIndex: true })
+		await page(org.id, { slug: 'about' })
+		const { body } = await call(`slug=${org.slug}`)
+		expect(body.pages.map((p: any) => p.slug)).toEqual(['about'])
+		expect(body.homePage).toBe('noindex')
+	})
+
+	it('reports no home page, and falls back to the slug for an empty title', async () => {
+		const org = await setup()
+		await page(org.id, {
+			slug: 'team',
+			title: JSON.stringify({ en: '', ar: '' }),
+		})
+		const { body } = await call(`slug=${org.slug}`)
+		expect(body.homePage).toBe('none')
+		expect(body.pages[0].title).toBe('team')
 	})
 
 	it('answers 404 until the site is published', async () => {

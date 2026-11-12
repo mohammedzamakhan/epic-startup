@@ -1,3 +1,5 @@
+import { msg } from '@lingui/core/macro'
+import { createSiteI18n } from '~/lib/i18n'
 import {
 	type PublicOrganization,
 	fetchPublishedCareers,
@@ -20,22 +22,26 @@ export type SiteSeoData = {
 /**
  * Everything public that `sitemap.xml` and `llms.txt` list for one site. Each
  * source is optional: a module that is off (or a call that fails) just leaves
- * its pages out.
+ * its pages out. `null` means the page list itself could not be loaded, so the
+ * caller answers 503 instead of publishing a near-empty file.
  */
 export async function loadSiteSeoData(
 	organization: PublicOrganization,
 	where: { slug: string | null; host: string | null },
-): Promise<SiteSeoData> {
+): Promise<SiteSeoData | null> {
 	const locales: SeoLocales = {
 		locales: organization.locales?.length ? organization.locales : ['en'],
 		defaultLocale: organization.defaultLocale ?? 'en',
 	}
 
-	const [pages, careers, shop] = await Promise.all([
+	const [pageList, careers, shop] = await Promise.all([
 		fetchPublishedSitePages(where),
 		fetchPublishedCareers({ ...where, locale: locales.defaultLocale }),
 		fetchPublishedShopProduct(where),
 	])
+
+	if (!pageList) return null
+	const { pages, homePage } = pageList
 
 	const sitemap: SitemapEntry[] = []
 	const links: LlmsInput['links'] = []
@@ -50,7 +56,9 @@ export async function loadSiteSeoData(
 		}
 		links.push({ title: page.title, path, description: page.description })
 	}
-	if (!sitemap.some((entry) => entry.path === '/')) {
+	// A site with no CMS home page still serves `/`. One whose home page is
+	// marked "hide from search engines" must not list it.
+	if (homePage === 'none' && !sitemap.some((entry) => entry.path === '/')) {
 		sitemap.unshift({ path: '/' })
 	}
 
@@ -62,7 +70,8 @@ export async function loadSiteSeoData(
 	const postings = careers?.postings ?? []
 	if (postings.length) {
 		sitemap.push({ path: '/careers' })
-		links.push({ title: 'Careers', path: '/careers' })
+		const careersTitle = createSiteI18n(locales.defaultLocale)._(msg`Careers`)
+		links.push({ title: careersTitle, path: '/careers' })
 		for (const posting of postings) {
 			sitemap.push({ path: `/careers/${encodeURIComponent(posting.slug)}` })
 		}

@@ -17,20 +17,38 @@ export function textResponse(
 	body: string,
 	contentType: string,
 	status = 200,
+	cacheControl?: string,
 ): Response {
 	return new Response(body, {
 		status,
 		headers: {
 			'Content-Type': contentType,
-			// Short at the edge so a publish shows up within minutes.
+			// Short at the edge so a publish shows up within minutes. The
+			// middleware leaves these paths out of its HTML cache, so this is the
+			// header clients see.
 			'Cache-Control':
-				status === 200
+				cacheControl ??
+				(status === 200
 					? 'public, max-age=300, s-maxage=300, stale-while-revalidate=3600'
-					: 'no-store',
+					: 'no-store'),
 		},
 	})
 }
 
 export function notFound(): Response {
 	return textResponse('Not Found', 'text/plain; charset=utf-8', 404)
+}
+
+/**
+ * The page list could not be loaded (App down, rate limited). Crawlers retry a
+ * 503 and do not trust it, unlike a short sitemap served as a 200.
+ */
+export function serviceUnavailable(): Response {
+	const response = textResponse(
+		'Service Unavailable',
+		'text/plain; charset=utf-8',
+		503,
+	)
+	response.headers.set('Retry-After', '60')
+	return response
 }

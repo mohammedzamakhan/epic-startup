@@ -59,19 +59,29 @@ lists its own pages. Builders live in `apps/sites/src/lib/seo-files.ts` and the
 data comes from `loadSiteSeoData` (`seo-data.ts`).
 
 - `robots.txt` points at that site's sitemap and keeps account, login and
-  checkout pages out of search. A host with no published site gets
-  `Disallow: /`.
+  checkout pages out of search, once per language prefix (`/login` and
+  `/ar/login`), because robots rules match by prefix. A host with no published
+  site gets `Disallow: /`, never cached.
 - `sitemap.xml` lists the home page, every published page that is not marked
   "hide from search engines", the shop product when there is one, and the
-  careers page and open postings when hiring is on. Each URL is listed once per
-  language with `hreflang` alternates.
+  careers page and open postings when hiring is on. A home page marked "hide
+  from search engines" is left out too; `/` is listed only when the site has no
+  CMS home page at all. Each URL is listed once per language with `hreflang`
+  alternates.
 - `llms.txt` ([llmstxt.org](https://llmstxt.org)) is a short Markdown summary
   for AI assistants: the site name, its description and its pages.
 - All three exist only at the site root. A language-prefixed copy such as
-  `/ar/sitemap.xml` is a 404. Responses are cached for five minutes.
+  `/ar/sitemap.xml` is a 404. Responses are cached for five minutes by the
+  route's own `Cache-Control`; the middleware keeps these paths out of its
+  published-HTML edge cache so that header is the one clients see.
+- If the page list cannot be loaded (App down, rate limited), `sitemap.xml` and
+  `llms.txt` answer `503` with `Retry-After` and `no-store` rather than a
+  near-empty 200 that crawlers would trust.
 - Page data comes from the App's public `GET /resources/sites/pages` (by `slug`
   or custom `host`). It is rate limited, public content only, and answers 404
-  until the site is published. Drafts and `seoNoIndex` pages are never listed.
+  until the site is published. Drafts and `seoNoIndex` pages are never listed;
+  `homePage` (`none`, `indexable` or `noindex`) tells Sites whether to add `/`.
+  At most 500 pages are listed (logged when reached).
 - A vertical that adds public pages (a menu, say) extends `loadSiteSeoData` with
   its own paths and `llms.txt` links.
 

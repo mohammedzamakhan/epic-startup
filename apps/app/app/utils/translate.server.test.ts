@@ -36,7 +36,8 @@ describe('translateTexts', () => {
 			string,
 			RequestInit,
 		]
-		expect(url).toContain('key=test-key')
+		expect(url).not.toContain('key=')
+		expect(init.headers).toMatchObject({ 'X-Goog-Api-Key': 'test-key' })
 		expect(JSON.parse(init.body as string)).toEqual({
 			q: ['Hello', 'Bye'],
 			source: 'en',

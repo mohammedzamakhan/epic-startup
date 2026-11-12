@@ -4,6 +4,7 @@ import { buildSitemapXml } from '~/lib/seo-files'
 import {
 	isRootSeoRequest,
 	notFound,
+	serviceUnavailable,
 	seoOrigin,
 	textResponse,
 } from '~/lib/seo-response'
@@ -18,6 +19,7 @@ export const GET: APIRoute = async (context) => {
 		slug: context.locals.orgSlug,
 		host: context.locals.customHost,
 	})
+	if (!data) return serviceUnavailable()
 	return textResponse(
 		buildSitemapXml(seoOrigin(context), data.sitemap, data.locales),
 		'application/xml; charset=utf-8',

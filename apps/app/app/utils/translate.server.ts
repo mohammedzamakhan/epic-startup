@@ -35,10 +35,15 @@ export async function translateTexts({
 	if (texts.length === 0) return []
 
 	const response = await fetchImpl(
-		`https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(apiKey)}`,
+		'https://translation.googleapis.com/language/translate/v2',
 		{
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			// The key goes in a header, not the URL, so it stays out of proxy logs.
+			headers: {
+				'Content-Type': 'application/json',
+				'X-Goog-Api-Key': apiKey,
+			},
+			signal: AbortSignal.timeout(15_000),
 			body: JSON.stringify({
 				q: texts,
 				source: sourceLang,
