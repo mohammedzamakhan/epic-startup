@@ -3,7 +3,9 @@ import { ENV } from 'varlock/env'
 import { getPageTitle } from '@repo/config/brand'
 import SitePage from '~/components/SitePage.astro'
 import RenderBlocks from '~/components/blocks/RenderBlocks.astro'
+import { resolveMediaUrl } from '~/lib/media'
 import { fetchPublishedSitePage } from '~/lib/org'
+import { siteStructuredData } from '~/lib/site-jsonld'
 import { buildSiteThemeCss } from '@repo/common/site-theme'
 
 const orgSlug = Astro.locals.orgSlug
@@ -104,6 +106,20 @@ const pageTitle = seoTitle
 	? getPageTitle(`${seoTitle} - ${organization.name}`)
 	: getPageTitle(organization.name)
 const seoDescription = page?.seo?.description || undefined
+
+// Organization and WebSite structured data. Never in preview.
+const defaultLocale = organization.defaultLocale ?? 'en'
+const structuredData =
+	Astro.url.searchParams.get('preview') === 'true'
+		? null
+		: siteStructuredData({
+				origin: Astro.url.origin,
+				name: organization.name,
+				locale: requestedLocale || defaultLocale,
+				defaultLocale,
+				logoUrl: resolveMediaUrl(organization.siteIcon?.original),
+				description: seoDescription,
+			})
 const appOrigin = (ENV.PUBLIC_APP_URL || 'http://localhost:3001').replace(
 	/\/$/,
 	'',
@@ -125,6 +141,11 @@ const seoNoIndex = page?.seo?.noIndex ?? false
 	imageUrl={seoImageUrl}
 	noIndex={seoNoIndex}
 >
+	{
+		structuredData ? (
+			<script slot="head" type="application/ld+json" is:inline set:html={structuredData} />
+		) : null
+	}
 	{
 		page ? (
 			<RenderBlocks sections={page.sections} />

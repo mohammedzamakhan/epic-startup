@@ -107,6 +107,18 @@ export function isCareersPage(pathname: string) {
 	return segments[offset] === 'careers'
 }
 
+/**
+ * `robots.txt`, `sitemap.xml` and `llms.txt` are generated per site and set
+ * their own `Cache-Control`; they are not published HTML.
+ */
+export function isSeoFilePath(pathname: string) {
+	return (
+		pathname === '/robots.txt' ||
+		pathname === '/sitemap.xml' ||
+		pathname === '/llms.txt'
+	)
+}
+
 export function shouldCachePublishedHtml(
 	request: Request,
 	url: URL,
@@ -117,6 +129,7 @@ export function shouldCachePublishedHtml(
 	if (url.searchParams.has('preview')) return false
 	if (url.pathname.startsWith('/api/')) return false
 	if (isCareersPage(url.pathname)) return false
+	if (isSeoFilePath(url.pathname)) return false
 	return true
 }
 
@@ -126,6 +139,10 @@ const APP_ROUTE_SLUGS = new Set([
 	'complete-name',
 	'profile',
 	'shop',
+	// Generated per site (src/pages): never a CMS page.
+	'robots.txt',
+	'sitemap.xml',
+	'llms.txt',
 ])
 
 export function isSitesShopRoute(pathname: string) {
