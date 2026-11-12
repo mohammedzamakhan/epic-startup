@@ -152,6 +152,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
 	'resources+/sites.careers.ts':
 		'public job feed; 404 unless the site is published and staffing.hiring is on',
 	'resources+/sites.not-found.ts': 'public site 404 counter; rate limited',
+	'resources+/sites.pages.ts':
+		'public list of published, indexable page slugs for sitemaps; rate limited, 404 unless published',
 	'resources+/sites.redirect-hit.ts':
 		'public site redirect counter; rate limited',
 	'resources+/sites.shop.checkout.return.ts':

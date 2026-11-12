@@ -126,6 +126,10 @@ const APP_ROUTE_SLUGS = new Set([
 	'complete-name',
 	'profile',
 	'shop',
+	// Generated per site (src/pages): never a CMS page.
+	'robots.txt',
+	'sitemap.xml',
+	'llms.txt',
 ])
 
 export function isSitesShopRoute(pathname: string) {
