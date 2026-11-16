@@ -402,6 +402,97 @@ describe('MarketingJourneyWorkflow', () => {
 		)
 	})
 
+	describe('a condition with one wired branch', () => {
+		async function runCondition(
+			sourceHandle: string | undefined,
+			conditionResult: boolean,
+		) {
+			mockStep.do.mockClear()
+			globalThis.fetch = vi
+				.fn()
+				.mockImplementation(async (url: string | URL | Request) => {
+					if (url.toString().includes('/api/journeys/evaluate-condition')) {
+						return Response.json({ result: conditionResult })
+					}
+					return Response.json({ success: true })
+				})
+			const result = await createWorkflowInstance(env).run(
+				{
+					payload: {
+						orgId: 'org_1',
+						journeyId: 'journey_1',
+						runId: 'run_single_branch',
+						customerId: 'cust_1',
+						graph: {
+							nodes: [
+								{ id: 'node_trigger', type: 'trigger', data: {} },
+								{
+									id: 'node_cond',
+									type: 'condition',
+									data: {
+										field: 'purchased',
+										operator: 'equals',
+										value: 'true',
+									},
+								},
+								{
+									id: 'node_action',
+									type: 'action_email',
+									data: { subject: 'Reminder' },
+								},
+							],
+							edges: [
+								{ id: 'e1', source: 'node_trigger', target: 'node_cond' },
+								{
+									id: 'e2',
+									source: 'node_cond',
+									target: 'node_action',
+									...(sourceHandle ? { sourceHandle } : {}),
+								},
+							],
+						},
+					},
+				} as any,
+				mockStep as any,
+			)
+			const ranAction = mockStep.do.mock.calls.some(
+				([name]: [string]) => name === 'action-node_action',
+			)
+			return { result, ranAction }
+		}
+
+		it.each([
+			['false', true],
+			['true', false],
+		])(
+			'ends the run when only the "%s" branch is wired and the result is %s',
+			async (sourceHandle, conditionResult) => {
+				const { result, ranAction } = await runCondition(
+					sourceHandle,
+					conditionResult,
+				)
+				expect(result.status).toBe('completed')
+				expect(ranAction).toBe(false)
+			},
+		)
+
+		it.each([
+			['false', false],
+			['true', true],
+		])(
+			'follows the "%s" branch when the result is %s',
+			async (sourceHandle, conditionResult) => {
+				const { ranAction } = await runCondition(sourceHandle, conditionResult)
+				expect(ranAction).toBe(true)
+			},
+		)
+
+		it('treats an edge with no handle as the "true" branch', async () => {
+			expect((await runCondition(undefined, true)).ranAction).toBe(true)
+			expect((await runCondition(undefined, false)).ranAction).toBe(false)
+		})
+	})
+
 	it('routes to regional tenant-api URL based on dataRegion (KSA vs US)', async () => {
 		const fetchMock = vi.fn().mockImplementation(async () => {
 			return new Response(JSON.stringify({ success: true }), {
