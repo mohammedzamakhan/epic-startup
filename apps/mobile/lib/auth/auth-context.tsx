@@ -105,12 +105,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 				// Signup successful - user needs to verify email
 				dispatch({ type: 'SET_LOADING', payload: { isLoading: false } })
 			} else {
-				dispatch({
-					type: 'AUTH_ERROR',
-					payload: {
-						error: response.error || response.message || 'Signup failed',
-					},
-				})
+				// Throw so the caller knows it failed; the catch below records it.
+				throw new Error(response.error || response.message || 'Signup failed')
 			}
 		} catch (error) {
 			dispatch({
@@ -119,6 +115,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 					error: error instanceof Error ? error.message : 'Signup failed',
 				},
 			})
+			// Re-throw so the calling screen does not show success.
+			throw error
 		}
 	}, [])
 
@@ -178,23 +176,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
 							payload: { user, tokens },
 						})
 					} else {
-						dispatch({
-							type: 'AUTH_ERROR',
-							payload: {
-								error:
-									response.error ||
-									response.message ||
-									'OAuth authentication failed',
-							},
-						})
+						// Throw so the caller knows it failed; the catch below records it.
+						throw new Error(
+							response.error ||
+								response.message ||
+								'OAuth authentication failed',
+						)
 					}
 				} else {
 					// This should not happen when called from OAuth hook
 					// The OAuth hook handles the authorization flow and passes the code
-					dispatch({
-						type: 'AUTH_ERROR',
-						payload: { error: 'OAuth authorization code is required' },
-					})
+					throw new Error('OAuth authorization code is required')
 				}
 			} catch (error) {
 				dispatch({
@@ -204,6 +196,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 							error instanceof Error ? error.message : 'Social login failed',
 					},
 				})
+				// Re-throw so the calling screen does not show success.
+				throw error
 			}
 		},
 		[tokenManager],
@@ -363,13 +357,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 					// Verification successful - user can proceed to onboarding
 					dispatch({ type: 'SET_LOADING', payload: { isLoading: false } })
 				} else {
-					dispatch({
-						type: 'AUTH_ERROR',
-						payload: {
-							error:
-								response.error || response.message || 'Verification failed',
-						},
-					})
+					// Throw so the caller knows it failed; the catch below records it.
+					throw new Error(
+						response.error || response.message || 'Verification failed',
+					)
 				}
 			} catch (error) {
 				dispatch({
@@ -379,6 +370,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 							error instanceof Error ? error.message : 'Verification failed',
 					},
 				})
+				// Re-throw so the calling screen does not show success.
+				throw error
 			}
 		},
 		[],
@@ -436,13 +429,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 						payload: { user, tokens },
 					})
 				} else {
-					dispatch({
-						type: 'AUTH_ERROR',
-						payload: {
-							error:
-								response.error || response.message || 'Account creation failed',
-						},
-					})
+					// Throw so the caller knows it failed; the catch below records it.
+					throw new Error(
+						response.error || response.message || 'Account creation failed',
+					)
 				}
 			} catch (error) {
 				dispatch({
@@ -454,6 +444,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 								: 'Account creation failed',
 					},
 				})
+				// Re-throw so the calling screen does not show success.
+				throw error
 			}
 		},
 		[tokenManager],
