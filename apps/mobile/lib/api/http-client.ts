@@ -166,8 +166,10 @@ export class HttpClient {
 			})
 		}
 
+		// Only what differs from the defaults. The defaults (including
+		// `Authorization`) are merged when the request is sent, so a token
+		// refreshed in between is not overridden by a stale copy.
 		const headers = {
-			...this.config.defaultHeaders,
 			...config?.headers,
 			'Content-Type': 'application/x-www-form-urlencoded',
 		}
