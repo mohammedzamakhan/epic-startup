@@ -2,6 +2,7 @@ import { db, eq, Organization } from '@repo/database'
 import type * as paymentsModule from '@repo/payments'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { consoleWarn } from '#tests/setup/setup-test-env.ts'
 import {
 	createTestOrganization,
 	createTestSession,
@@ -107,8 +108,12 @@ vi.mock('@repo/payments', async (importOriginal) => {
 	}
 })
 
-const { checkoutAction, getTrialStatus, handleSubscriptionChange } =
-	await import('./payments.server.ts')
+const {
+	checkoutAction,
+	getTrialStatus,
+	handleSubscriptionChange,
+	linkCheckoutSubscription,
+} = await import('./payments.server.ts')
 
 function event(id: string, status: string, customer: string, product: string) {
 	return { id, status, customer, items: [{ price: { id: 'price', product } }] }
@@ -125,6 +130,111 @@ async function orgBilling(organizationId: string) {
 		.where(eq(Organization.id, organizationId))
 	return org
 }
+
+describe('checkout.session.completed links a new subscription', () => {
+	beforeEach(() => {
+		stripeState.subscriptions.clear()
+		stripeState.cancelled.length = 0
+		stripeState.failCancel.clear()
+	})
+
+	async function newOrg() {
+		const user = await createTestUser()
+		return createTestOrganization(user.id, 'admin')
+	}
+
+	async function customerOf(organizationId: string) {
+		const [org] = await db
+			.select({ stripeCustomerId: Organization.stripeCustomerId })
+			.from(Organization)
+			.where(eq(Organization.id, organizationId))
+		return org?.stripeCustomerId ?? null
+	}
+
+	function session(organizationId: string, n: number, overrides = {}) {
+		return {
+			mode: 'subscription',
+			customer: `cus_first_${n}`,
+			subscription: `sub_first_${n}`,
+			metadata: { organizationId },
+			...overrides,
+		}
+	}
+
+	it('gives the organization its plan when the browser never returns', async () => {
+		const organization = await newOrg()
+		stripeState.subscriptions.set('sub_first_1', {
+			status: 'active',
+			customerId: 'cus_first_1',
+			productId: 'prod_pro',
+		})
+
+		await linkCheckoutSubscription(session(organization.id, 1))
+
+		expect(await customerOf(organization.id)).toBe('cus_first_1')
+		expect(await orgBilling(organization.id)).toMatchObject({
+			stripeSubscriptionId: 'sub_first_1',
+			subscriptionStatus: 'active',
+			planName: 'Pro',
+		})
+	})
+
+	it('is safe to deliver twice and after the success page already linked it', async () => {
+		const organization = await newOrg()
+		stripeState.subscriptions.set('sub_first_2', {
+			status: 'trialing',
+			customerId: 'cus_first_2',
+			productId: 'prod_pro',
+		})
+
+		await linkCheckoutSubscription(session(organization.id, 2))
+		await linkCheckoutSubscription(session(organization.id, 2))
+
+		expect(await orgBilling(organization.id)).toMatchObject({
+			stripeSubscriptionId: 'sub_first_2',
+			subscriptionStatus: 'trialing',
+		})
+		expect(stripeState.cancelled).toEqual([])
+	})
+
+	it('does not replace a different customer the organization already has', async () => {
+		const organization = await newOrg()
+		await db
+			.update(Organization)
+			.set({ stripeCustomerId: 'cus_existing' })
+			.where(eq(Organization.id, organization.id))
+		stripeState.subscriptions.set('sub_first_3', {
+			status: 'active',
+			customerId: 'cus_first_3',
+			productId: 'prod_pro',
+		})
+
+		consoleWarn.mockImplementation(() => {})
+		await linkCheckoutSubscription(session(organization.id, 3))
+
+		expect(consoleWarn).toHaveBeenCalledTimes(1)
+		expect(await customerOf(organization.id)).toBe('cus_existing')
+		expect(await orgBilling(organization.id)).toMatchObject({
+			stripeSubscriptionId: null,
+		})
+	})
+
+	it('ignores sessions that are not a platform subscription checkout', async () => {
+		const organization = await newOrg()
+
+		await linkCheckoutSubscription(
+			session(organization.id, 4, { mode: 'payment' }),
+		)
+		await linkCheckoutSubscription(
+			session(organization.id, 4, { metadata: {} }),
+		)
+		await linkCheckoutSubscription(
+			session(organization.id, 4, { subscription: null }),
+		)
+
+		expect(await customerOf(organization.id)).toBeNull()
+	})
+})
 
 describe('subscription webhooks delivered late or out of order', () => {
 	beforeEach(() => {

@@ -319,6 +319,67 @@ export async function createCustomerPortalSession(
 	})
 }
 
+/**
+ * Links a subscription bought through Checkout to its organization, from the
+ * `checkout.session.completed` webhook. A first purchase has no Stripe
+ * customer on the organization yet, and the browser's success URL was the only
+ * place that stored it: a closed tab left a paying organization without a plan
+ * and with every later subscription event dropped.
+ *
+ * The organization id comes from the session metadata the app set when it
+ * created the session, on a signature-verified platform event.
+ */
+export async function linkCheckoutSubscription(session: {
+	mode?: string | null
+	customer?: string | { id: string } | null
+	subscription?: string | { id: string } | null
+	metadata?: Record<string, string> | null
+}) {
+	if (session.mode !== 'subscription') return
+	const customerId =
+		typeof session.customer === 'string'
+			? session.customer
+			: session.customer?.id
+	const subscriptionId =
+		typeof session.subscription === 'string'
+			? session.subscription
+			: session.subscription?.id
+	const organizationId = session.metadata?.organizationId
+	if (!customerId || !subscriptionId || !organizationId) return
+
+	// Never replace a customer the organization already has.
+	await db
+		.update(OrganizationTable)
+		.set({ stripeCustomerId: customerId, updatedAt: new Date() })
+		.where(
+			and(
+				eq(OrganizationTable.id, organizationId),
+				isNull(OrganizationTable.stripeCustomerId),
+			),
+		)
+
+	const [organization] = await db
+		.select({ stripeCustomerId: OrganizationTable.stripeCustomerId })
+		.from(OrganizationTable)
+		.where(eq(OrganizationTable.id, organizationId))
+		.limit(1)
+	if (organization?.stripeCustomerId !== customerId) {
+		console.warn(
+			`Checkout subscription ${subscriptionId} (customer ${customerId}) was not linked: organization ${organizationId} is missing or has another customer`,
+		)
+		return
+	}
+
+	// Applies the subscription as Stripe holds it now, with the same ordering
+	// and replay guards as the subscription events.
+	await handleSubscriptionChange({
+		id: subscriptionId,
+		status: '',
+		customer: customerId,
+		items: [],
+	})
+}
+
 export async function handleSubscriptionChange(subscription: {
 	id: string
 	status: string
