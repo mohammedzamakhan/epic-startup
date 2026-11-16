@@ -17,6 +17,7 @@ import {
 	asAstroResponse,
 	edgeCache,
 	isCareersPage,
+	isShopOrderStatusPage,
 	isSitesAppRoute,
 	isSitesProduction,
 	publishedHtmlCacheUrl,
@@ -331,7 +332,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	const htmlCacheControl = cacheHtml
 		? 'public, max-age=60, s-maxage=60, stale-while-revalidate=300'
-		: isCareersPage(url.pathname)
+		: isCareersPage(url.pathname) || isShopOrderStatusPage(url.pathname)
 			? 'no-store'
 			: undefined
 	const secured = withSecurityHeaders(
