@@ -1,6 +1,10 @@
 import { createId as cuid } from '@paralleldrive/cuid2'
 import { ENV } from './package-env.js'
-import { createCookieSessionStorage, redirect } from 'react-router'
+import {
+	createCookieSessionStorage,
+	redirect,
+	type SessionStorage,
+} from 'react-router'
 import { z } from 'zod'
 import { combineHeaders } from './misc.js'
 
@@ -16,32 +20,55 @@ const ToastSchema = z.object({
 export type Toast = z.infer<typeof ToastSchema>
 export type ToastInput = z.input<typeof ToastSchema>
 
-if (!ENV.SESSION_SECRET) {
-	throw new Error(
-		'SESSION_SECRET environment variable is required but not set. ' +
-			'Please add SESSION_SECRET to your .env file. ' +
-			'Example: SESSION_SECRET=your-secret-key-here',
-	)
+/**
+ * Read at first use, not at module load: on Cloudflare Workers the bindings
+ * reach `ENV` only after the server build has loaded, so a top-level read
+ * would capture the build default instead of the deployed secret.
+ */
+function getToastSecrets(): string[] {
+	if (!ENV.SESSION_SECRET) {
+		throw new Error(
+			'SESSION_SECRET environment variable is required but not set. ' +
+				'Please add SESSION_SECRET to your .env file. ' +
+				'Example: SESSION_SECRET=your-secret-key-here',
+		)
+	}
+	const secrets = ENV.SESSION_SECRET.split(',').map((s) => s.trim())
+	if (secrets.length === 0 || secrets.some((s) => s.length === 0)) {
+		throw new Error(
+			'SESSION_SECRET must contain at least one non-empty secret. ' +
+				'Example: SESSION_SECRET=your-secret-key-here',
+		)
+	}
+	return secrets
 }
 
-const toastSecrets = ENV.SESSION_SECRET.split(',').map((s) => s.trim())
-if (toastSecrets.length === 0 || toastSecrets.some((s) => s.length === 0)) {
-	throw new Error(
-		'SESSION_SECRET must contain at least one non-empty secret. ' +
-			'Example: SESSION_SECRET=your-secret-key-here',
-	)
+let _toastSessionStorage: SessionStorage | undefined
+
+function getToastSessionStorage(): SessionStorage {
+	return (_toastSessionStorage ??= createCookieSessionStorage({
+		cookie: {
+			name: 'en_toast',
+			sameSite: 'lax',
+			path: '/',
+			httpOnly: true,
+			secrets: getToastSecrets(),
+			secure: ENV.NODE_ENV === 'production',
+		},
+	}))
 }
 
-export const toastSessionStorage = createCookieSessionStorage({
-	cookie: {
-		name: 'en_toast',
-		sameSite: 'lax',
-		path: '/',
-		httpOnly: true,
-		secrets: toastSecrets,
-		secure: ENV.NODE_ENV === 'production',
+export const toastSessionStorage: SessionStorage = {
+	getSession(...args) {
+		return getToastSessionStorage().getSession(...args)
 	},
-})
+	commitSession(...args) {
+		return getToastSessionStorage().commitSession(...args)
+	},
+	destroySession(...args) {
+		return getToastSessionStorage().destroySession(...args)
+	},
+}
 
 export async function redirectWithToast(
 	url: string,

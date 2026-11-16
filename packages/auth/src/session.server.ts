@@ -5,20 +5,27 @@ import {
 } from '@repo/common/cookie-domain'
 import { ENV } from './package-env.js'
 
-if (!ENV.SESSION_SECRET) {
-	throw new Error(
-		'SESSION_SECRET environment variable is required but not set. ' +
-			'Please add SESSION_SECRET to your .env file. ' +
-			'Example: SESSION_SECRET=your-secret-key-here',
-	)
-}
-
-const sessionSecrets = ENV.SESSION_SECRET.split(',').map((s) => s.trim())
-if (sessionSecrets.length === 0 || sessionSecrets.some((s) => s.length === 0)) {
-	throw new Error(
-		'SESSION_SECRET must contain at least one non-empty secret. ' +
-			'Example: SESSION_SECRET=your-secret-key-here',
-	)
+/**
+ * Read at first use, not at module load: on Cloudflare Workers the bindings
+ * reach `ENV` only after the server build has loaded, so a top-level read
+ * would capture the build default instead of the deployed secret.
+ */
+function getSessionSecrets(): string[] {
+	if (!ENV.SESSION_SECRET) {
+		throw new Error(
+			'SESSION_SECRET environment variable is required but not set. ' +
+				'Please add SESSION_SECRET to your .env file. ' +
+				'Example: SESSION_SECRET=your-secret-key-here',
+		)
+	}
+	const secrets = ENV.SESSION_SECRET.split(',').map((s) => s.trim())
+	if (secrets.length === 0 || secrets.some((s) => s.length === 0)) {
+		throw new Error(
+			'SESSION_SECRET must contain at least one non-empty secret. ' +
+				'Example: SESSION_SECRET=your-secret-key-here',
+		)
+	}
+	return secrets
 }
 
 /**
@@ -44,7 +51,7 @@ function getAuthSessionStorage(): SessionStorage {
 			path: '/',
 			httpOnly: true,
 			domain,
-			secrets: sessionSecrets,
+			secrets: getSessionSecrets(),
 			secure: ENV.NODE_ENV === 'production',
 		},
 	})

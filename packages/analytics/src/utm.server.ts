@@ -1,4 +1,4 @@
-import { createCookieSessionStorage } from 'react-router'
+import { createCookieSessionStorage, type SessionStorage } from 'react-router'
 import { ENV } from './package-env.js'
 
 export type UtmParams = {
@@ -10,33 +10,56 @@ export type UtmParams = {
 	referrer?: string
 }
 
-if (!ENV.SESSION_SECRET) {
-	throw new Error(
-		'SESSION_SECRET environment variable is required but not set. ' +
-			'Please add SESSION_SECRET to your .env file. ' +
-			'Example: SESSION_SECRET=your-secret-key-here',
-	)
+/**
+ * Read at first use, not at module load: on Cloudflare Workers the bindings
+ * reach `ENV` only after the server build has loaded, so a top-level read
+ * would capture the build default instead of the deployed secret.
+ */
+function getUtmSecrets(): string[] {
+	if (!ENV.SESSION_SECRET) {
+		throw new Error(
+			'SESSION_SECRET environment variable is required but not set. ' +
+				'Please add SESSION_SECRET to your .env file. ' +
+				'Example: SESSION_SECRET=your-secret-key-here',
+		)
+	}
+	const secrets = ENV.SESSION_SECRET.split(',').map((s) => s.trim())
+	if (secrets.length === 0 || secrets.some((s) => s.length === 0)) {
+		throw new Error(
+			'SESSION_SECRET must contain at least one non-empty secret. ' +
+				'Example: SESSION_SECRET=your-secret-key-here',
+		)
+	}
+	return secrets
 }
 
-const utmSecrets = ENV.SESSION_SECRET.split(',').map((s) => s.trim())
-if (utmSecrets.length === 0 || utmSecrets.some((s) => s.length === 0)) {
-	throw new Error(
-		'SESSION_SECRET must contain at least one non-empty secret. ' +
-			'Example: SESSION_SECRET=your-secret-key-here',
-	)
+let _utmSessionStorage: SessionStorage | undefined
+
+function getUtmSessionStorage(): SessionStorage {
+	return (_utmSessionStorage ??= createCookieSessionStorage({
+		cookie: {
+			name: 'epic_utm',
+			sameSite: 'lax',
+			path: '/',
+			httpOnly: true,
+			secrets: getUtmSecrets(),
+			secure: ENV.NODE_ENV === 'production',
+			maxAge: 60 * 60 * 24 * 30, // 30 days
+		},
+	}))
 }
 
-const utmSessionStorage = createCookieSessionStorage({
-	cookie: {
-		name: 'epic_utm',
-		sameSite: 'lax',
-		path: '/',
-		httpOnly: true,
-		secrets: utmSecrets,
-		secure: ENV.NODE_ENV === 'production',
-		maxAge: 60 * 60 * 24 * 30, // 30 days
+const utmSessionStorage: SessionStorage = {
+	getSession(...args) {
+		return getUtmSessionStorage().getSession(...args)
 	},
-})
+	commitSession(...args) {
+		return getUtmSessionStorage().commitSession(...args)
+	},
+	destroySession(...args) {
+		return getUtmSessionStorage().destroySession(...args)
+	},
+}
 
 // Extract UTM parameters from request URL
 export async function extractUtmParams(

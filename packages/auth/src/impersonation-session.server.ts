@@ -20,15 +20,18 @@ function getImpersonationSecret(): string {
 	return secret
 }
 
-const impersonationSecrets = getImpersonationSecret()
-	.split(',')
-	.map((s) => s.trim())
-	.filter(Boolean)
-
-if (impersonationSecrets.length === 0) {
-	throw new Error(
-		'Impersonation session secret must contain at least one non-empty secret',
-	)
+/** Read at first use: Worker bindings are not in `ENV` at module load. */
+function getImpersonationSecrets(): string[] {
+	const secrets = getImpersonationSecret()
+		.split(',')
+		.map((s) => s.trim())
+		.filter(Boolean)
+	if (secrets.length === 0) {
+		throw new Error(
+			'Impersonation session secret must contain at least one non-empty secret',
+		)
+	}
+	return secrets
 }
 
 /**
@@ -47,7 +50,7 @@ function getImpersonationSessionStorage(): SessionStorage {
 			path: '/',
 			httpOnly: true,
 			domain: operatorSessionCookieDomain(),
-			secrets: impersonationSecrets,
+			secrets: getImpersonationSecrets(),
 			secure: ENV.NODE_ENV === 'production',
 		},
 	}))
