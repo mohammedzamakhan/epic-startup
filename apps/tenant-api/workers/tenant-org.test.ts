@@ -101,6 +101,45 @@ describe('TenantOrg after deprovision', () => {
 	})
 })
 
+describe('TenantOrg database setup', () => {
+	beforeEach(() => {
+		migrate.mockReset()
+		migrate.mockImplementation(async () => {})
+		appFetch.mockClear()
+	})
+
+	it('runs the migrations once for concurrent first requests', async () => {
+		const object = new TenantOrg(
+			{ storage: memoryStorage() } as never,
+			{} as never,
+		)
+		const responses = await Promise.all([
+			object.fetch(orgRequest()),
+			object.fetch(orgRequest()),
+			object.fetch(orgRequest()),
+		])
+		expect(responses.map((response) => response.status)).toEqual([
+			200, 200, 200,
+		])
+		expect(migrate).toHaveBeenCalledTimes(1)
+	})
+
+	it('retries the migrations after a failed run instead of serving an unmigrated database', async () => {
+		migrate.mockRejectedValueOnce(new Error('migration failed'))
+		const object = new TenantOrg(
+			{ storage: memoryStorage() } as never,
+			{} as never,
+		)
+		await expect(object.fetch(orgRequest())).rejects.toThrow('migration failed')
+		expect(appFetch).not.toHaveBeenCalled()
+
+		const response = await object.fetch(orgRequest())
+		expect(response.status).toBe(200)
+		expect(migrate).toHaveBeenCalledTimes(2)
+		expect(appFetch).toHaveBeenCalledTimes(1)
+	})
+})
+
 describe('TenantOrg broadcasts on the alarm', () => {
 	function alarmStorage() {
 		const state = { alarm: null as number | null }

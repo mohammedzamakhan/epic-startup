@@ -328,9 +328,14 @@ export class MarketingJourneyWorkflow extends WorkflowEntrypoint<
 							)
 						}
 					})
-					currentNodeId = matchingEdge
-						? matchingEdge.target
-						: outgoingEdges[0]?.target || null
+					// A stored edge with no handle predates the two handles and
+					// means "true". An outcome with no wired branch ends the run:
+					// it must never follow the other outcome's edge.
+					const legacyEdge =
+						branchHandle === 'true'
+							? outgoingEdges.find((e) => !e.sourceHandle)
+							: undefined
+					currentNodeId = (matchingEdge ?? legacyEdge)?.target || null
 				} else {
 					currentNodeId = outgoingEdges[0]?.target || null
 				}

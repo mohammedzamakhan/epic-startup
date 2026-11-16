@@ -4,6 +4,7 @@ import {
 	isRootSeoRequest,
 	notFound,
 	seoOrigin,
+	serviceUnavailable,
 	textResponse,
 } from '~/lib/seo-response'
 
@@ -15,6 +16,9 @@ export const prerender = false
  */
 export const GET: APIRoute = (context) => {
 	if (!isRootSeoRequest(context)) return notFound()
+	// The lookup failed: say so. `Disallow: /` here would be cached by crawlers
+	// for up to a day and close every site over one short App outage.
+	if (context.locals.organizationUnavailable) return serviceUnavailable()
 	const organization = context.locals.organization
 	return textResponse(
 		buildRobotsTxt({

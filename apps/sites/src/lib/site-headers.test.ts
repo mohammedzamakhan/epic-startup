@@ -3,6 +3,7 @@ import {
 	asAstroResponse,
 	isCareersPage,
 	isSeoFilePath,
+	isShopOrderStatusPage,
 	isSitesAppRoute,
 	publishedHtmlCacheUrl,
 	shouldCachePublishedHtml,
@@ -131,6 +132,46 @@ describe('shouldCachePublishedHtml', () => {
 				true,
 			),
 		).toBe(false)
+	})
+
+	it('never caches the shop order confirmation page', () => {
+		const get = new Request('https://acme.example/', { method: 'GET' })
+		for (const path of [
+			'/shop/success?session_id=cs_1',
+			'/ar/shop/success?session_id=cs_1',
+		]) {
+			expect(
+				shouldCachePublishedHtml(
+					get,
+					new URL(`https://acme.example${path}`),
+					true,
+				),
+			).toBe(false)
+		}
+		for (const path of ['/shop', '/shop/some-product']) {
+			expect(
+				shouldCachePublishedHtml(
+					get,
+					new URL(`https://acme.example${path}`),
+					true,
+				),
+			).toBe(true)
+		}
+	})
+})
+
+describe('isShopOrderStatusPage', () => {
+	it('matches the confirmation page with or without a locale prefix', () => {
+		expect(isShopOrderStatusPage('/shop/success')).toBe(true)
+		expect(isShopOrderStatusPage('/shop/success/')).toBe(true)
+		expect(isShopOrderStatusPage('/ar/shop/success')).toBe(true)
+	})
+
+	it('leaves the catalogue and other pages alone', () => {
+		expect(isShopOrderStatusPage('/shop')).toBe(false)
+		expect(isShopOrderStatusPage('/shop/successful-item')).toBe(false)
+		expect(isShopOrderStatusPage('/success')).toBe(false)
+		expect(isShopOrderStatusPage('/shop/success/extra')).toBe(false)
 	})
 })
 

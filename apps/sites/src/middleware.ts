@@ -3,6 +3,7 @@ import { defineMiddleware } from 'astro:middleware'
 import { createSiteI18n } from '~/lib/i18n'
 import {
 	fetchPublishedOrganizationForHost,
+	fetchPublishedOrganizationResultForHost,
 	fetchPublishedSitePage,
 	recordSiteRedirectHit,
 } from '~/lib/org'
@@ -16,6 +17,7 @@ import {
 	asAstroResponse,
 	edgeCache,
 	isCareersPage,
+	isShopOrderStatusPage,
 	isSitesAppRoute,
 	isSitesProduction,
 	publishedHtmlCacheUrl,
@@ -172,6 +174,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	context.locals.defaultLocale ??= 'en'
 	context.locals.i18n ??= createSiteI18n(context.locals.requestedLocale)
 	context.locals.organization = null
+	context.locals.organizationUnavailable = false
 
 	if (isStaticPath(url.pathname)) {
 		return withSecurityHeaders(await next(), url.pathname, hostEnv)
@@ -189,10 +192,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
-	let organization = await fetchPublishedOrganizationForHost(
+	const lookup = await fetchPublishedOrganizationResultForHost(
 		context.locals.orgSlug,
 		context.locals.customHost,
 	)
+	let organization = lookup.organization
+	context.locals.organizationUnavailable = lookup.unavailable
 
 	const enabledLocales = organization?.locales ?? ['en']
 	const defaultLocale = organization?.defaultLocale ?? 'en'
@@ -327,7 +332,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	const htmlCacheControl = cacheHtml
 		? 'public, max-age=60, s-maxage=60, stale-while-revalidate=300'
-		: isCareersPage(url.pathname)
+		: isCareersPage(url.pathname) || isShopOrderStatusPage(url.pathname)
 			? 'no-store'
 			: undefined
 	const secured = withSecurityHeaders(

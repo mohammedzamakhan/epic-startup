@@ -67,17 +67,25 @@ function getAppUrl(): string {
 	return getPublicAppUrl()
 }
 
-async function fetchAppJson<T>(
+/**
+ * `missing` is the App's definite answer (404: no such published site or
+ * page). `unavailable` is a timeout, a rate limit or a server error: the
+ * caller knows nothing, and must not treat it as "does not exist".
+ */
+type AppJsonResult<T> =
+	{ status: 'ok'; data: T } | { status: 'missing' } | { status: 'unavailable' }
+
+async function fetchAppJsonResult<T>(
 	url: string,
 	useCache = true,
-): Promise<T | null> {
+): Promise<AppJsonResult<T>> {
 	const cache = useCache ? edgeCache() : null
 	const cacheRequest = new Request(url, { method: 'GET' })
 	if (cache) {
 		const cached = await cache.match(cacheRequest)
 		if (cached?.ok) {
 			try {
-				return (await cached.json()) as T
+				return { status: 'ok', data: (await cached.json()) as T }
 			} catch {
 				/* fall through to network */
 			}
@@ -91,7 +99,9 @@ async function fetchAppJson<T>(
 			headers: { Accept: 'application/json' },
 			signal: AbortSignal.timeout(6_000),
 		})
-		if (!response.ok) return null
+		if (!response.ok) {
+			return { status: response.status === 404 ? 'missing' : 'unavailable' }
+		}
 		const data = (await response.json()) as T
 		if (cache) {
 			void cache.put(
@@ -104,10 +114,18 @@ async function fetchAppJson<T>(
 				}),
 			)
 		}
-		return data
+		return { status: 'ok', data }
 	} catch {
-		return null
+		return { status: 'unavailable' }
 	}
+}
+
+async function fetchAppJson<T>(
+	url: string,
+	useCache = true,
+): Promise<T | null> {
+	const result = await fetchAppJsonResult<T>(url, useCache)
+	return result.status === 'ok' ? result.data : null
 }
 
 async function postAppJson(url: string, body: unknown): Promise<boolean> {
@@ -147,16 +165,51 @@ export async function recordSiteNotFound(options: {
 	return postAppJson(`${getAppUrl()}/resources/sites/not-found`, options)
 }
 
+export type PublishedOrganizationResult = {
+	organization: PublicOrganization | null
+	/** The App could not answer: not the same as "no published site". */
+	unavailable: boolean
+}
+
+async function fetchPublicOrganizationResult(
+	params: URLSearchParams,
+): Promise<PublishedOrganizationResult> {
+	const result = await fetchAppJsonResult<PublicOrganization>(
+		`${getAppUrl()}/resources/sites?${params.toString()}`,
+	)
+	if (result.status !== 'ok') {
+		return { organization: null, unavailable: result.status === 'unavailable' }
+	}
+	const data = result.data
+	if (!data?.name || !data?.slug) {
+		return { organization: null, unavailable: false }
+	}
+	return { organization: data, unavailable: false }
+}
+
 async function fetchPublicOrganization(
 	params: URLSearchParams,
 ): Promise<PublicOrganization | null> {
-	const data = await fetchAppJson<PublicOrganization>(
-		`${getAppUrl()}/resources/sites?${params.toString()}`,
-	)
-	if (!data?.name || !data?.slug) {
-		return null
-	}
-	return data
+	return (await fetchPublicOrganizationResult(params)).organization
+}
+
+/**
+ * Like `fetchPublishedOrganizationForHost`, and also says whether the App
+ * failed to answer, so a caller can answer 503 instead of "no site here".
+ */
+export async function fetchPublishedOrganizationResultForHost(
+	orgSlug: string | null,
+	customHost: string | null,
+	locale?: string | null,
+): Promise<PublishedOrganizationResult> {
+	const params = orgSlug
+		? new URLSearchParams({ slug: orgSlug })
+		: customHost
+			? new URLSearchParams({ host: customHost })
+			: null
+	if (!params) return { organization: null, unavailable: false }
+	if (locale) params.set('lng', locale)
+	return fetchPublicOrganizationResult(params)
 }
 
 export async function fetchPublishedOrganizationForHost(

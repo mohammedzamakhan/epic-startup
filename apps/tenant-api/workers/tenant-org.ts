@@ -48,6 +48,7 @@ export class TenantDbDeprovisionedError extends Error {
 
 export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 	private db: DrizzleSqliteDODatabase<typeof schema> | null = null
+	private dbReady: Promise<DrizzleSqliteDODatabase<typeof schema>> | null = null
 	private readonly app = createTenantApiApp()
 	private orgId: string | null = null
 
@@ -58,8 +59,23 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 		return this.orgId
 	}
 
-	private async ensureDb() {
-		if (this.db) return this.db
+	/**
+	 * Single-flight: concurrent first requests share one migration run. The
+	 * database is cached only after the migrations succeed, so a failed run is
+	 * retried by the next request instead of serving an unmigrated schema.
+	 */
+	private ensureDb(): Promise<DrizzleSqliteDODatabase<typeof schema>> {
+		if (this.db) return Promise.resolve(this.db)
+		if (!this.dbReady) {
+			const ready = this.initDb().finally(() => {
+				if (this.dbReady === ready) this.dbReady = null
+			})
+			this.dbReady = ready
+		}
+		return this.dbReady
+	}
+
+	private async initDb() {
 		if (await this.ctx.storage.get(DEPROVISIONED_TOMBSTONE_KEY)) {
 			throw new TenantDbDeprovisionedError()
 		}
@@ -70,9 +86,9 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 		registerTenantDbTransactionRunner(db, (fn) =>
 			this.ctx.storage.transaction(fn),
 		)
+		await migrate(db, durableSqliteMigrations)
 		this.db = db
-		await migrate(this.db, durableSqliteMigrations)
-		return this.db
+		return db
 	}
 
 	async provision() {
@@ -90,6 +106,7 @@ export class TenantOrg extends DurableObject<TenantApiWorkerEnv> {
 			unregisterTenantDb(this.orgId, this.db as unknown as TenantDatabase)
 		}
 		this.db = null
+		this.dbReady = null
 	}
 
 	/**

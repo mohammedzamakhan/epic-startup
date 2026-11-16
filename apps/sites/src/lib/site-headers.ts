@@ -108,6 +108,20 @@ export function isCareersPage(pathname: string) {
 }
 
 /**
+ * The order confirmation page shows one order's live payment status, which
+ * changes when the payment webhook lands: it must never be cached.
+ */
+export function isShopOrderStatusPage(pathname: string) {
+	const segments = pathname.split('/').filter(Boolean)
+	const offset = /^[a-z]{2}(?:-[a-z]{2})?$/i.test(segments[0] ?? '') ? 1 : 0
+	return (
+		segments.length === offset + 2 &&
+		segments[offset] === 'shop' &&
+		segments[offset + 1] === 'success'
+	)
+}
+
+/**
  * `robots.txt`, `sitemap.xml` and `llms.txt` are generated per site and set
  * their own `Cache-Control`; they are not published HTML.
  */
@@ -129,6 +143,7 @@ export function shouldCachePublishedHtml(
 	if (url.searchParams.has('preview')) return false
 	if (url.pathname.startsWith('/api/')) return false
 	if (isCareersPage(url.pathname)) return false
+	if (isShopOrderStatusPage(url.pathname)) return false
 	if (isSeoFilePath(url.pathname)) return false
 	return true
 }

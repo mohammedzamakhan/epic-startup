@@ -6,6 +6,7 @@ import {
 	stripe,
 	handleSubscriptionChange,
 	handleTrialEnd,
+	linkCheckoutSubscription,
 } from '#app/utils/payments.server.ts'
 import {
 	handlePrintStripeSession,
@@ -141,6 +142,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
 					break
 				}
 				if (event.type === 'checkout.session.completed') {
+					// A platform subscription checkout: link it here too, because
+					// the browser may never reach the success URL. Connected
+					// accounts' sessions are shop orders, never platform plans.
+					if (!event.account) await linkCheckoutSubscription(session)
 					await recordShopOrderFromConnectWebhook(
 						session,
 						event.type,

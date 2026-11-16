@@ -12,18 +12,34 @@ vi.mock('~/lib/i18n', () => ({
 	createSiteI18n: vi.fn().mockReturnValue({}),
 }))
 
-vi.mock('~/lib/org', () => ({
-	fetchPublishedOrganizationForHost: vi.fn().mockResolvedValue(null),
-	fetchPublishedSitePage: vi.fn().mockResolvedValue(null),
-	recordSiteRedirectHit: vi.fn().mockResolvedValue(true),
-	recordSiteNotFound: vi.fn().mockResolvedValue(true),
-}))
+const orgLookup = vi.hoisted(() => ({ unavailable: false }))
+
+vi.mock('~/lib/org', () => {
+	const fetchPublishedOrganizationForHost = vi.fn().mockResolvedValue(null)
+	return {
+		fetchPublishedOrganizationForHost,
+		// The first lookup goes through the result variant: answer from the same
+		// mock, so each test sets the organization in one place.
+		fetchPublishedOrganizationResultForHost: async (
+			...args: [string | null, string | null]
+		) => ({
+			organization: orgLookup.unavailable
+				? null
+				: await fetchPublishedOrganizationForHost(...args),
+			unavailable: orgLookup.unavailable,
+		}),
+		fetchPublishedSitePage: vi.fn().mockResolvedValue(null),
+		recordSiteRedirectHit: vi.fn().mockResolvedValue(true),
+		recordSiteNotFound: vi.fn().mockResolvedValue(true),
+	}
+})
 
 import { onRequest } from './middleware.ts'
 
 describe('Sites middleware onRequest', () => {
 	beforeEach(() => {
 		vi.restoreAllMocks()
+		orgLookup.unavailable = false
 		process.env.PUBLIC_SITE_HOST_SUFFIXES = 'sites.localhost,epic-startup.com'
 	})
 
@@ -180,5 +196,32 @@ describe('Sites middleware onRequest', () => {
 
 		expect(next).toHaveBeenCalled()
 		expect(response.headers.get('Location')).toBeNull()
+	})
+
+	it('flags a failed organization lookup so robots.txt can answer 503', async () => {
+		orgLookup.unavailable = true
+		const context: any = {
+			request: new Request('http://acme.sites.localhost:3008/robots.txt'),
+			locals: {},
+		}
+		const next = vi.fn().mockResolvedValue(new Response('', { status: 503 }))
+
+		await onRequest(context, next)
+
+		expect(context.locals.organization).toBeNull()
+		expect(context.locals.organizationUnavailable).toBe(true)
+	})
+
+	it('does not flag a host that simply has no published site', async () => {
+		const context: any = {
+			request: new Request('http://acme.sites.localhost:3008/robots.txt'),
+			locals: {},
+		}
+		const next = vi.fn().mockResolvedValue(new Response('', { status: 200 }))
+
+		await onRequest(context, next)
+
+		expect(context.locals.organization).toBeNull()
+		expect(context.locals.organizationUnavailable).toBe(false)
 	})
 })

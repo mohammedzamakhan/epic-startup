@@ -390,6 +390,50 @@ describe('HttpClient', () => {
 			)
 		})
 
+		it('should not copy the default Authorization into a form post', async () => {
+			client.setDefaultHeader('Authorization', 'Bearer old')
+			const request = jest.spyOn(client, 'request')
+
+			await client.postForm('/organizations/default', { id: 'org_1' })
+
+			// A per-request copy would override a token refreshed before the
+			// request (or its 401 retry) is sent.
+			const passed = request.mock.calls[0]?.[1]?.headers ?? {}
+			expect(passed).not.toHaveProperty('Authorization')
+			expect(mockFetch).toHaveBeenCalledWith(
+				'https://api.example.com/organizations/default',
+				expect.objectContaining({
+					method: 'POST',
+					body: 'id=org_1',
+					headers: expect.objectContaining({
+						Authorization: 'Bearer old',
+						'Content-Type': 'application/x-www-form-urlencoded',
+					}),
+				}),
+			)
+		})
+
+		it('should send the current token when a form post is retried', async () => {
+			client.setDefaultHeader('Authorization', 'Bearer old')
+			const request = jest.spyOn(client, 'request')
+			await client.postForm('/organizations/default', { id: 'org_1' })
+
+			// What JwtHttpClient does after a refresh: same options, new default.
+			client.setDefaultHeader('Authorization', 'Bearer new')
+			const [endpoint, options] = request.mock.calls[0]!
+			await client.request(endpoint, options)
+
+			expect(mockFetch).toHaveBeenLastCalledWith(
+				'https://api.example.com/organizations/default',
+				expect.objectContaining({
+					headers: expect.objectContaining({
+						Authorization: 'Bearer new',
+						'Content-Type': 'application/x-www-form-urlencoded',
+					}),
+				}),
+			)
+		})
+
 		it('should make DELETE request', async () => {
 			await client.delete('/users/1')
 

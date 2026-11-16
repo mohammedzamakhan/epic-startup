@@ -12,6 +12,8 @@ declare global {
 			defaultLocale: string
 			i18n: I18n
 			organization: PublicOrganization | null
+			/** The organization lookup failed (App down or rate limited). */
+			organizationUnavailable: boolean
 			publishedPagePromise?: Promise<PublicWebsitePage | null>
 		}
 	}

@@ -125,4 +125,56 @@ describe('AuthGuard', () => {
 
 		expect(mockReplace).toHaveBeenCalledWith('/(auth)/sign-in')
 	})
+
+	it.each([
+		[['(dashboard)', 'organizations']],
+		[['(dashboard)', 'settings', 'profile']],
+		[['(dashboard)']],
+	])(
+		'should leave an authenticated user on dashboard screen %j',
+		async (segments) => {
+			mockUseAuth.mockReturnValue({
+				isAuthenticated: true,
+				isLoading: false,
+			})
+			mockUseSegments.mockReturnValue(segments)
+
+			render(<AuthGuard />)
+
+			await new Promise((resolve) => setTimeout(resolve, 150))
+
+			expect(mockReplace).not.toHaveBeenCalled()
+		},
+	)
+
+	it('should send an authenticated user on the index screen to the dashboard', async () => {
+		mockUseAuth.mockReturnValue({
+			isAuthenticated: true,
+			isLoading: false,
+		})
+		mockUseSegments.mockReturnValue(['index'])
+
+		render(<AuthGuard />)
+
+		await new Promise((resolve) => setTimeout(resolve, 150))
+
+		expect(mockReplace).toHaveBeenCalledWith('/(dashboard)')
+	})
+
+	it('should keep the nested route when sending an unauthenticated user to sign-in', async () => {
+		mockUseAuth.mockReturnValue({
+			isAuthenticated: false,
+			isLoading: false,
+		})
+		mockUseSegments.mockReturnValue(['(dashboard)', 'settings'])
+
+		render(<AuthGuard />)
+
+		await new Promise((resolve) => setTimeout(resolve, 150))
+
+		expect(mockReplace).toHaveBeenCalledWith({
+			pathname: '/(auth)/sign-in',
+			params: { redirectTo: '/(dashboard)/settings' },
+		})
+	})
 })
